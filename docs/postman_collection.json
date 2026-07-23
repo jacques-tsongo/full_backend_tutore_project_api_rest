@@ -1,0 +1,35 @@
+{
+  "info": {
+    "name": "Gestion Carrières API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Authentification",
+      "item": [
+        { "name": "Inscription candidat", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/auth/register", "body": { "mode": "raw", "raw": "{\n  \"nom\": \"Doe\",\n  \"prenom\": \"Jane\",\n  \"email\": \"jane@example.com\",\n  \"mot_de_passe\": \"MotDePasse123\",\n  \"role\": \"candidat\"\n}" } } },
+        { "name": "Connexion", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/auth/login", "body": { "mode": "raw", "raw": "{\n  \"email\": \"jane@example.com\",\n  \"mot_de_passe\": \"MotDePasse123\"\n}" } } },
+        { "name": "Mon compte", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/me" } }
+      ]
+    },
+    {
+      "name": "Offres et candidatures",
+      "item": [
+        { "name": "Liste des offres", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/offres?page=1&limit=10" } },
+        { "name": "Postuler", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/offres/1/postuler", "body": { "mode": "raw", "raw": "{\n  \"lettre_motivation\": \"Je souhaite présenter ma candidature.\"\n}" } } },
+        { "name": "Mon matching", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/offres/1/matching" } }
+      ]
+    },
+    {
+      "name": "Messagerie",
+      "item": [
+        { "name": "Envoyer un message", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/messages", "body": { "mode": "raw", "raw": "{\n  \"id_destinataire\": 2,\n  \"contenu\": \"Bonjour !\"\n}" } } },
+        { "name": "Notifications", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/notifications" } }
+      ]
+    }
+  ]
+}
