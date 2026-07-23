@@ -1,0 +1,1 @@
+const router=require('express').Router(); const c=require('../controllers/admin.controller'); const {authenticate,authorize}=require('../middlewares/auth.middleware'); router.use(authenticate,authorize('administrateur')); router.get('/utilisateurs',c.users); router.patch('/utilisateurs/:id/statut',c.userStatus); router.get('/statistiques',c.stats); module.exports=router;
