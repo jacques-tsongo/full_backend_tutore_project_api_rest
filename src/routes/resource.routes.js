@@ -1,5 +1,30 @@
-const router=require('express').Router(); const c=require('../controllers/resource.controller'); const offer=require('../controllers/offer.controller'); const {authenticate,authorize}=require('../middlewares/auth.middleware'); const valid=require('../middlewares/validate.middleware'); const v=require('../validators/common.validator');
-const crud=(path,name,roles=['administrateur'])=>{router.get(path,authenticate,c.list(name)); router.get(`${path}/:id`,authenticate,v.id,valid,c.get(name)); router.post(path,authenticate,authorize(...roles),c.create(name)); router.put(`${path}/:id`,authenticate,authorize(...roles),v.id,valid,c.update(name)); router.delete(`${path}/:id`,authenticate,authorize(...roles),v.id,valid,c.remove(name));};
-crud('/competences','competences',['administrateur']); crud('/experiences','experiences',['candidat']); crud('/diplomes','diplomes',['candidat']); crud('/entreprises','entreprises',['recruteur','administrateur']);
-router.get('/offres',authenticate,c.list('offres')); router.get('/offres/:id',authenticate,v.id,valid,c.get('offres')); router.post('/offres',authenticate,authorize('recruteur'),offer.create); router.put('/offres/:id',authenticate,authorize('recruteur'),v.id,valid,offer.update); router.delete('/offres/:id',authenticate,authorize('recruteur'),v.id,valid,offer.remove);
-router.get('/mes-competences',authenticate,authorize('candidat'),c.mySkills); router.post('/mes-competences',authenticate,authorize('candidat'),v.skill,valid,c.addSkill); router.delete('/mes-competences/:id',authenticate,authorize('candidat'),v.id,valid,c.removeSkill); module.exports=router;
+const router=require('express').Router(); 
+const c=require('../controllers/resource.controller'); 
+const offer=require('../controllers/offer.controller'); 
+const {authenticate,authorize}=require('../middlewares/auth.middleware'); 
+const valid=require('../middlewares/validate.middleware'); 
+const v=require('../validators/common.validator');
+
+const crud=(path,name,roles=['administrateur'])=>{
+    router.get(path,authenticate,c.list(name)); 
+    router.get(`${path}/:id`,authenticate,v.id,valid,c.get(name)); 
+    router.post(path,authenticate,authorize(...roles),c.create(name)); 
+    router.put(`${path}/:id`,authenticate,authorize(...roles),v.id,valid,c.update(name)); 
+    router.delete(`${path}/:id`,authenticate,authorize(...roles),v.id,valid,c.remove(name));
+};
+
+crud('/competences','competences',['administrateur']); 
+crud('/experiences','experiences',['candidat']); 
+crud('/diplomes','diplomes',['candidat']); 
+crud('/entreprises','entreprises',['recruteur','administrateur']);
+
+router.get('/offres',authenticate,c.list('offres')); 
+router.get('/offres/:id',authenticate,v.id,valid,c.get('offres')); 
+router.post('/offres',authenticate,authorize('recruteur'),offer.create); 
+router.put('/offres/:id',authenticate,authorize('recruteur'),v.id,valid,offer.update); 
+router.delete('/offres/:id',authenticate,authorize('recruteur'),v.id,valid,offer.remove);
+router.get('/mes-competences',authenticate,authorize('candidat'),c.mySkills); 
+router.post('/mes-competences',authenticate,authorize('candidat'),v.skill,valid,c.addSkill); 
+router.delete('/mes-competences/:id',authenticate,authorize('candidat'),v.id,valid,c.removeSkill); 
+
+module.exports=router;

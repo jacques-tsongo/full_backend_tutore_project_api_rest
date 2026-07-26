@@ -7,5 +7,9 @@ const storage = (folder) => multer.diskStorage({
 });
 const filter = (allowed) => (req, file, cb) => allowed.includes(path.extname(file.originalname).toLowerCase()) ? cb(null, true) : cb(new Error('Type de fichier non autorisé.'));
 
-exports.photoUpload = multer({ storage: storage('photos'), fileFilter: filter(['.jpg', '.jpeg', '.png']), limits: { fileSize: 5 * 1024 * 1024 } }).single('photo');
-exports.cvUpload = multer({ storage: storage('cv'), fileFilter: filter(['.pdf', '.doc', '.docx']), limits: { fileSize: 10 * 1024 * 1024 } }).single('cv');
+exports.photoUpload = multer({ 
+  storage: storage('photos'), fileFilter: filter(['.jpg', '.jpeg', '.png']), 
+  limits: { fileSize: 5 * 1024 * 1024 } }).single('photo');
+exports.cvUpload = multer({ 
+  storage: storage('cv'), fileFilter: filter(['.pdf', '.doc', '.docx']), 
+  limits: { fileSize: 10 * 1024 * 1024 } }).single('cv');

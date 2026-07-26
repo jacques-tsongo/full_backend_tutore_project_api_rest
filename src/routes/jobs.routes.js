@@ -1,1 +1,16 @@
-const router=require('express').Router(); const c=require('../controllers/job.controller'); const {authenticate,authorize}=require('../middlewares/auth.middleware'); const valid=require('../middlewares/validate.middleware'); const v=require('../validators/common.validator'); router.use(authenticate); router.put('/offres/:id/competences',authorize('recruteur'),v.id,valid,c.setSkills); router.post('/offres/:id/postuler',authorize('candidat'),v.id,valid,c.apply); router.get('/candidatures/me',authorize('candidat'),c.myApplications); router.patch('/candidatures/:id/annuler',authorize('candidat'),v.id,valid,c.cancel); router.get('/candidatures/recues',authorize('recruteur'),c.companyApplications); router.patch('/candidatures/:id/statut',authorize('recruteur'),v.id,v.application,valid,c.updateApplicationStatus); router.get('/offres/:id/matching',authorize('candidat'),v.id,valid,c.matchOffer); module.exports=router;
+const router=require('express').Router(); 
+const c=require('../controllers/job.controller'); 
+const {authenticate,authorize}=require('../middlewares/auth.middleware'); 
+const valid=require('../middlewares/validate.middleware'); 
+const v=require('../validators/common.validator'); 
+
+router.use(authenticate); 
+router.put('/offres/:id/competences',authorize('recruteur'),v.id,valid,c.setSkills); 
+router.post('/offres/:id/postuler',authorize('candidat'),v.id,valid,c.apply); 
+router.get('/candidatures/me',authorize('candidat'),c.myApplications); 
+router.patch('/candidatures/:id/annuler',authorize('candidat'),v.id,valid,c.cancel); 
+router.get('/candidatures/recues',authorize('recruteur'),c.companyApplications); 
+router.patch('/candidatures/:id/statut',authorize('recruteur'),v.id,v.application,valid,c.updateApplicationStatus); 
+router.get('/offres/:id/matching',authorize('candidat'),v.id,valid,c.matchOffer); 
+
+module.exports=router;
