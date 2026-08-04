@@ -4,9 +4,9 @@ const options = {
     definition: {
         openapi: "3.0.0",
         info: {
-            title: "Tutore API",
-            version: "1.0.0",
-            description: "Documentation de l'API"
+            title: "Projet tutoré",
+            version: "1.2.0",
+            description: "La documentation de mon api rest pour le projet tutoré" 
         },
         servers: [
             {

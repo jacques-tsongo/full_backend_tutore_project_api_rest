@@ -7,7 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const tokenFor = (user) => jwt.sign({ id: user.id_utilisateur, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 exports.register = asyncHandler(async (req, res) => {
   const { nom, prenom, email, mot_de_passe, telephone, role = 'candidat' } = req.body;
-  if (!['candidat', 'recruteur'].includes(role)) return fail(res, 'Rôle d’inscription invalide.', [], 422);
+  if (!['candidat', 'recruteur','administrateur'].includes(role)) return fail(res, 'Rôle d’inscription invalide.', [], 422);
   if (await User.findByEmail(email)) return fail(res, 'Cette adresse e-mail est déjà utilisée.', [], 409);
   const user = await User.create({ nom, prenom, email, telephone, role, password: await bcrypt.hash(mot_de_passe, 12) });
   return success(res, 'Compte créé avec succès.', { user, token: tokenFor(user) }, 201);
