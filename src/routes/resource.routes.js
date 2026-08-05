@@ -186,7 +186,7 @@ crud('/diplomes', 'diplomes', ['candidat']);
  *     responses:
  *       200: { description: Entreprise supprimée }
  */
-crud('/entreprises', 'entreprises', ['recruteur', 'administrateur']);
+crud('/entreprises', 'entreprises', ['administrateur']);
 
 /**
  * @swagger
