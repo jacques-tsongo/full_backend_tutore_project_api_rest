@@ -83,4 +83,9 @@ router.patch('/utilisateurs/:id/statut', c.userStatus);
  */
 router.get('/statistiques', c.stats); 
 
+router.get('/companies/pending', c.pendingCompanies);
+router.get('/companies/:id', c.company);
+router.put('/companies/:id/approve', c.approveCompany);
+router.put('/companies/:id/reject', c.rejectCompany);
+
 module.exports = router;
