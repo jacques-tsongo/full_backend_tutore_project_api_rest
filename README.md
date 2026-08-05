@@ -9,10 +9,13 @@ Backend Node.js/Express/MySQL d’une plateforme de gestion des carrières et of
 3. Exécutez `npm install`, puis `npm run dev`.
 
 L’API est accessible sur `http://localhost:5000/api`. Vérification : `GET /api/health`.
+L’application web vanilla HTML/CSS/JavaScript est servie par Express depuis `frontend/` sur `http://localhost:5000`.
 
 ## Décisions de modélisation
 
-Le diagramme physique associait aussi `competence` à un utilisateur, tout en ayant `utilisateur_competence`. Cela créait deux relations contradictoires. Le schéma conserve la relation N:N officielle via `utilisateur_competence`, avec le niveau de maîtrise. `profil_professionnel.id_utilisateur` et `recruteur.id_utilisateur` sont uniques afin de respecter les règles métier.
+Le diagramme physique associait aussi `competence` à un utilisateur, tout en ayant `utilisateur_competence`. Cela créait deux relations contradictoires. Le schéma conserve la relation N:N officielle via `utilisateur_competence`, avec le niveau de maîtrise.
+
+Les utilisateurs ne choisissent jamais leur rôle à l’inscription : tout nouveau compte est `candidat`. Un candidat devient `recruteur` uniquement après soumission d’une entreprise et approbation administrateur. La table `recruteur` n’est plus nécessaire : la relation recruteur est représentée par `utilisateur.role = 'recruteur'` et une `entreprise.status = 'approved'` liée à `entreprise.id_utilisateur`.
 
 ## Endpoints principaux
 
