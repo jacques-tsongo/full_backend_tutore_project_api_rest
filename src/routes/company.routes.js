@@ -1,12 +1,13 @@
 const router = require('express').Router(); 
 const c = require('../controllers/company.controller'); 
 const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
+const { companyUpload } = require('../middlewares/upload.middleware');
 
 /**
  * @swagger
  * /api/recruteurs:
  *   post:
- *     summary: Créer un profil recruteur
+ *     summary: Soumettre une entreprise pour devenir recruteur
  *     tags: [Entreprises & Recruteurs]
  *     security:
  *       - bearerAuth: []
@@ -38,7 +39,8 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
  *       403:
  *         description: Accès refusé (réservé aux recruteurs)
  */
-router.post('/recruteurs', authenticate, authorize('recruteur'), c.createRecruiter); 
+router.post('/recruteurs', authenticate, authorize('candidat'), companyUpload, c.createRecruiter); 
+router.post('/entreprises/demande-recruteur', authenticate, authorize('candidat'), companyUpload, c.createRecruiter);
 
 /**
  * @swagger
