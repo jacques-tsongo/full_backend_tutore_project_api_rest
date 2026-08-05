@@ -1,6 +1,6 @@
 -- Base officielle : gestion_carrieres
--- Correction MERISE : competence est un référentiel global. Son lien avec
--- utilisateur est uniquement utilisateur_competence (pas de id_utilisateur redondant).
+-- La relation recruteur est volontairement normalisée : un recruteur est un
+-- utilisateur dont le role devient 'recruteur' après approbation de son entreprise.
 CREATE DATABASE IF NOT EXISTS gestion_carrieres CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE gestion_carrieres;
 
@@ -14,7 +14,8 @@ CREATE TABLE utilisateur (
   photo VARCHAR(255) NULL,
   role ENUM('candidat','recruteur','administrateur') NOT NULL DEFAULT 'candidat',
   date_inscription DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  statut_compte ENUM('actif','inactif','suspendu') NOT NULL DEFAULT 'actif'
+  statut_compte ENUM('actif','inactif','suspendu') NOT NULL DEFAULT 'actif',
+  INDEX idx_utilisateur_role_statut (role, statut_compte)
 ) ENGINE=InnoDB;
 
 CREATE TABLE profil_professionnel (
@@ -51,6 +52,7 @@ CREATE TABLE experience_professionnelle (
   date_fin DATE NULL,
   description TEXT NULL,
   id_utilisateur INT UNSIGNED NOT NULL,
+  INDEX idx_experience_utilisateur (id_utilisateur),
   CONSTRAINT fk_experience_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -60,26 +62,37 @@ CREATE TABLE diplome (
   etablissement VARCHAR(150) NOT NULL,
   annee_obtention YEAR NOT NULL,
   id_utilisateur INT UNSIGNED NOT NULL,
+  INDEX idx_diplome_utilisateur (id_utilisateur),
   CONSTRAINT fk_diplome_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE entreprise (
   id_entreprise INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_utilisateur INT UNSIGNED NULL,
   nom_entreprise VARCHAR(150) NOT NULL,
+  secteur_activite VARCHAR(150) NULL,
   adresse VARCHAR(255) NULL,
-  email VARCHAR(150) NULL,
+  ville VARCHAR(120) NULL,
+  pays VARCHAR(120) NULL,
   telephone VARCHAR(20) NULL,
+  email VARCHAR(150) NULL,
+  site_web VARCHAR(255) NULL,
   description TEXT NULL,
-  statut_validation ENUM('En attente','Validée','Rejetée') NOT NULL DEFAULT 'En attente'
-) ENGINE=InnoDB;
-
-CREATE TABLE recruteur (
-  id_recruteur INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  fonction VARCHAR(100) NULL,
-  id_utilisateur INT UNSIGNED NOT NULL UNIQUE,
-  id_entreprise INT UNSIGNED NOT NULL,
-  CONSTRAINT fk_recruteur_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
-  CONSTRAINT fk_recruteur_entreprise FOREIGN KEY (id_entreprise) REFERENCES entreprise(id_entreprise) ON DELETE RESTRICT
+  logo VARCHAR(255) NULL,
+  numero_rccm VARCHAR(100) NULL,
+  numero_fiscal VARCHAR(100) NULL,
+  documents_justificatifs JSON NULL,
+  status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  statut_validation ENUM('En attente','Validée','Rejetée') NOT NULL DEFAULT 'En attente',
+  approved_by INT UNSIGNED NULL,
+  approved_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_entreprise_owner_status (id_utilisateur, status),
+  INDEX idx_entreprise_status (status),
+  INDEX idx_entreprise_nom (nom_entreprise),
+  CONSTRAINT fk_entreprise_owner FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE SET NULL,
+  CONSTRAINT fk_entreprise_approved_by FOREIGN KEY (approved_by) REFERENCES utilisateur(id_utilisateur) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE offre_emploi (
@@ -93,7 +106,8 @@ CREATE TABLE offre_emploi (
   statut_offre ENUM('Ouverte','Fermée','Suspendue') NOT NULL DEFAULT 'Ouverte',
   id_entreprise INT UNSIGNED NOT NULL,
   CONSTRAINT fk_offre_entreprise FOREIGN KEY (id_entreprise) REFERENCES entreprise(id_entreprise) ON DELETE RESTRICT,
-  INDEX idx_offre_recherche (statut_offre, localisation, date_expiration)
+  INDEX idx_offre_recherche (statut_offre, localisation, date_expiration),
+  INDEX idx_offre_entreprise (id_entreprise)
 ) ENGINE=InnoDB;
 
 CREATE TABLE offre_competence (
@@ -113,6 +127,7 @@ CREATE TABLE candidature (
   id_utilisateur INT UNSIGNED NOT NULL,
   id_offre INT UNSIGNED NOT NULL,
   UNIQUE KEY uq_candidature (id_utilisateur, id_offre),
+  INDEX idx_candidature_offre_statut (id_offre, statut_candidature),
   CONSTRAINT fk_candidature_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
   CONSTRAINT fk_candidature_offre FOREIGN KEY (id_offre) REFERENCES offre_emploi(id_offre) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -134,6 +149,7 @@ CREATE TABLE message (
   date_message DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   id_expediteur INT UNSIGNED NOT NULL,
   id_destinataire INT UNSIGNED NOT NULL,
+  INDEX idx_message_conversation (id_expediteur, id_destinataire, date_message),
   CONSTRAINT fk_message_expediteur FOREIGN KEY (id_expediteur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
   CONSTRAINT fk_message_destinataire FOREIGN KEY (id_destinataire) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -144,5 +160,6 @@ CREATE TABLE notification (
   date_notification DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   statut_notification ENUM('Non lue','Lue') NOT NULL DEFAULT 'Non lue',
   id_utilisateur INT UNSIGNED NOT NULL,
+  INDEX idx_notification_utilisateur (id_utilisateur, statut_notification, date_notification),
   CONSTRAINT fk_notification_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
