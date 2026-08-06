@@ -27,7 +27,7 @@
                         data-logout>Logout</button></div>
             </div>
             <section id="stats" class="grid three"></section>
-            <section class="card">
+            <section class="card" style="margin-top:18px">
                 <h2>Nouvelle offre</h2>
                 <form id="jobForm" class="form">
                     <div class="grid two">
@@ -40,8 +40,13 @@
                         <div class="field"><label>Salaire</label><input name="salaire" type="number"></div>
                         <div class="field"><label>Date expiration</label><input name="date_expiration" type="date"
                                 required></div>
-                    </div><button class="btn primary">Publier</button>
+                    </div>
+                    <button class="btn primary">Publier</button>
                 </form>
+            </section>
+            <section style="margin-top:18px">
+                <h2>Mes offres</h2>
+                <div id="myOffers" class="list"></div>
             </section>
         </main>
     </div>

@@ -117,3 +117,36 @@ exports.setStatus = async (id, status, adminId = null, connection = db) => {
     [status, frenchStatus[status], approvedBy, approvedAt, id]
   );
 };
+
+/**
+ * Approuve une entreprise et promeut son propriétaire au rôle recruteur,
+ * dans une transaction. Retourne l'entreprise mise à jour.
+ */
+exports.approve = async (id, adminId) => {
+  const company = await exports.findById(id);
+  if (!company) return null;
+  if (!company.id_utilisateur) throw new Error('Cette entreprise n’est liée à aucun utilisateur candidat.');
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    await exports.setStatus(id, 'approved', adminId, connection);
+    await connection.execute('UPDATE utilisateur SET role = ? WHERE id_utilisateur = ?', ['recruteur', company.id_utilisateur]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return exports.findById(id);
+};
+
+/**
+ * Rejette une entreprise (le propriétaire reste candidat).
+ */
+exports.reject = async (id, adminId = null) => {
+  const company = await exports.findById(id);
+  if (!company) return null;
+  await exports.setStatus(id, 'rejected', adminId);
+  return exports.findById(id);
+};

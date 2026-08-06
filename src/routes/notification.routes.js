@@ -25,6 +25,22 @@ router.get('/', c.list);
 
 /**
  * @swagger
+ * /api/notifications/lire-toutes:
+ *   patch:
+ *     summary: Marquer toutes les notifications de l'utilisateur comme lues
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notifications marquées comme lues
+ *       401:
+ *         description: Non authentifié
+ */
+router.patch('/lire-toutes', c.readAll);
+
+/**
+ * @swagger
  * /api/notifications/{id}/lire:
  *   patch:
  *     summary: Marquer une notification spécifique comme lue

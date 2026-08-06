@@ -42,6 +42,11 @@ const Auth = {
     $$('[data-user-name]').forEach((node) => { node.textContent = user ? `${user.prenom} ${user.nom}` : 'Invite'; });
     $$('[data-user-role]').forEach((node) => { node.textContent = user ? user.role : 'public'; });
     $$('[data-logout]').forEach((node) => node.addEventListener('click', () => this.logout()));
+    if (user) {
+      // Utilisateur connecté : les boutons d'accueil mènent au dashboard.
+      $$('[data-auth-action="connexion"]').forEach((node) => { node.textContent = 'Mon dashboard'; node.href = this.dashboardPath(user.role); });
+      $$('[data-auth-action="inscription"]').forEach((node) => node.remove());
+    }
   }
 };
 

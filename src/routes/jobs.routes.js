@@ -86,7 +86,7 @@ router.put('/offres/:id/competences', authorize('recruteur'), v.id, v.offerSkill
  *       404:
  *         description: Offre non trouvée
  */
-router.post('/offres/:id/postuler', authorize('candidat'), v.id, valid, c.apply); 
+router.post('/offres/:id/postuler', authorize('candidat'), v.id, v.applicationLetter, valid, c.apply); 
 
 /**
  * @swagger
@@ -175,12 +175,16 @@ router.get('/candidatures/recues', authorize('recruteur'), c.companyApplications
  *           schema:
  *             type: object
  *             required:
- *               - statut
+ *               - statut_candidature
  *             properties:
+ *               statut_candidature:
+ *                 type: string
+ *                 enum: [En attente, Présélectionnée, Entretien, Acceptée, Refusée]
+ *                 example: Entretien
  *               statut:
  *                 type: string
- *                 enum: [en_attente, acceptee, meconnue, rejetee]
- *                 example: acceptee
+ *                 description: Alias accepté de statut_candidature
+ *                 enum: [En attente, Présélectionnée, Entretien, Acceptée, Refusée]
  *     responses:
  *       200:
  *         description: Statut de la candidature mis à jour

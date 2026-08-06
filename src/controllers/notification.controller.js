@@ -8,3 +8,7 @@ exports.read = asyncHandler(async (req, res) => {
     const [result] = await db.execute("UPDATE notification SET statut_notification='Lue' WHERE id_notification=? AND id_utilisateur=?", [req.params.id, req.user.id_utilisateur]); 
     if (!result.affectedRows) return fail(res, 'Notification introuvable.', [], 404);
     success(res, 'Notification marquée comme lue.'); });
+exports.readAll = asyncHandler(async (req, res) => {
+    await db.execute("UPDATE notification SET statut_notification='Lue' WHERE id_utilisateur=? AND statut_notification='Non lue'", [req.user.id_utilisateur]);
+    success(res, 'Toutes les notifications ont été marquées comme lues.');
+});

@@ -1,1 +1,14 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Matching</title><link rel="stylesheet" href="css/style.css"></head><body data-page="matching"><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><nav class="side-nav"><a href="/candidate-dashboard.html">Dashboard</a><a href="/jobs.html">Offres</a><a class="active" href="/matching.html">Matching</a></nav></aside><main class="main"><div class="topbar"><h1>Matching</h1><button class="btn" data-theme-toggle>Theme</button></div><section class="grid two"><form id="matchingForm" class="card form"><div class="field"><label>ID offre</label><input name="id_offre" type="number" min="1" required></div><button class="btn primary">Calculer</button></form><div id="matchingResult"></div></section></main></div><script src="js/storage.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/theme.js"></script><script src="js/matching.js"></script></body></html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Matching</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="matching"><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><nav class="side-nav"><a href="/candidate-dashboard.html">Dashboard</a><a href="/profile.html">Profil</a><a href="/jobs.html">Offres</a><a class="active" href="/matching.html">Matching</a><a href="/messages.html">Messages</a><a href="/notifications.html">Notifications</a></nav><div class="side-footer"><span data-user-name></span> · <span data-user-role></span></div></aside>
+<main class="main"><div class="topbar"><h1>Matching</h1><div class="nav-actions"><button class="btn" data-theme-toggle>Theme</button><button class="btn" data-logout>Logout</button></div></div>
+<section class="grid two">
+  <form id="matchingForm" class="card form">
+    <h2>Calculer mon score</h2>
+    <p>Le score mesure la correspondance entre vos compétences (utilisateur_competence) et celles requises par l'offre (offre_competence).</p>
+    <div class="field"><label>Offre</label><select id="offerSelect" name="id_offre" required></select></div>
+    <button class="btn primary">Calculer</button>
+  </form>
+  <div id="matchingResult" class="list"><div class="card">Choisissez une offre pour voir votre score de compatibilité.</div></div>
+</section>
+</main></div>
+<script src="js/storage.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/theme.js"></script><script src="js/matching.js"></script></body></html>

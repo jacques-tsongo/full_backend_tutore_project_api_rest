@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   if (document.body.dataset.page !== 'profile') return;
-  Auth.requireRole(['candidat']);
+  // Le profil professionnel reste modifiable après promotion en recruteur.
+  Auth.requireRole(['candidat', 'recruteur']);
   const form = $('#profileForm');
   const progress = $('#uploadProgress span');
   try {

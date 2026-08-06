@@ -57,6 +57,22 @@ router.get('/', c.conversations);
 
 /**
  * @swagger
+ * /api/messages/contacts:
+ *   get:
+ *     summary: Lister les utilisateurs que je peux contacter (relation métier)
+ *     tags: [Messagerie]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des contacts légitimes
+ *       401:
+ *         description: Non authentifié
+ */
+router.get('/contacts', c.contacts);
+
+/**
+ * @swagger
  * /api/messages/{userId}:
  *   get:
  *     summary: Récupérer le fil de discussion avec un utilisateur spécifique

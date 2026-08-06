@@ -1,1 +1,20 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Messages</title><link rel="stylesheet" href="css/style.css"></head><body data-page="messages"><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><nav class="side-nav"><a href="/jobs.html">Offres</a><a href="/applications.html">Candidatures</a><a class="active" href="/messages.html">Messages</a><a href="/notifications.html">Notifications</a></nav></aside><main class="main"><div class="topbar"><h1>Messages</h1><button class="btn" data-theme-toggle>Theme</button></div><div id="messagesList" class="list"></div></main></div><script src="js/storage.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/theme.js"></script><script src="js/messages.js"></script></body></html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Messages</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="messages"><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><nav class="side-nav"><a href="/candidate-dashboard.html">Dashboard</a><a href="/jobs.html">Offres</a><a href="/applications.html">Candidatures</a><a class="active" href="/messages.html">Messages</a><a href="/notifications.html">Notifications</a></nav><div class="side-footer"><span data-user-name></span> · <span data-user-role></span></div></aside>
+<main class="main"><div class="topbar"><h1>Messages</h1><div class="nav-actions"><button class="btn" data-theme-toggle>Theme</button><button class="btn" data-logout>Logout</button></div></div>
+<section class="grid two">
+  <div>
+    <h2>Conversations</h2>
+    <div id="messagesList" class="list"></div>
+    <div class="card form" style="margin-top:18px">
+      <h2>Nouveau message</h2>
+      <form id="composeForm" class="form">
+        <div class="field"><label>Destinataire</label><select id="composeRecipient" name="id_destinataire" required></select></div>
+        <div class="field"><label>Message</label><textarea name="contenu" rows="3" required></textarea></div>
+        <button class="btn primary" type="submit">Envoyer</button>
+      </form>
+    </div>
+  </div>
+  <div id="messageThread" class="list"><div class="card">Sélectionnez une conversation ou envoyez un message.</div></div>
+</section>
+</main></div>
+<script src="js/storage.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/theme.js"></script><script src="js/messages.js"></script></body></html>
