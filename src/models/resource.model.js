@@ -5,7 +5,7 @@ const schema = {
   competences: { table: 'competence', id: 'id_competence', fields: ['nom_competence', 'description'], search: ['nom_competence'] },
   experiences: { table: 'experience_professionnelle', id: 'id_experience', fields: ['poste', 'entreprise', 'date_debut', 'date_fin', 'description'], owner: 'id_utilisateur', search: ['poste', 'entreprise'] },
   diplomes: { table: 'diplome', id: 'id_diplome', fields: ['intitule', 'etablissement', 'annee_obtention'], owner: 'id_utilisateur', search: ['intitule', 'etablissement'] },
-  entreprises: { table: 'entreprise', id: 'id_entreprise', fields: ['nom_entreprise', 'adresse', 'email', 'telephone', 'description'], search: ['nom_entreprise'] },
+  entreprises: { table: 'entreprise', id: 'id_entreprise', fields: ['nom_entreprise', 'secteur_activite', 'adresse', 'pays', 'ville', 'email', 'telephone', 'site_web', 'description', 'logo', 'numero_rccm', 'numero_fiscal', 'documents_justificatifs', 'status'], search: ['nom_entreprise'] },
   offres: { table: 'offre_emploi', id: 'id_offre', fields: ['titre_offre', 'description_offre', 'salaire', 'localisation', 'date_expiration', 'statut_offre'], owner: 'id_entreprise', search: ['titre_offre', 'localisation'] }
 };
 exports.schema = schema;

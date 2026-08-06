@@ -10,6 +10,7 @@ exports.get = asyncHandler(async (req, res) => {
 exports.upsert = asyncHandler(async (req, res) => {
   const fields = ['bio', 'adresse', 'date_naissance', 'lieu_naissance'];
   const data = fields.filter((f) => req.body[f] !== undefined);
+  if (!data.length) return exports.get(req, res);
   const values = data.map((f) => req.body[f]);
   const [existing] = await db.execute('SELECT id_profil FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
   if (existing[0]) await db.execute(`UPDATE profil_professionnel SET ${data.map((f) => `${f} = ?`).join(', ')} WHERE id_utilisateur = ?`, [...values, req.user.id_utilisateur]);

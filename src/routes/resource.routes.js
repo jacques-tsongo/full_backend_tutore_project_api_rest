@@ -233,7 +233,7 @@ crud('/entreprises', 'entreprises', ['administrateur']);
  *         description: Accès refusé (réservé aux recruteurs)
  */
 router.get('/offres', authenticate, c.list('offres')); 
-router.post('/offres', authenticate, authorize('recruteur'), offer.create); 
+router.post('/offres', authenticate, authorize('recruteur'), v.offerCreate, valid, offer.create); 
 
 /**
  * @swagger
@@ -294,7 +294,7 @@ router.post('/offres', authenticate, authorize('recruteur'), offer.create);
  *         description: Accès refusé
  */
 router.get('/offres/:id', authenticate, v.id, valid, c.get('offres')); 
-router.put('/offres/:id', authenticate, authorize('recruteur'), v.id, valid, offer.update); 
+router.put('/offres/:id', authenticate, authorize('recruteur'), v.id, v.offerUpdate, valid, offer.update); 
 router.delete('/offres/:id', authenticate, authorize('recruteur'), v.id, valid, offer.remove);
 
 /**

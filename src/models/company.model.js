@@ -1,0 +1,119 @@
+const db = require('../config/database');
+
+const selectCompany = `
+  SELECT e.*, u.nom, u.prenom, u.email AS email_utilisateur, u.role
+  FROM entreprise e
+  LEFT JOIN utilisateur u ON u.id_utilisateur = e.id_utilisateur
+`;
+
+const frenchStatus = {
+  pending: 'En attente',
+  approved: 'Validée',
+  rejected: 'Rejetée'
+};
+
+const normalizePayload = (body, files = {}) => {
+  const documents = [
+    ...(files.documents || []),
+    ...(files.supporting_documents || [])
+  ].map((file) => `/uploads/companies/${file.filename}`);
+
+  return {
+    nom_entreprise: body.nom_entreprise || body.company_name || body.name,
+    secteur_activite: body.secteur_activite || body.business_sector || body.sector,
+    adresse: body.adresse || body.address,
+    pays: body.pays || body.country,
+    ville: body.ville || body.city,
+    telephone: body.telephone || body.phone,
+    email: body.email,
+    site_web: body.site_web || body.website,
+    description: body.description || body.company_description,
+    logo: files.logo?.[0] ? `/uploads/companies/${files.logo[0].filename}` : body.logo,
+    numero_rccm: body.numero_rccm || body.registration_number || body.rccm,
+    numero_fiscal: body.numero_fiscal || body.tax_number,
+    documents_justificatifs: documents.length ? JSON.stringify(documents) : body.documents_justificatifs
+  };
+};
+
+exports.normalizePayload = normalizePayload;
+
+exports.hasOpenRequest = async (userId) => {
+  const [rows] = await db.execute(
+    "SELECT id_entreprise, status FROM entreprise WHERE id_utilisateur = ? AND status IN ('pending', 'approved') LIMIT 1",
+    [userId]
+  );
+  return rows[0];
+};
+
+exports.createPending = async (userId, data) => {
+  const fields = [
+    'nom_entreprise',
+    'secteur_activite',
+    'adresse',
+    'pays',
+    'ville',
+    'telephone',
+    'email',
+    'site_web',
+    'description',
+    'logo',
+    'numero_rccm',
+    'numero_fiscal',
+    'documents_justificatifs',
+    'id_utilisateur',
+    'status',
+    'statut_validation'
+  ];
+  const values = [
+    data.nom_entreprise,
+    data.secteur_activite,
+    data.adresse,
+    data.pays,
+    data.ville,
+    data.telephone,
+    data.email,
+    data.site_web || null,
+    data.description,
+    data.logo || null,
+    data.numero_rccm,
+    data.numero_fiscal || null,
+    data.documents_justificatifs || null,
+    userId,
+    'pending',
+    frenchStatus.pending
+  ];
+  const [result] = await db.execute(
+    `INSERT INTO entreprise (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`,
+    values
+  );
+  return exports.findById(result.insertId);
+};
+
+exports.findPending = async () => {
+  const [rows] = await db.execute(`${selectCompany} WHERE e.status = 'pending' ORDER BY e.id_entreprise DESC`);
+  return rows;
+};
+
+exports.findApprovedByOwner = async (userId) => {
+  const [rows] = await db.execute(`${selectCompany} WHERE e.id_utilisateur = ? AND e.status = 'approved' LIMIT 1`, [userId]);
+  return rows[0];
+};
+
+exports.findByOwner = async (userId) => {
+  const [rows] = await db.execute(`${selectCompany} WHERE e.id_utilisateur = ? ORDER BY e.id_entreprise DESC`, [userId]);
+  return rows;
+};
+
+exports.findById = async (id) => {
+  const [rows] = await db.execute(`${selectCompany} WHERE e.id_entreprise = ?`, [id]);
+  return rows[0];
+};
+
+exports.setStatus = async (id, status, adminId = null, connection = db) => {
+  const approvedAt = status === 'approved' ? new Date() : null;
+  const approvedBy = status === 'approved' ? adminId : null;
+  await connection.execute(
+    'UPDATE entreprise SET status = ?, statut_validation = ?, approved_by = ?, approved_at = ? WHERE id_entreprise = ?',
+    [status, frenchStatus[status], approvedBy, approvedAt, id]
+  );
+};

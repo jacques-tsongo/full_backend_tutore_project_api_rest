@@ -3,8 +3,8 @@ const c = require('../controllers/profile.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
 const { photoUpload, cvUpload } = require('../middlewares/upload.middleware'); 
 
-// Authentification et rôle candidat requis pour toutes les routes ci-dessous
-router.use(authenticate, authorize('candidat')); 
+// Le profil professionnel reste consultable après promotion en recruteur.
+router.use(authenticate, authorize('candidat', 'recruteur')); 
 
 /**
  * @swagger

@@ -1,6 +1,8 @@
 const router = require('express').Router(); 
 const c = require('../controllers/notification.controller'); 
 const { authenticate } = require('../middlewares/auth.middleware'); 
+const valid = require('../middlewares/validate.middleware');
+const v = require('../validators/common.validator');
 
 // Authentification requise pour l'ensemble des routes de notifications
 router.use(authenticate); 
@@ -46,6 +48,6 @@ router.get('/', c.list);
  *       404:
  *         description: Notification non trouvée
  */
-router.patch('/:id/lire', c.read); 
+router.patch('/:id/lire', v.id, valid, c.read); 
 
 module.exports = router;

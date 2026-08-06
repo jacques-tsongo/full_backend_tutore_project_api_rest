@@ -7,6 +7,6 @@ db.getConnection().then((c) => {
     app.listen(port, 
     () => console.log(`API démarrée sur http://localhost:${port}`)); 
 }).catch((err) => { 
-    console.error('Connexion MySQL impossible :', err.message); 
+    console.error('Connexion MySQL impossible :', err.message || err.code || err); 
     process.exit(1); 
 });

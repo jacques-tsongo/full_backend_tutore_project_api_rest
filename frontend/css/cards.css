@@ -1,0 +1,11 @@
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+.card h2, .card h3 { margin: 0 0 10px; letter-spacing: 0; }
+.card p { color: var(--muted); line-height: 1.55; }
+.stat { display: grid; gap: 6px; }
+.stat strong { font-size: 28px; }
+.badge { display: inline-flex; align-items: center; min-height: 26px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 13px; }
+.badge.success { color: var(--success); }
+.badge.warning { color: var(--warning); }
+.badge.danger { color: var(--danger); }
+.skeleton { position: relative; overflow: hidden; min-height: 78px; background: var(--surface-2); border-radius: var(--radius); }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent); animation: shimmer 1.2s infinite; }

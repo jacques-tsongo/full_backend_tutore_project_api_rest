@@ -1,6 +1,8 @@
 const router = require('express').Router(); 
 const c = require('../controllers/message.controller'); 
 const { authenticate } = require('../middlewares/auth.middleware'); 
+const valid = require('../middlewares/validate.middleware');
+const v = require('../validators/common.validator');
 
 // Authentification requise pour l'ensemble des routes de messagerie
 router.use(authenticate); 
@@ -50,7 +52,7 @@ router.use(authenticate);
  *       401:
  *         description: Non authentifié
  */
-router.post('/', c.send); 
+router.post('/', v.message, valid, c.send); 
 router.get('/', c.conversations); 
 
 /**
@@ -78,6 +80,6 @@ router.get('/', c.conversations);
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.get('/:userId', c.conversation); 
+router.get('/:userId', v.userId, valid, c.conversation); 
 
 module.exports = router;

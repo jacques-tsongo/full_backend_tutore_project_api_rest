@@ -48,7 +48,7 @@ router.use(authenticate);
  *       404:
  *         description: Offre non trouvée
  */
-router.put('/offres/:id/competences', authorize('recruteur'), v.id, valid, c.setSkills); 
+router.put('/offres/:id/competences', authorize('recruteur'), v.id, v.offerSkills, valid, c.setSkills); 
 
 /**
  * @swagger

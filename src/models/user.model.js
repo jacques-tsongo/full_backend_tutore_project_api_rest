@@ -4,9 +4,13 @@ const publicFields = 'id_utilisateur, nom, prenom, email, telephone, photo, role
 exports.publicFields = publicFields;
 exports.findByEmail = async (email) => (await db.execute(`SELECT ${publicFields}, mot_de_passe FROM utilisateur WHERE email = ?`, [email]))[0][0];
 exports.findById = async (id) => (await db.execute(`SELECT ${publicFields} FROM utilisateur WHERE id_utilisateur = ?`, [id]))[0][0];
-exports.create = async ({ nom, prenom, email, password, telephone, role }) => {
+exports.create = async ({ nom, prenom, email, password, telephone, role = 'candidat' }) => {
   const [r] = await db.execute('INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role) VALUES (?, ?, ?, ?, ?, ?)', [nom, prenom, email, password, telephone || null, role]);
   return exports.findById(r.insertId);
+};
+exports.updateRole = async (id, role, connection = db) => {
+  await connection.execute('UPDATE utilisateur SET role = ? WHERE id_utilisateur = ?', [role, id]);
+  return exports.findById(id);
 };
 exports.update = async (id, data) => {
   const allowed = ['nom', 'prenom', 'telephone', 'photo'];

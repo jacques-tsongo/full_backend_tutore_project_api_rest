@@ -1,6 +1,8 @@
 const router = require('express').Router(); 
 const c = require('../controllers/admin.controller'); 
 const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
+const valid = require('../middlewares/validate.middleware');
+const v = require('../validators/common.validator');
 
 // Applique l'authentification et la vérification du rôle administrateur à toutes les routes ci-dessous
 router.use(authenticate, authorize('administrateur')); 
@@ -84,8 +86,8 @@ router.patch('/utilisateurs/:id/statut', c.userStatus);
 router.get('/statistiques', c.stats); 
 
 router.get('/companies/pending', c.pendingCompanies);
-router.get('/companies/:id', c.company);
-router.put('/companies/:id/approve', c.approveCompany);
-router.put('/companies/:id/reject', c.rejectCompany);
+router.get('/companies/:id', v.id, valid, c.company);
+router.put('/companies/:id/approve', v.id, valid, c.approveCompany);
+router.put('/companies/:id/reject', v.id, valid, c.rejectCompany);
 
 module.exports = router;

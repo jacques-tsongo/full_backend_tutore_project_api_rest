@@ -1,0 +1,22 @@
+.form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; }
+.field label { color: var(--muted); font-size: 14px; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 11px 12px;
+  outline: none;
+}
+.field textarea { min-height: 120px; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15,107,123,.16); }
+.btn { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 6px; min-height: 40px; padding: 9px 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn:hover { border-color: var(--primary); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.btn.full { width: 100%; }
+.search { min-width: 260px; }
+.progress { height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.progress span { display: block; height: 100%; width: 0; background: var(--primary); transition: width .2s ease; }

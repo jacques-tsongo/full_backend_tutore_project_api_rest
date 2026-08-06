@@ -1,0 +1,12 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 22px 16px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.side-nav { margin-top: 24px; display: grid; gap: 6px; }
+.side-nav a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 9px 10px; border-radius: 6px; color: var(--muted); }
+.side-nav a:hover, .side-nav a.active { background: var(--surface-2); color: var(--text); }
+.side-footer { position: absolute; left: 16px; right: 16px; bottom: 18px; color: var(--muted); font-size: 13px; }

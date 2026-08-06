@@ -3,12 +3,12 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const matching = require('../services/matching.service');
 const notify = require('../services/notification.service');
+const Company = require('../models/company.model');
 
-const recruiterCompany = async (userId) => (
-    await db.execute('SELECT r.id_entreprise, e.statut_validation  FROM recruteur r JOIN entreprise e ON e.id_entreprise=r.id_entreprise WHERE r.id_utilisateur=?', [userId]))[0][0];
+const recruiterCompany = (userId) => Company.findApprovedByOwner(userId);
 exports.setSkills = asyncHandler(async (req, res) => { 
     const company = await recruiterCompany(req.user.id_utilisateur); 
-    if (!company) return fail(res, 'Profil recruteur requis.', [], 403); 
+    if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403); 
     const [offer] = await db.execute('SELECT id_offre FROM offre_emploi WHERE id_offre=? AND id_entreprise=?', [req.params.id, company.id_entreprise]); if (!offer[0]) return fail(res, 'Offre introuvable.', [], 404); 
     await db.execute('DELETE FROM offre_competence WHERE id_offre = ?', [req.params.id]); 
     for (const skill of req.body.competences || [])
@@ -22,7 +22,7 @@ exports.apply = asyncHandler(async (req, res) => {
     const [r] = await db.execute("INSERT INTO candidature (id_utilisateur, id_offre, lettre_motivation) VALUES (?, ?, ?)", 
         [req.user.id_utilisateur, id, req.body.lettre_motivation || null]); 
     const score = await matching.calculate(req.user.id_utilisateur, id); 
-    const [recruiters] = await db.execute('SELECT id_utilisateur FROM recruteur WHERE id_entreprise = ?', [offer[0].id_entreprise]); 
+    const [recruiters] = await db.execute("SELECT id_utilisateur FROM entreprise WHERE id_entreprise = ? AND status = 'approved'", [offer[0].id_entreprise]); 
     await Promise.all(recruiters.map((x) => notify.create(x.id_utilisateur, `Nouvelle candidature pour « ${offer[0].titre_offre} ».`))); 
     success(res, 'Candidature envoyée.', { id_candidature: r.insertId, matching: score }, 201); });
 exports.myApplications = asyncHandler(async (req, res) => { 
@@ -33,13 +33,13 @@ exports.cancel = asyncHandler(async (req, res) => {
     if (!r.affectedRows) return fail(res, 'Candidature non annulable.', [], 400); 
     success(res, 'Candidature annulée.'); });
 exports.companyApplications = asyncHandler(async (req, res) => { 
-    const company = await recruiterCompany(req.user.id_utilisateur); if (!company) return fail(res, 'Profil recruteur requis.', [], 403); 
+    const company = await recruiterCompany(req.user.id_utilisateur); if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403); 
     const [rows] = await db.execute('SELECT c.*, u.nom, u.prenom, u.email, o.titre_offre FROM candidature c JOIN offre_emploi o ON o.id_offre=c.id_offre JOIN utilisateur u ON u.id_utilisateur=c.id_utilisateur WHERE o.id_entreprise=? ORDER BY c.date_candidature DESC', [company.id_entreprise]); 
     success(res, 'Candidatures reçues.', { items: rows }); });
 exports.updateApplicationStatus = asyncHandler(async (req, res) => { 
     const company = await recruiterCompany(req.user.id_utilisateur); 
     const allowed=['En attente','Présélectionnée','Entretien','Acceptée','Refusée']; 
-    if (!company || !allowed.includes(req.body.statut_candidature)) return fail(res, 'Action invalide.', [], 422); 
+    if (!company || company.status !== 'approved' || !allowed.includes(req.body.statut_candidature)) return fail(res, 'Action invalide.', [], 422); 
     const [rows] = await db.execute('SELECT c.id_utilisateur, o.titre_offre FROM candidature c JOIN offre_emploi o ON o.id_offre=c.id_offre WHERE c.id_candidature=? AND o.id_entreprise=?', [req.params.id, company.id_entreprise]); 
     if (!rows[0]) return fail(res, 'Candidature introuvable.', [], 404); 
     await db.execute('UPDATE candidature SET statut_candidature=? WHERE id_candidature=?', [req.body.statut_candidature, req.params.id]); 
