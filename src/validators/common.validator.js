@@ -22,6 +22,16 @@ exports.offerUpdate = [
   body('salaire').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }),
   body('statut_offre').optional().isIn(['Ouverte','Fermée','Suspendue'])
 ];
-exports.application = [body('statut_candidature').isIn(['En attente','Présélectionnée','Entretien','Acceptée','Refusée'])];
+exports.application = [
+  body('statut_candidature').optional().isIn(['En attente','Présélectionnée','Entretien','Acceptée','Refusée']),
+  body('statut').optional().isIn(['En attente','Présélectionnée','Entretien','Acceptée','Refusée'])
+    .withMessage('Statut de candidature invalide.'),
+  body().custom((value) => {
+    const statut = value.statut_candidature ?? value.statut;
+    if (!statut) throw new Error('Le statut de candidature est requis.');
+    return true;
+  })
+];
+exports.applicationLetter = [body('lettre_motivation').optional({ nullable: true }).isString().isLength({ max: 5000 }), body('lettreMotivation').optional({ nullable: true }).isString().isLength({ max: 5000 })];
 exports.message = [body('id_destinataire').isInt({ min: 1 }), body('contenu').trim().notEmpty().isLength({ max: 5000 })];
 exports.userId = [param('userId').isInt({ min: 1 })];

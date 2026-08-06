@@ -1,6 +1,11 @@
 -- Base officielle : gestion_carrieres
 -- La relation recruteur est volontairement normalisée : un recruteur est un
 -- utilisateur dont le role devient 'recruteur' après approbation de son entreprise.
+
+-- Garantit l'encodage UTF-8 des valeurs accentuées (ENUM, textes) quel que
+-- soit le charset du client qui exécute ce script (évite le double encodage).
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS gestion_carrieres CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE gestion_carrieres;
 

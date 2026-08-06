@@ -1,6 +1,4 @@
-const db = require('../config/database');
 const Company = require('../models/company.model');
-const User = require('../models/user.model');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const notify = require('../services/notification.service');
@@ -35,24 +33,21 @@ exports.myRecruiter = asyncHandler(async (req, res) => {
   const company = await Company.findApprovedByOwner(req.user.id_utilisateur);
     success(res, 'Profil recruteur.', { recruiter: company || null, company: company || null }); 
   });
-exports.validate = asyncHandler(async (req, res) => { 
+exports.validate = asyncHandler(async (req, res) => {
   const map = { 'Validée': 'approved', 'Rejetée': 'rejected', pending: 'pending', approved: 'approved', rejected: 'rejected' };
   const status = map[req.body.status] || map[req.body.statut_validation];
-  if (!['pending', 'approved', 'rejected'].includes(status)) return fail(res, 'Statut de validation invalide.', [], 422); 
+  if (!['pending', 'approved', 'rejected'].includes(status)) return fail(res, 'Statut de validation invalide.', [], 422);
   const company = await Company.findById(req.params.id);
   if (!company) return fail(res, 'Entreprise introuvable.', [], 404);
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-    await Company.setStatus(req.params.id, status, req.user.id_utilisateur, connection);
-    if (status === 'approved' && company.id_utilisateur) await User.updateRole(company.id_utilisateur, 'recruteur', connection);
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
+
+  if (status === 'approved') {
+    const approved = await Company.approve(req.params.id, req.user.id_utilisateur);
+    await notify.create(approved.id_utilisateur, `Votre entreprise « ${approved.nom_entreprise} » a été approuvée. Vous êtes maintenant recruteur.`);
+  } else if (status === 'rejected') {
+    await Company.reject(req.params.id, req.user.id_utilisateur);
+    if (company.id_utilisateur) await notify.create(company.id_utilisateur, `Votre demande recruteur pour « ${company.nom_entreprise} » a été rejetée.`);
+  } else {
+    await Company.setStatus(req.params.id, 'pending', null);
   }
-  if (company.id_utilisateur && status === 'approved') await notify.create(company.id_utilisateur, `Votre entreprise « ${company.nom_entreprise} » a été approuvée. Vous êtes maintenant recruteur.`);
-  if (company.id_utilisateur && status === 'rejected') await notify.create(company.id_utilisateur, `Votre demande recruteur pour « ${company.nom_entreprise} » a été rejetée.`);
-  success(res, 'Entreprise mise à jour.'); });
+  success(res, 'Entreprise mise à jour.');
+});

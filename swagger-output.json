@@ -1,603 +1,1940 @@
 {
-  "swagger": "2.0",
+  "openapi": "3.0.0",
   "info": {
-    "title": "Mon API",
-    "description": "Documentation de mon API REST",
-    "version": "1.0.0"
+    "title": "Projet tutoré",
+    "version": "1.2.0",
+    "description": "La documentation de mon api rest pour le projet tutoré"
   },
-  "host": "localhost:3000",
-  "basePath": "/",
-  "tags": [],
-  "schemes": [
-    "http"
+  "servers": [
+    {
+      "url": "http://localhost:5000/api"
+    }
   ],
-  "consumes": [],
-  "produces": [],
   "paths": {
-    "/api/health": {
+    "/api/competences": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/auth/register": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Lister toutes les compétences",
+        "tags": [
+          "Ressources - Compétences"
+        ],
+        "security": [
           {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "nom": {
-                  "example": "any"
-                },
-                "prenom": {
-                  "example": "any"
-                },
-                "email": {
-                  "example": "any"
-                },
-                "mot_de_passe": {
-                  "example": "any"
-                },
-                "telephone": {
-                  "example": "any"
-                },
-                "role": {
-                  "example": "any"
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des compétences"
+          }
+        }
+      },
+      "post": {
+        "summary": "Créer une nouvelle compétence (Admin)",
+        "tags": [
+          "Ressources - Compétences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nom": {
+                    "type": "string",
+                    "example": "Node.js"
+                  }
                 }
               }
             }
           }
-        ],
-        "responses": {}
+        },
+        "responses": {
+          "201": {
+            "description": "Compétence créée"
+          },
+          "403": {
+            "description": "Accès refusé (Admin uniquement)"
+          }
+        }
       }
     },
-    "/api/auth/login": {
-      "post": {
-        "tags": [],
-        "description": "",
+    "/api/competences/{id}": {
+      "get": {
+        "summary": "Obtenir une compétence par son ID",
+        "tags": [
+          "Ressources - Compétences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
-            "name": "obj",
-            "in": "body",
+            "in": "path",
+            "name": "id",
+            "required": true,
             "schema": {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "example": "any"
-                },
-                "mot_de_passe": {
-                  "example": "any"
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails de la compétence"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modifier une compétence (Admin)",
+        "tags": [
+          "Ressources - Compétences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nom": {
+                    "type": "string"
+                  }
                 }
               }
             }
           }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/auth/me": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      },
-      "put": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/auth/logout": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/profil/": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      },
-      "put": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/profil/photo": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/profil/cv": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api${path}/{id}": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+        },
+        "responses": {
+          "200": {
+            "description": "Compétence mise à jour"
           }
-        ],
-        "responses": {}
-      },
-      "put": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
+        }
       },
       "delete": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Supprimer une compétence (Admin)",
+        "tags": [
+          "Ressources - Compétences"
+        ],
+        "security": [
           {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compétence supprimée"
+          }
+        }
       }
     },
-    "/apipath": {
+    "/api/experiences": {
+      "get": {
+        "summary": "Lister les expériences",
+        "tags": [
+          "Ressources - Expériences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des expériences"
+          }
+        }
+      },
       "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Ajouter une expérience (Candidat)",
+        "tags": [
+          "Ressources - Expériences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Expérience créée"
+          }
+        }
+      }
+    },
+    "/api/experiences/{id}": {
+      "get": {
+        "summary": "Obtenir les détails d'une expérience",
+        "tags": [
+          "Ressources - Expériences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails de l'expérience"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modifier une expérience (Candidat)",
+        "tags": [
+          "Ressources - Expériences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expérience mise à jour"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Supprimer une expérience (Candidat)",
+        "tags": [
+          "Ressources - Expériences"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expérience supprimée"
+          }
+        }
+      }
+    },
+    "/api/diplomes": {
+      "get": {
+        "summary": "Lister les diplômes",
+        "tags": [
+          "Ressources - Diplômes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des diplômes"
+          }
+        }
+      },
+      "post": {
+        "summary": "Ajouter un diplôme (Candidat)",
+        "tags": [
+          "Ressources - Diplômes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Diplôme créé"
+          }
+        }
+      }
+    },
+    "/api/diplomes/{id}": {
+      "get": {
+        "summary": "Obtenir les détails d'un diplôme",
+        "tags": [
+          "Ressources - Diplômes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails du diplôme"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modifier un diplôme (Candidat)",
+        "tags": [
+          "Ressources - Diplômes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Diplôme mis à jour"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Supprimer un diplôme (Candidat)",
+        "tags": [
+          "Ressources - Diplômes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Diplôme supprimé"
+          }
+        }
+      }
+    },
+    "/api/entreprises": {
+      "get": {
+        "summary": "Lister les entreprises",
+        "tags": [
+          "Ressources - Entreprises"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des entreprises"
+          }
+        }
+      },
+      "post": {
+        "summary": "Créer une entreprise (Recruteur / Admin)",
+        "tags": [
+          "Ressources - Entreprises"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Entreprise créée"
+          }
+        }
+      }
+    },
+    "/api/entreprises/{id}": {
+      "get": {
+        "summary": "Obtenir les détails d'une entreprise",
+        "tags": [
+          "Ressources - Entreprises"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails de l'entreprise"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modifier une entreprise (Recruteur / Admin)",
+        "tags": [
+          "Ressources - Entreprises"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entreprise mise à jour"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Supprimer une entreprise (Recruteur / Admin)",
+        "tags": [
+          "Ressources - Entreprises"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entreprise supprimée"
+          }
+        }
       }
     },
     "/api/offres": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Obtenir la liste des offres d'emploi",
+        "tags": [
+          "Offres d'Emploi"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des offres d'emploi"
+          }
+        }
       },
       "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Créer une nouvelle offre d'emploi (Recruteur)",
+        "tags": [
+          "Offres d'Emploi"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "titre",
+                  "description"
+                ],
+                "properties": {
+                  "titre": {
+                    "type": "string",
+                    "example": "Développeur Backend Node.js"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Nous recherchons un développeur expérimenté..."
+                  },
+                  "salaire": {
+                    "type": "number",
+                    "example": 1500
+                  },
+                  "localisation": {
+                    "type": "string",
+                    "example": "Kinshasa"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Offre créée avec succès"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          }
+        }
       }
     },
     "/api/offres/{id}": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Obtenir les détails d'une offre d'emploi",
+        "tags": [
+          "Offres d'Emploi"
+        ],
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails de l'offre"
+          },
+          "404": {
+            "description": "Offre non trouvée"
+          }
+        }
       },
       "put": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Modifier une offre d'emploi (Recruteur)",
+        "tags": [
+          "Offres d'Emploi"
+        ],
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Offre mise à jour avec succès"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
       },
       "delete": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Supprimer une offre d'emploi (Recruteur)",
+        "tags": [
+          "Offres d'Emploi"
+        ],
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Offre supprimée avec succès"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
       }
     },
     "/api/mes-competences": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Lister mes compétences enregistrées (Candidat)",
+        "tags": [
+          "Mes Compétences (Candidat)"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des compétences de l'utilisateur"
+          },
+          "403": {
+            "description": "Accès refusé (Candidat uniquement)"
+          }
+        }
       },
       "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Ajouter une compétence à mon profil (Candidat)",
+        "tags": [
+          "Mes Compétences (Candidat)"
+        ],
+        "security": [
           {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "id_competence": {
-                  "example": "any"
-                },
-                "niveau_competence": {
-                  "example": "any"
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "competenceId"
+                ],
+                "properties": {
+                  "competenceId": {
+                    "type": "string",
+                    "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+                  },
+                  "niveau": {
+                    "type": "string",
+                    "enum": [
+                      "debutant",
+                      "intermediaire",
+                      "avance",
+                      "expert"
+                    ],
+                    "example": "avance"
+                  }
                 }
               }
             }
           }
-        ],
-        "responses": {}
+        },
+        "responses": {
+          "201": {
+            "description": "Compétence ajoutée au profil"
+          },
+          "400": {
+            "description": "Données invalides"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
       }
     },
     "/api/mes-competences/{id}": {
       "delete": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Retirer une compétence de mon profil (Candidat)",
+        "tags": [
+          "Mes Compétences (Candidat)"
+        ],
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
-      }
-    },
-    "/api/offres/{id}/competences": {
-      "put": {
-        "tags": [],
-        "description": "",
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la compétence associée"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compétence retirée du profil"
           },
-          {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "competences": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/offres/{id}/postuler": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+          "400": {
+            "description": "ID invalide"
           },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "summary": "Obtenir le profil complet du candidat connecté",
+        "tags": [
+          "Profil Candidat"
+        ],
+        "security": [
           {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "lettre_motivation": {
-                  "example": "any"
-                }
-              }
-            }
+            "bearerAuth": []
           }
         ],
-        "responses": {}
-      }
-    },
-    "/api/candidatures/me": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/candidatures/{id}/annuler": {
-      "patch": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/candidatures/recues": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/candidatures/{id}/statut": {
-      "patch": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+        "responses": {
+          "200": {
+            "description": "Profil récupéré avec succès"
           },
-          {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "statut_candidature": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/offres/{id}/matching": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/recruteurs": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "id_entreprise": {
-                  "example": "any"
-                },
-                "fonction": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/recruteurs/me": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/entreprises/{id}/validation": {
-      "patch": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+          "401": {
+            "description": "Non authentifié"
           },
-          {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "statut_validation": {
-                  "example": "any"
-                }
-              }
-            }
+          "403": {
+            "description": "Accès refusé (réservé aux candidats)"
+          },
+          "404": {
+            "description": "Profil non encore créé"
           }
-        ],
-        "responses": {}
-      }
-    },
-    "/api/messages/": {
-      "post": {
-        "tags": [],
-        "description": "",
-        "parameters": [
-          {
-            "name": "obj",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "id_destinataire": {
-                  "example": "any"
-                },
-                "contenu": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {}
+        }
       },
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/messages/{userId}": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+      "put": {
+        "summary": "Créer ou mettre à jour les informations du profil candidat (Upsert)",
+        "tags": [
+          "Profil Candidat"
+        ],
+        "security": [
           {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titreProfessionnel": {
+                    "type": "string",
+                    "example": "Développeur Fullstack Node.js"
+                  },
+                  "bio": {
+                    "type": "string",
+                    "example": "Passionné par les architectures d'APIs REST et les microservices."
+                  },
+                  "telephone": {
+                    "type": "string",
+                    "example": "+243810000000"
+                  },
+                  "adresse": {
+                    "type": "string",
+                    "example": "Kinshasa, RDC"
+                  },
+                  "competences": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "JavaScript",
+                      "Express",
+                      "MongoDB",
+                      "Swagger"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil mis à jour ou créé avec succès"
+          },
+          "400": {
+            "description": "Données de profil invalides"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
       }
     },
-    "/api/notifications/": {
+    "/api/profile/photo": {
+      "post": {
+        "summary": "Uploader la photo de profil du candidat",
+        "tags": [
+          "Profil Candidat"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "photo"
+                ],
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Fichier image (JPG, PNG, WEBP)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Photo de profil téléversée avec succès"
+          },
+          "400": {
+            "description": "Fichier manquant ou format d'image non supporté"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
+      }
+    },
+    "/api/profile/cv": {
+      "post": {
+        "summary": "Uploader le CV du candidat (Format PDF/Doc)",
+        "tags": [
+          "Profil Candidat"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cv"
+                ],
+                "properties": {
+                  "cv": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Fichier document (PDF, DOCX)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Curriculum Vitae téléversé avec succès"
+          },
+          "400": {
+            "description": "Fichier manquant ou format non valide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
+      }
+    },
+    "/api/notifications": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Obtenir la liste des notifications de l'utilisateur connecté",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des notifications récupérée avec succès"
+          },
+          "401": {
+            "description": "Non authentifié (token manquant ou invalide)"
+          }
+        }
+      }
+    },
+    "/api/notifications/lire-toutes": {
+      "patch": {
+        "summary": "Marquer toutes les notifications de l'utilisateur comme lues",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications marquées comme lues"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
       }
     },
     "/api/notifications/{id}/lire": {
       "patch": {
-        "tags": [],
-        "description": "",
-        "parameters": [
+        "summary": "Marquer une notification spécifique comme lue",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
-        "responses": {}
-      }
-    },
-    "/api/admin/utilisateurs": {
-      "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
-      }
-    },
-    "/api/admin/utilisateurs/{id}/statut": {
-      "patch": {
-        "tags": [],
-        "description": "",
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
-            "type": "string"
-          },
-          {
-            "name": "obj",
-            "in": "body",
             "schema": {
-              "type": "object",
-              "properties": {
-                "statut_compte": {
-                  "example": "any"
+              "type": "string"
+            },
+            "description": "ID unique de la notification"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification marquée comme lue avec succès"
+          },
+          "400": {
+            "description": "ID de notification invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "404": {
+            "description": "Notification non trouvée"
+          }
+        }
+      }
+    },
+    "/api/messages": {
+      "post": {
+        "summary": "Envoyer un message à un utilisateur",
+        "tags": [
+          "Messagerie"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "destinataireId",
+                  "contenu"
+                ],
+                "properties": {
+                  "destinataireId": {
+                    "type": "string",
+                    "example": "64a8f1234b56c7890d123456",
+                    "description": "ID unique du destinataire"
+                  },
+                  "contenu": {
+                    "type": "string",
+                    "example": "Bonjour, je souhaite en savoir plus sur votre offre.",
+                    "description": "Contenu textuel du message"
+                  }
                 }
               }
             }
           }
+        },
+        "responses": {
+          "201": {
+            "description": "Message envoyé avec succès"
+          },
+          "400": {
+            "description": "Destinataire ou contenu manquant / invalide"
+          },
+          "401": {
+            "description": "Non authentifié (token manquant ou invalide)"
+          }
+        }
+      },
+      "get": {
+        "summary": "Récupérer toutes les conversations actives de l'utilisateur",
+        "tags": [
+          "Messagerie"
         ],
-        "responses": {}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des conversations et derniers messages échangés"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
+      }
+    },
+    "/api/messages/contacts": {
+      "get": {
+        "summary": "Lister les utilisateurs que je peux contacter (relation métier)",
+        "tags": [
+          "Messagerie"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des contacts légitimes"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
+      }
+    },
+    "/api/messages/{userId}": {
+      "get": {
+        "summary": "Récupérer le fil de discussion avec un utilisateur spécifique",
+        "tags": [
+          "Messagerie"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID unique de l'interlocuteur"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste chronologique des messages échangés avec cet utilisateur"
+          },
+          "400": {
+            "description": "ID d'utilisateur invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "404": {
+            "description": "Utilisateur non trouvé"
+          }
+        }
+      }
+    },
+    "/api/offres/{id}/competences": {
+      "put": {
+        "summary": "Définir ou mettre à jour les compétences requises pour une offre (Recruteur)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID unique de l'offre d'emploi"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "competences"
+                ],
+                "properties": {
+                  "competences": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "JavaScript",
+                      "Node.js",
+                      "MongoDB"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compétences mises à jour avec succès"
+          },
+          "400": {
+            "description": "ID invalide ou données manquantes"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          },
+          "404": {
+            "description": "Offre non trouvée"
+          }
+        }
+      }
+    },
+    "/api/offres/{id}/postuler": {
+      "post": {
+        "summary": "Postuler à une offre d'emploi (Candidat)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID unique de l'offre"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lettreMotivation": {
+                    "type": "string",
+                    "example": "Madame, Monsieur, je souhaite poser ma candidature..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Candidature envoyée avec succès"
+          },
+          "400": {
+            "description": "ID invalide ou candidature déjà existante"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux candidats)"
+          },
+          "404": {
+            "description": "Offre non trouvée"
+          }
+        }
+      }
+    },
+    "/api/candidatures/me": {
+      "get": {
+        "summary": "Obtenir la liste de mes candidatures (Candidat)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des candidatures du candidat connecté"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux candidats)"
+          }
+        }
+      }
+    },
+    "/api/candidatures/{id}/annuler": {
+      "patch": {
+        "summary": "Annuler une candidature (Candidat)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la candidature"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidature annulée avec succès"
+          },
+          "400": {
+            "description": "ID invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux candidats)"
+          },
+          "404": {
+            "description": "Candidature non trouvée"
+          }
+        }
+      }
+    },
+    "/api/candidatures/recues": {
+      "get": {
+        "summary": "Obtenir la liste des candidatures reçues pour mes offres (Recruteur)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des candidatures reçues par l'entreprise"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          }
+        }
+      }
+    },
+    "/api/candidatures/{id}/statut": {
+      "patch": {
+        "summary": "Mettre à jour le statut d'une candidature (Recruteur)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la candidature"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statut_candidature"
+                ],
+                "properties": {
+                  "statut_candidature": {
+                    "type": "string",
+                    "enum": [
+                      "En attente",
+                      "Présélectionnée",
+                      "Entretien",
+                      "Acceptée",
+                      "Refusée"
+                    ],
+                    "example": "Entretien"
+                  },
+                  "statut": {
+                    "type": "string",
+                    "description": "Alias accepté de statut_candidature",
+                    "enum": [
+                      "En attente",
+                      "Présélectionnée",
+                      "Entretien",
+                      "Acceptée",
+                      "Refusée"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Statut de la candidature mis à jour"
+          },
+          "400": {
+            "description": "Statut ou ID invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          },
+          "404": {
+            "description": "Candidature non trouvée"
+          }
+        }
+      }
+    },
+    "/api/offres/{id}/matching": {
+      "get": {
+        "summary": "Calculer le score de correspondance entre mon profil et une offre (Candidat)",
+        "tags": [
+          "Offres & Candidatures"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de l'offre"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Score de correspondance calculé (ex pourcentage ou détails de compatibilité)"
+          },
+          "400": {
+            "description": "ID invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux candidats)"
+          },
+          "404": {
+            "description": "Offre non trouvée"
+          }
+        }
+      }
+    },
+    "/api/recruteurs": {
+      "post": {
+        "summary": "Soumettre une entreprise pour devenir recruteur",
+        "tags": [
+          "Entreprises & Recruteurs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nomEntreprise"
+                ],
+                "properties": {
+                  "nomEntreprise": {
+                    "type": "string",
+                    "example": "Tech Solutions SARL"
+                  },
+                  "post": {
+                    "type": "string",
+                    "example": "Responsable RH"
+                  },
+                  "telephone": {
+                    "type": "string",
+                    "example": "+243810000000"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Profil recruteur créé avec succès"
+          },
+          "400": {
+            "description": "Données invalides"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          }
+        }
+      }
+    },
+    "/api/recruteurs/me": {
+      "get": {
+        "summary": "Obtenir le profil du recruteur connecté",
+        "tags": [
+          "Entreprises & Recruteurs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informations du recruteur connecté récupérées"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux recruteurs)"
+          },
+          "404": {
+            "description": "Profil recruteur non trouvé"
+          }
+        }
+      }
+    },
+    "/api/entreprises/{id}/validation": {
+      "patch": {
+        "summary": "Valider ou rejeter une entreprise (Admin)",
+        "tags": [
+          "Entreprises & Recruteurs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID unique de l'entreprise"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estValide"
+                ],
+                "properties": {
+                  "estValide": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "commentaire": {
+                    "type": "string",
+                    "example": "Dossier complet et vérifié"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Statut de validation de l'entreprise mis à jour"
+          },
+          "400": {
+            "description": "Données invalides"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux administrateurs)"
+          },
+          "404": {
+            "description": "Entreprise non trouvée"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Connexion de l'utilisateur",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "Secret123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connexion réussie (retourne le token et les infos utilisateur)"
+          },
+          "400": {
+            "description": "Erreur de validation des données transmises"
+          },
+          "401": {
+            "description": "Identifiants incorrects"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Inscription d'un nouvel utilisateur",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nom",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "nom": {
+                    "type": "string",
+                    "example": "Jean Dupont"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "jean.dupont@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "Secret123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Compte créé avec succès"
+          },
+          "400": {
+            "description": "Données invalides ou email déjà utilisé"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Récupérer le profil de l'utilisateur connecté",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profil de l'utilisateur connecté"
+          },
+          "401": {
+            "description": "Non autorisé (token manquant ou invalide)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Mettre à jour le profil de l'utilisateur connecté",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nom": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil mis à jour avec succès"
+          },
+          "400": {
+            "description": "Données de mise à jour invalides"
+          },
+          "401": {
+            "description": "Non autorisé"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Déconnexion de l'utilisateur",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Déconnexion réussie"
+          },
+          "401": {
+            "description": "Non autorisé"
+          }
+        }
+      }
+    },
+    "/api/admin/utilisateurs": {
+      "get": {
+        "summary": "Obtenir la liste complète de tous les utilisateurs",
+        "tags": [
+          "Administration"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des utilisateurs récupérée avec succès"
+          },
+          "401": {
+            "description": "Non authentifié (token absent ou invalide)"
+          },
+          "403": {
+            "description": "Accès refusé (réservé aux administrateurs)"
+          }
+        }
+      }
+    },
+    "/api/admin/utilisateurs/{id}/statut": {
+      "patch": {
+        "summary": "Modifier le statut d'un utilisateur (ex: activer/suspendre)",
+        "tags": [
+          "Administration"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID unique de l'utilisateur à modifier"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statut"
+                ],
+                "properties": {
+                  "statut": {
+                    "type": "string",
+                    "enum": [
+                      "actif",
+                      "inactif",
+                      "suspendu"
+                    ],
+                    "example": "suspendu"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Statut de l'utilisateur mis à jour"
+          },
+          "400": {
+            "description": "Statut fourni invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé"
+          },
+          "404": {
+            "description": "Utilisateur non trouvé"
+          }
+        }
       }
     },
     "/api/admin/statistiques": {
       "get": {
-        "tags": [],
-        "description": "",
-        "parameters": [],
-        "responses": {}
+        "summary": "Récupérer les statistiques globales de la plateforme",
+        "tags": [
+          "Administration"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistiques récupérées"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "403": {
+            "description": "Accès refusé"
+          }
+        }
       }
     }
   },
-  "definitions": {}
+  "components": {},
+  "tags": []
 }

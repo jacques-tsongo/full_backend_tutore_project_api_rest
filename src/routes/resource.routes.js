@@ -232,7 +232,7 @@ crud('/entreprises', 'entreprises', ['administrateur']);
  *       403:
  *         description: Accès refusé (réservé aux recruteurs)
  */
-router.get('/offres', authenticate, c.list('offres')); 
+router.get('/offres', authenticate, offer.list); 
 router.post('/offres', authenticate, authorize('recruteur'), v.offerCreate, valid, offer.create); 
 
 /**
@@ -293,7 +293,7 @@ router.post('/offres', authenticate, authorize('recruteur'), v.offerCreate, vali
  *       403:
  *         description: Accès refusé
  */
-router.get('/offres/:id', authenticate, v.id, valid, c.get('offres')); 
+router.get('/offres/:id', authenticate, v.id, valid, offer.get); 
 router.put('/offres/:id', authenticate, authorize('recruteur'), v.id, v.offerUpdate, valid, offer.update); 
 router.delete('/offres/:id', authenticate, authorize('recruteur'), v.id, valid, offer.remove);
 
