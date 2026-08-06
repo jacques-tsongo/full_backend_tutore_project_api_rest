@@ -59,3 +59,12 @@ INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, role) VALUES ('Admin'
 ```
 
 Générez le hash avec `node hash-password.js` (ou `bcrypt.hash('VotreMotDePasse', 12)`).
+
+## Jeu de données de démonstration
+
+`database/seed.sql` crée un jeu de données complet et idempotent (à exécuter après `schema.sql`) :
+
+- `admin@example.com` / `Admin123!` — administrateur
+- `recruteur@example.com` / `Recruteur123!` — recruteur (entreprise « Tech Solutions SARL » approuvée)
+- `candidat@example.com` / `Candidat123!` — candidat
+- 5 compétences, 3 offres ouvertes avec compétences requises, 1 candidature + 1 matching

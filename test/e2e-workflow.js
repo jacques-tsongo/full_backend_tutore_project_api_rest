@@ -65,18 +65,20 @@ const run = async () => {
   const me1 = await call('GET', '/auth/me', { token: tok1 });
   step('User promoted to recruteur', me1.json?.data?.user?.role === 'recruteur');
 
-  for (const skill of ['JavaScript', 'Node.js', 'MySQL']) {
+  const suffix = Date.now().toString(36);
+  for (const skill of [`JS-${suffix}`, `Node-${suffix}`, `SQL-${suffix}`]) {
     await call('POST', '/competences', { token: adminToken, body: { nom_competence: skill, description: '' } });
   }
   const skills = await call('GET', '/competences', { token: tok2 });
-  const [skJs, skNode, skMysql] = skills.json?.data?.items || [];
-  step('GET /competences (3)', skills.json?.data?.items?.length === 3);
+  const freshSkills = (skills.json?.data?.items || []).filter((s) => String(s.nom_competence).endsWith(suffix));
+  const [skJs, skNode] = freshSkills;
+  step('GET /competences (3 nouvelles)', freshSkills.length === 3, `count=${freshSkills.length}`);
 
   // Offer creation — past date must be rejected
   const past = await call('POST', '/offres', { token: tok1, body: { titre_offre: 'X', description_offre: 'Y', localisation: 'Kinshasa', date_expiration: '2020-01-01' } });
   step('Offer with past expiration → 422', past.status === 422, `status=${past.status}`);
 
-  const off = { titre_offre: 'Developpeur Backend Node.js', description_offre: 'Nous recrutons un dev backend', salaire: 1500, localisation: 'Kinshasa', date_expiration: '2026-12-31', statut_offre: 'Ouverte' };
+  const off = { titre_offre: `Developpeur Backend ${suffix}`, description_offre: 'Nous recrutons un dev backend', salaire: 1500, localisation: 'Kinshasa', date_expiration: '2026-12-31', statut_offre: 'Ouverte' };
   const o1 = await call('POST', '/offres', { token: tok1, body: off });
   const offId = o1.json?.data?.id_offre;
   step('POST /offres (recruteur)', o1.status === 201 && !!offId, `status=${o1.status}`);
@@ -94,8 +96,8 @@ const run = async () => {
   const det2 = await call('GET', `/offres/${offId}`, { token: tok2 });
   step('Offer details include skills', det2.json?.data?.item?.competences?.length === 2, `skills=${det2.json?.data?.item?.competences?.length}`);
 
-  const search = await call('GET', '/offres?q=Backend', { token: tok2 });
-  step('GET /offres?q=Backend', search.status === 200 && search.json?.data?.items?.length === 1);
+  const search = await call('GET', `/offres?q=${suffix}`, { token: tok2 });
+  step('GET /offres?q=<titre unique>', search.status === 200 && search.json?.data?.items?.length === 1, `count=${search.json?.data?.items?.length}`);
 
   const addSkill = await call('POST', '/mes-competences', { token: tok2, body: { id_competence: skJs.id_competence, niveau_competence: 'Avancé' } });
   step('POST /mes-competences (Avancé)', addSkill.status === 200, `status=${addSkill.status} ${addSkill.json?.message || ''}`);

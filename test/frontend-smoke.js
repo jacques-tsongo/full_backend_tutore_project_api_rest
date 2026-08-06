@@ -54,10 +54,10 @@ const api = async (method, path, { token, body } = {}) => {
 };
 
 (async () => {
-  // Utilisateurs créés par le test E2E précédent (candidat = aline, recruteur = jean).
-  const candidate = await login('aline.kabila@test.com', 'Secret123!');
-  const recruiter = await login('jean.mbala@test.com', 'Secret123!');
-  const admin = await login('admin@test.com', 'Admin123!');
+  // Comptes du jeu de démonstration (database/seed.sql).
+  const candidate = await login('candidat@example.com', 'Candidat123!');
+  const recruiter = await login('recruteur@example.com', 'Recruteur123!');
+  const admin = await login('admin@example.com', 'Admin123!');
   check('Sessions obtenues', !!(candidate && recruiter && admin), `${!!candidate} ${!!recruiter} ${!!admin}`);
 
   // Seed : deux offres ouvertes (une déjà pourvue de candidature, une vierge).

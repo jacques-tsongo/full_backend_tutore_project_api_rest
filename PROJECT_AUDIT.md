@@ -133,8 +133,9 @@ Workflow vérifié intégralement : inscription candidat → profil → dépôt 
 ### Tests ajoutés
 | Fichier | Contenu |
 |---|---|
-| `test/e2e-workflow.js` | 47 assertions API de bout en bout (nécessite serveur + admin `admin@test.com`/`Admin123!` + base fraîche) |
-| `test/frontend-smoke.js` | 21 assertions jsdom sur les pages réelles (nécessite `npm i --no-save jsdom`) |
+| `test/e2e-workflow.js` | 47 assertions API de bout en bout (nécessite serveur + token admin + base fraîche ou seedée) |
+| `test/frontend-smoke.js` | 21 assertions jsdom sur les pages réelles (comptes du seed, nécessite `npm i --no-save jsdom`) |
+| `database/seed.sql` | Jeu de démonstration idempotent : admin/recruteur/candidat, entreprise approuvée, 5 compétences, 3 offres ouvertes avec compétences requises, candidature + matching |
 
 ---
 
