@@ -101,9 +101,10 @@ async function renderUsers() {
   try {
     const { items } = await API.get('/admin/utilisateurs');
     target.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Inscription</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Photo</th><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Inscription</th><th>Actions</th></tr></thead>
       <tbody>${items.map((u) => `
         <tr>
+          <td class="avatar"><img src="${escapeHtml(u.photo)}" alt="${escapeHtml(u.prenom)} ${escapeHtml(u.nom)}"></td>
           <td>${escapeHtml(u.prenom)} ${escapeHtml(u.nom)}</td>
           <td>${escapeHtml(u.email)}</td>
           <td>${escapeHtml(u.role)}</td>
