@@ -1,10 +1,44 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Contact</title><link rel="stylesheet" href="css/style.css"></head><body data-page="contact"><main class="main container"><nav class="topbar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><button class="btn" data-theme-toggle>Theme</button></nav><section class="grid two"><div class="card"><h1>Contact</h1><p>Support plateforme, partenariats et validation entreprise.</p></div><form id="contactForm" class="card form"><div class="field"><label>Email</label><input type="email" required></div><div class="field"><label>Message</label><textarea required></textarea></div><button class="btn primary" type="submit">Envoyer</button></form></section></main><script src="js/storage.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/theme.js"></script><script>
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('contactForm');
-  if (form) form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    toast('Message envoyé. Notre équipe vous répondra par email.');
-    form.reset();
-  });
-});
-</script></body></html>
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contact</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body data-page="contact">
+  <main class="main container">
+    <nav class="topbar"><a class="brand" href="/"><span class="brand-mark">GC</span>Gestion Carrieres</a><button
+        class="btn" data-theme-toggle>Theme</button></nav>
+    <section class="grid two">
+      <div class="card">
+        <h1>Contact</h1>
+        <p>Support plateforme, partenariats et validation entreprise.</p>
+      </div>
+      <form id="contactForm" class="card form">
+        <div class="field"><label>Email</label><input type="email" required></div>
+        <div class="field"><label>Message</label><textarea required></textarea></div><button class="btn primary"
+          type="submit">Envoyer</button>
+      </form>
+    </section>
+  </main>
+  <script src="js/storage.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('contactForm');
+      if (form) form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        toast('Message envoyé. Notre équipe vous répondra par email.');
+        form.reset();
+      });
+    });
+  </script>
+</body>
+
+</html>
