@@ -1,0 +1,15 @@
+<%- include('partials/head', { title: 'À propos', page: 'about' }) %>
+<main class="main container">
+  <%- include('partials/public-nav') %>
+  <section class="card">
+    <h1>À propos de LinkEmploi</h1>
+    <p>LinkEmploi connecte les candidats, les entreprises approuvées et les recruteurs autour d'un workflow de validation administrateur clair :</p>
+    <ul class="feature-list">
+      <li><%- icon('user') %><span><strong>Candidats</strong> : profil complet (bio, CV, photo, compétences, expériences, diplômes), candidatures suivies en temps réel.</span></li>
+      <li><%- icon('building-2') %><span><strong>Entreprises &amp; recruteurs</strong> : toute entreprise est validée par un administrateur avant de pouvoir publier des offres.</span></li>
+      <li><%- icon('target') %><span><strong>Matching</strong> : un score de compatibilité compare les compétences du candidat aux exigences de chaque offre.</span></li>
+      <li><%- icon('shield-check') %><span><strong>Administration</strong> : validation des entreprises, supervision des utilisateurs et du catalogue de compétences.</span></li>
+    </ul>
+  </section>
+</main>
+<%- include('partials/foot') %>

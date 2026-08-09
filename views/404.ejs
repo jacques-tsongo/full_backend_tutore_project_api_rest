@@ -1,0 +1,19 @@
+<%- include('partials/head', { title: 'Page introuvable', page: '404' }) %>
+<main class="center-screen">
+  <section class="card auth-card error-card">
+    <a class="brand" href="/">
+      <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+    </a>
+    <div class="empty-state">
+      <%- icon('triangle-alert') %>
+      <h1>Page introuvable</h1>
+      <p>La page demandée n'existe pas ou a été déplacée.</p>
+    </div>
+    <% if (user) { %>
+      <a class="btn primary full" href="/dashboard">Retour au tableau de bord</a>
+    <% } else { %>
+      <a class="btn primary full" href="/">Retour à l'accueil</a>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/foot') %>

@@ -15,6 +15,17 @@ async function call(method, path, { token, body, form } = {}) {
   return { status: res.status, json };
 }
 
+/** Appel brut exposant les en-têtes Set-Cookie (tests de session navigateur). */
+const raw = async (method, path, body, { cookie, headers = {} } = {}) => {
+  const opts = { method, headers: { ...headers } };
+  if (cookie) opts.headers.cookie = cookie;
+  if (body !== undefined && body !== null) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(`${BASE}${path}`, opts);
+  let json = null;
+  try { json = await res.json(); } catch (_) {}
+  return { status: res.status, json, cookies: typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [] };
+};
+
 const run = async () => {
   const health = await call('GET', '/health');
   step('GET /health', health.status === 200);
@@ -163,6 +174,45 @@ const run = async () => {
   step('POST /messages', msg.status === 201);
   const conv = await call('GET', `/messages/${id1}`, { token: tok2 });
   step('GET /messages/:userId', conv.json?.data?.items?.length === 1);
+
+  // Suivi de lecture des messages : le destinataire (recruteur tok1) a 1 non lu,
+  // puis 0 après avoir ouvert le fil.
+  const unread1 = await call('GET', '/messages/non-lus', { token: tok1 });
+  step('GET /messages/non-lus (1 non lu côté destinataire)', unread1.json?.data?.total >= 1, `total=${unread1.json?.data?.total}`);
+  await call('GET', `/messages/${id2}`, { token: tok1 });
+  const unread0 = await call('GET', '/messages/non-lus', { token: tok1 });
+  step('Lecture du fil → 0 non lu', unread0.json?.data?.total === 0, `total=${unread0.json?.data?.total}`);
+  const notifUnread = await call('GET', '/notifications/non-lues', { token: tok1 });
+  step('GET /notifications/non-lues', notifUnread.status === 200 && typeof notifUnread.json?.data?.total === 'number', `total=${notifUnread.json?.data?.total}`);
+
+  // Authentification par cookie httpOnly (transport navigateur du même JWT)
+  const loginCookie = await raw('POST', '/auth/login', { email: 'admin@example.com', mot_de_passe: 'Admin123!' });
+  step('Login API pose un cookie gc_token httpOnly', loginCookie.cookies.some((c) => c.startsWith('gc_token=') && /HttpOnly/i.test(c)), JSON.stringify(loginCookie.cookies));
+  const cookieToken = (loginCookie.cookies.find((c) => c.startsWith('gc_token=')) || '').split(';')[0].slice('gc_token='.length);
+  const meViaCookie = await raw('GET', '/auth/me', null, { cookie: `gc_token=${cookieToken}` });
+  step('GET /api/auth/me via cookie httpOnly', meViaCookie.status === 200);
+  const logoutCookie = await raw('POST', '/auth/logout', null, { cookie: `gc_token=${cookieToken}`, headers: { Authorization: `Bearer ${adminToken}` } });
+  step('Logout API supprime le cookie', logoutCookie.cookies.some((c) => c.startsWith('gc_token=;') || /^gc_token=;/.test(c)), logoutCookie.status);
+
+  // Changement de mot de passe (validation du mot de passe actuel)
+  const wrongPass = await call('PUT', '/auth/mot-de-passe', { token: tok2, body: { mot_de_passe_actuel: 'FAUX', nouveau_mot_de_passe: 'Nouveau123!' } });
+  step('PUT /auth/mot-de-passe mauvais actuel → 401', wrongPass.status === 401, `status=${wrongPass.status}`);
+  const shortPass = await call('PUT', '/auth/mot-de-passe', { token: tok2, body: { mot_de_passe_actuel: 'Secret123!', nouveau_mot_de_passe: '123' } });
+  step('PUT /auth/mot-de-passe trop court → 422', shortPass.status === 422);
+  const okPass = await call('PUT', '/auth/mot-de-passe', { token: tok2, body: { mot_de_passe_actuel: 'Secret123!', nouveau_mot_de_passe: 'Nouveau123!' } });
+  const relogin = await call('POST', '/auth/login', { body: { email: 'aline.kabila@test.com', mot_de_passe: 'Nouveau123!' } });
+  step('Mot de passe changé puis re-connexion', okPass.status === 200 && relogin.status === 200);
+
+  // Gestion d'entreprise par le recruteur propriétaire (et blocage sur celle d'autrui)
+  const recrCompany = await call('GET', '/entreprises/mine', { token: tok1 });
+  const recrCompId = recrCompany.json?.data?.items?.find((c) => c.status === 'approved')?.id_entreprise;
+  step('GET /api/entreprises/mine (recruteur)', recrCompany.status === 200 && !!recrCompId, `id=${recrCompId}`);
+  const updComp = await call('PUT', `/entreprises/${recrCompId}`, { token: tok1, body: { description: 'Description recruteur mise a jour', telephone: '+243000000' } });
+  step('PUT /entreprises/:id propriétaire', updComp.status === 200 && updComp.json?.data?.company?.description === 'Description recruteur mise a jour');
+  const updStatus = await call('PUT', `/entreprises/${recrCompId}`, { token: tok1, body: { status: 'pending' } });
+  step('Statut entreprise NON modifiable via update', updStatus.status === 200 && updStatus.json?.data?.company?.status === 'approved');
+  const noCompany = await call('GET', '/entreprises/mine', { token: tok2 });
+  step('GET /api/entreprises/mine (candidat → vide)', noCompany.status === 200 && (noCompany.json?.data?.items || []).length === 0);
 
   const stats = await call('GET', '/admin/statistiques', { token: adminToken });
   step('GET /admin/statistiques', stats.status === 200);

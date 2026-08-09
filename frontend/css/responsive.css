@@ -1,18 +1,24 @@
+/* Points de rupture. La barre latérale devient un panneau coulissant
+   (géré par app.css + js/app.js) sous 920 px ; les grilles se replient. */
 @media (max-width: 920px) {
   .app-shell { grid-template-columns: 1fr; }
-  .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
-  .side-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .side-nav { grid-template-columns: 1fr; }
   .side-footer { position: static; margin-top: 18px; }
   .main { padding: 18px; }
   .grid.two, .grid.three, .hero-inner, .metric-row { grid-template-columns: 1fr; }
   .page-header { display: grid; }
   .hero { padding-top: 10px; }
   .hero-visual { min-height: 300px; }
+  .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (max-width: 560px) {
-  .side-nav { grid-template-columns: 1fr; }
-  .nav-actions { width: 100%; }
-  .btn, .search { width: 100%; }
-  .page-header h1 { font-size: 25px; }
+@media (max-width: 640px) {
+  .stats-row { grid-template-columns: 1fr; }
+  .nav-actions { row-gap: 8px; }
+  .toolbar .btn, .toolbar .search { width: 100%; }
+  .toolbar .field { width: 100%; }
+  .pagination .btn { flex: 1; }
+  .app-topbar { flex-wrap: wrap; }
+  .page-title-wrap { width: 100%; }
+  .thread-bubble { max-width: 92%; }
 }

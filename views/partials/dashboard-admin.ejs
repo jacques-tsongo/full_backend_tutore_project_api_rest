@@ -1,0 +1,110 @@
+<section class="card" style="margin-top:18px">
+  <h2>Entreprises en attente de validation</h2>
+  <% if (!extra.pendingCompanies.length) { %>
+    <div class="empty-state">
+      <%- icon('circle-check') %>
+      <p>Aucune demande en attente.</p>
+    </div>
+  <% } else { %>
+    <div class="list">
+      <% extra.pendingCompanies.forEach((c) => { %>
+        <%
+          let docs = [];
+          try { docs = JSON.parse(c.documents_justificatifs || '[]'); } catch (_) { docs = []; }
+        %>
+        <div class="list-item">
+          <div>
+            <strong><%= c.nom_entreprise %></strong>
+            <p>
+              Demandeur : <%= c.prenom %> <%= c.nom %> (<%= c.email_utilisateur %>)<br>
+              <%= [c.ville, c.pays].filter(Boolean).join(', ') %> · <%= c.email || '-' %> · RCCM : <%= c.numero_rccm || '-' %>
+              <% if (c.secteur_activite) { %> · Secteur : <%= c.secteur_activite %><% } %>
+            </p>
+            <% if (c.description) { %><p class="muted-note"><%= c.description.slice(0, 220) %><%= c.description.length > 220 ? '…' : '' %></p><% } %>
+            <% if (docs.length) { %>
+              <p>Documents :
+                <% docs.forEach((d, i) => { %>
+                  <a href="<%= asset(d) %>" target="_blank" rel="noopener"><%- icon('paperclip') %> Justificatif <%= i + 1 %></a><%= i < docs.length - 1 ? ' · ' : '' %>
+                <% }) %>
+              </p>
+            <% } %>
+          </div>
+          <div class="nav-actions">
+            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/approve" class="inline-form">
+              <button class="btn primary" type="submit"><%- icon('check') %> Approuver</button>
+            </form>
+            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/reject" class="inline-form" data-reject-form>
+              <input type="hidden" name="reason" value="">
+              <button class="btn danger" type="submit"><%- icon('x') %> Rejeter</button>
+            </form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="card" style="margin-top:18px">
+  <h2>Utilisateurs</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Inscription</th><th>Action</th></tr></thead>
+      <tbody>
+        <% extra.users.forEach((u) => { %>
+          <tr>
+            <td>
+              <span class="user-cell">
+                <span class="avatar-img sm">
+                  <% if (u.photo) { %><img src="<%= asset(u.photo) %>" alt=""><% } else { %><span class="avatar-fallback"><%= ((u.prenom || ' ')[0] + (u.nom || ' ')[0]).toUpperCase() %></span><% } %>
+                </span>
+                <%= u.prenom %> <%= u.nom %>
+              </span>
+            </td>
+            <td><%= u.email %></td>
+            <td><span class="badge neutral"><%= u.role %></span></td>
+            <td><span class="badge <%= statusClass(u.statut_compte) %>"><%= u.statut_compte %></span></td>
+            <td><%= formatDate(u.date_inscription) %></td>
+            <td>
+              <% if (u.id_utilisateur !== user.id_utilisateur) { %>
+                <form method="post" action="/admin/utilisateurs/<%= u.id_utilisateur %>/statut" class="inline-form">
+                  <input type="hidden" name="statut_compte" value="<%= u.statut_compte === 'actif' ? 'suspendu' : 'actif' %>">
+                  <button class="btn <%= u.statut_compte === 'actif' ? 'danger' : '' %>" type="submit">
+                    <%= u.statut_compte === 'actif' ? 'Suspendre' : 'Réactiver' %>
+                  </button>
+                </form>
+              <% } else { %><span class="muted-note">Vous</span><% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="grid two" style="margin-top:18px">
+  <div class="card">
+    <h2>Compétences de la plateforme</h2>
+    <% if (!extra.skills.length) { %>
+      <p class="muted-note">Aucune compétence. Créez la première ci-contre.</p>
+    <% } else { %>
+      <div class="list">
+        <% extra.skills.forEach((s) => { %>
+          <div class="list-item">
+            <div><strong><%= s.nom_competence %></strong><p><%= s.description || '' %></p></div>
+            <form method="post" action="/admin/competences/<%= s.id_competence %>/supprimer" class="inline-form" data-confirm="Supprimer cette compétence ?">
+              <button class="btn danger" type="submit" aria-label="Supprimer <%= s.nom_competence %>"><%- icon('trash-2') %></button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2>Nouvelle compétence</h2>
+    <form method="post" action="/admin/competences" class="form">
+      <div class="field"><label for="nom_competence">Nom</label><input id="nom_competence" name="nom_competence" required></div>
+      <div class="field"><label for="skill_desc">Description</label><textarea id="skill_desc" name="description"></textarea></div>
+      <button class="btn primary" type="submit"><%- icon('plus') %> Créer</button>
+    </form>
+  </div>
+</section>

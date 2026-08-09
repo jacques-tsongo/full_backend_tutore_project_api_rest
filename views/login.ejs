@@ -1,0 +1,23 @@
+<%- include('partials/head', { title: 'Connexion', page: 'login' }) %>
+<main class="center-screen">
+  <section class="card auth-card">
+    <a class="brand" href="/">
+      <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+    </a>
+    <h1>Connexion</h1>
+    <%- include('partials/flash') %>
+    <form method="post" action="/login" class="form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="mot_de_passe">Mot de passe</label>
+        <input id="mot_de_passe" name="mot_de_passe" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn primary full" type="submit"><%- icon('log-in') %> Se connecter</button>
+      <a class="nav-link" href="/register">Créer un compte candidat</a>
+    </form>
+  </section>
+</main>
+<%- include('partials/foot') %>

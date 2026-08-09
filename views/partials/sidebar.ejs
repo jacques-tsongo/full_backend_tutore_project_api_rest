@@ -1,0 +1,64 @@
+<%
+  // Navigation latérale pilotée par le rôle réel de l'utilisateur connecté.
+  // IMPORTANT : masquer un lien ne protège rien — chaque route reste gardée
+  // côté serveur (webAuth + webAuthorize / authorize).
+  const items = [];
+  if (user) {
+    items.push({ href: '/dashboard', icon: 'layout-dashboard', label: 'Tableau de bord', key: 'dashboard' });
+    if (user.role === 'candidat' || user.role === 'recruteur') items.push({ href: '/profil', icon: 'user', label: 'Profil', key: 'profil' });
+    items.push({ href: '/offres', icon: 'briefcase', label: 'Offres', key: 'offres' });
+    if (user.role === 'candidat') {
+      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures', key: 'candidatures' });
+      items.push({ href: '/matching', icon: 'target', label: 'Matching', key: 'matching' });
+    }
+    if (user.role === 'recruteur') {
+      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures reçues', key: 'candidatures' });
+      items.push({ href: '/entreprise', icon: 'building-2', label: 'Mon entreprise', key: 'entreprise' });
+    }
+    if (user.role === 'administrateur') items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises' });
+    items.push({
+      href: '/messages', icon: 'message-square', label: 'Messages', key: 'messages',
+      count: typeof unreadMessages !== 'undefined' ? unreadMessages : 0, countKey: 'messages'
+    });
+    items.push({
+      href: '/notifications', icon: 'bell', label: 'Notifications', key: 'notifications',
+      count: typeof unreadNotifications !== 'undefined' ? unreadNotifications : 0, countKey: 'notifications'
+    });
+    items.push({ href: '/parametres', icon: 'settings', label: 'Paramètres', key: 'parametres' });
+  }
+%><aside class="sidebar" data-sidebar>
+  <a class="brand" href="/">
+    <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+  </a>
+  <nav class="side-nav" aria-label="Navigation principale">
+    <% items.forEach((item) => { %>
+      <a href="<%= item.href %>" class="<%= typeof active !== 'undefined' && active === item.key ? 'active' : '' %>">
+        <%- icon(item.icon) %>
+        <span class="nav-label"><%= item.label %></span>
+        <% if (item.countKey) { %>
+          <span class="count<%= item.count > 0 ? '' : ' hidden' %>" data-count="<%= item.countKey === 'messages' ? 'unread-messages' : 'unread-notifications' %>"><%= item.count > 99 ? '99+' : item.count %></span>
+        <% } %>
+      </a>
+    <% }) %>
+  </nav>
+  <div class="side-footer">
+    <% if (user) { %>
+      <div class="user-chip">
+        <span class="avatar-img">
+          <% if (user.photo) { %>
+            <img src="<%= asset(user.photo) %>" alt="<%= `${user.prenom} ${user.nom}` %>">
+          <% } else { %>
+            <span class="avatar-fallback" aria-hidden="true"><%= ((user.prenom || ' ')[0] + (user.nom || ' ')[0]).toUpperCase() %></span>
+          <% } %>
+        </span>
+        <span class="user-meta">
+          <strong><%= user.prenom %> <%= user.nom %></strong>
+          <small><%= user.role %></small>
+        </span>
+      </div>
+      <form method="post" action="/logout" class="inline-form side-logout">
+        <button class="btn ghost" type="submit" title="Se déconnecter"><%- icon('log-out') %><span>Déconnexion</span></button>
+      </form>
+    <% } %>
+  </div>
+</aside>

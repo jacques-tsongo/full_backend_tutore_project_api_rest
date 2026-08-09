@@ -1,0 +1,113 @@
+<%
+const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.id_offre) === Number(offerId));
+%>
+<% if (!extra.company) { %>
+  <section class="card" style="margin-top:18px">
+    <div class="empty-state">
+      <%- icon('building-2') %>
+      <p>Aucune entreprise approuvée n'est associée à votre compte. Contactez un administrateur.</p>
+    </div>
+  </section>
+<% } else { %>
+<section class="card" style="margin-top:18px" id="nouvelle-offre">
+  <h2>Nouvelle offre</h2>
+  <form method="post" action="/offres" class="form">
+    <div class="grid two">
+      <div class="field"><label for="titre_offre">Titre</label><input id="titre_offre" name="titre_offre" required></div>
+      <div class="field"><label for="localisation">Localisation</label><input id="localisation" name="localisation" required></div>
+    </div>
+    <div class="field"><label for="description_offre">Description</label><textarea id="description_offre" name="description_offre" required></textarea></div>
+    <div class="grid two">
+      <div class="field"><label for="salaire">Salaire mensuel ($)</label><input id="salaire" name="salaire" type="number" min="0" step="0.01"></div>
+      <div class="field"><label for="date_expiration">Date d'expiration</label><input id="date_expiration" name="date_expiration" type="date" required></div>
+    </div>
+    <button class="btn primary" type="submit"><%- icon('plus') %> Publier l'offre</button>
+  </form>
+</section>
+
+<section style="margin-top:18px" id="mes-offres">
+  <h2>Mes offres</h2>
+  <% if (!extra.offers.length) { %>
+    <div class="card empty-state">
+      <%- icon('briefcase') %>
+      <p>Vous n'avez pas encore publié d'offre. Utilisez le formulaire ci-dessus.</p>
+    </div>
+  <% } else { %>
+    <div class="list">
+      <% extra.offers.forEach((o) => { %>
+        <div class="card offer-card">
+          <div class="offer-head">
+            <div>
+              <strong class="offer-title"><%= o.titre_offre %></strong>
+              <p class="muted-note">
+                <%- icon('map-pin') %> <%= o.localisation %> ·
+                <%- icon('calendar') %> expire le <%= formatDate(o.date_expiration) %> ·
+                <%- icon('coins') %> <%= o.salaire ? `${o.salaire} $` : 'Salaire non précisé' %>
+              </p>
+              <span class="badge <%= statusClass(o.statut_offre) %>"><%= o.statut_offre %></span>
+            </div>
+            <div class="nav-actions">
+              <a class="btn" href="/offres/<%= o.id_offre %>"><%- icon('eye') %> Voir</a>
+              <button class="btn" type="button" data-toggle="edit-<%= o.id_offre %>"><%- icon('pencil') %> Modifier</button>
+              <form method="post" action="/offres/<%= o.id_offre %>/supprimer" class="inline-form" data-confirm="Supprimer définitivement cette offre et ses candidatures ?">
+                <button class="btn danger" type="submit"><%- icon('trash-2') %> Supprimer</button>
+              </form>
+            </div>
+          </div>
+
+          <% const reqSkills = skillsOf(o.id_offre); %>
+          <div class="offer-skills">
+            <strong>Compétences requises</strong>
+            <div class="skill-chips">
+              <% if (!reqSkills.length) { %><span class="muted-note">Aucune compétence requise définie.</span><% } %>
+              <% reqSkills.forEach((s) => { %>
+                <span class="badge info">
+                  <%= s.nom_competence %> — <%= s.niveau_requis %>
+                  <button type="submit" form="offer-skill-remove-<%= o.id_offre %>-<%= s.id_competence %>" class="chip-x" aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
+                  <form method="post" action="/offres/<%= o.id_offre %>/competences" class="hidden" id="offer-skill-remove-<%= o.id_offre %>-<%= s.id_competence %>">
+                    <input type="hidden" name="id_competence" value="<%= s.id_competence %>">
+                    <input type="hidden" name="remove" value="1">
+                  </form>
+                </span>
+              <% }) %>
+            </div>
+            <form method="post" action="/offres/<%= o.id_offre %>/competences" class="skill-add form-inline">
+              <div class="field">
+                <label class="sr-only">Compétence</label>
+                <select name="id_competence">
+                  <% extra.skills.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
+                </select>
+              </div>
+              <div class="field">
+                <label class="sr-only">Niveau requis</label>
+                <select name="niveau_requis">
+                  <% ['Débutant', 'Intermédiaire', 'Avancé', 'Expert'].forEach((n) => { %><option><%= n %></option><% }) %>
+                </select>
+              </div>
+              <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
+            </form>
+          </div>
+
+          <form method="post" action="/offres/<%= o.id_offre %>" class="form edit-form hidden" id="edit-<%= o.id_offre %>">
+            <div class="grid two">
+              <div class="field"><label>Titre</label><input name="titre_offre" value="<%= o.titre_offre %>" required></div>
+              <div class="field"><label>Localisation</label><input name="localisation" value="<%= o.localisation %>" required></div>
+            </div>
+            <div class="field"><label>Description</label><textarea name="description_offre" required><%= o.description_offre %></textarea></div>
+            <div class="grid two">
+              <div class="field"><label>Salaire mensuel ($)</label><input name="salaire" type="number" min="0" step="0.01" value="<%= o.salaire ?? '' %>"></div>
+              <div class="field"><label>Date d'expiration</label><input name="date_expiration" type="date" value="<%= dateInput(o.date_expiration) %>" required></div>
+            </div>
+            <div class="field"><label>Statut</label>
+              <select name="statut_offre">
+                <% ['Ouverte', 'Fermée', 'Suspendue'].forEach((s) => { %><option <%= o.statut_offre === s ? 'selected' : '' %>><%= s %></option><% }) %>
+              </select>
+            </div>
+            <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer les modifications</button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+<% } %>

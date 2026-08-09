@@ -23,6 +23,10 @@ exports.apply = asyncHandler(async (req, res) => {
   const id = req.params.id;
   const [offer] = await db.execute("SELECT * FROM offre_emploi WHERE id_offre=? AND statut_offre='Ouverte' AND date_expiration >= CURDATE()", [id]);
   if (!offer[0]) return fail(res, 'Offre indisponible.', [], 404);
+  // Règle métier : une seule candidature par offre (la contrainte uq_candidature
+  // reste le garde-fou d'intégrité ; ici un message métier explicite).
+  const [existing] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, id]);
+  if (existing[0]) return fail(res, 'Vous avez déjà postulé à cette offre.', [], 409);
   const lettre = req.body.lettre_motivation ?? req.body.lettreMotivation ?? null;
   const [r] = await db.execute(
     'INSERT INTO candidature (id_utilisateur, id_offre, lettre_motivation) VALUES (?, ?, ?)',

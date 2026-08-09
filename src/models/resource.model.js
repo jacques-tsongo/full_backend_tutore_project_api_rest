@@ -12,6 +12,7 @@ exports.schema = schema;
 exports.list = async (name, query, extra = {}) => {
   const def = schema[name]; const { page, limit, offset } = pagination(query); const where = []; const values = [];
   if (extra.ownerField) { where.push(`${extra.ownerField} = ?`); values.push(extra.ownerId); }
+  if (extra.companyVisibility) { where.push('status = ?'); values.push(extra.companyVisibility); }
   if (query.q && def.search) { where.push(`(${def.search.map((f) => `${f} LIKE ?`).join(' OR ')})`); values.push(...def.search.map(() => `%${query.q}%`)); }
   if (query.statut && name === 'offres') { where.push('statut_offre = ?'); values.push(query.statut); }
   const condition = where.length ? ` WHERE ${where.join(' AND ')}` : '';

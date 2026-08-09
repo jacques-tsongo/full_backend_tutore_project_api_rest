@@ -1,0 +1,22 @@
+<%- include('partials/head', { title: 'Contact', page: 'contact' }) %>
+<main class="main container">
+  <%- include('partials/public-nav') %>
+  <%- include('partials/flash') %>
+  <section class="grid two">
+    <div class="card">
+      <h1>Contact</h1>
+      <p>Support plateforme, partenariats et validation d'entreprise. Notre équipe vous répond par e-mail.</p>
+      <div class="contact-list">
+        <p><%- icon('mail') %> support@linkemploi.example</p>
+        <p><%- icon('phone') %> +243 800 000 000</p>
+      </div>
+    </div>
+    <form method="post" action="/contact" class="card form">
+      <h2 class="form-title">Nous écrire</h2>
+      <div class="field"><label for="contact-email">Email</label><input id="contact-email" name="email" type="email" required></div>
+      <div class="field"><label for="contact-message">Message</label><textarea id="contact-message" name="message" required></textarea></div>
+      <button class="btn primary" type="submit"><%- icon('send') %> Envoyer</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,28 @@
+<%- include('partials/head', { title: 'Accueil', page: 'home' }) %>
+<main class="container hero">
+  <%- include('partials/public-nav') %>
+  <section class="hero-inner">
+    <div>
+      <h1>LinkEmploi</h1>
+      <p>Une plateforme professionnelle pour les candidatures, les entreprises, les offres d'emploi, le matching, les notifications et la messagerie.</p>
+      <div class="nav-actions">
+        <% if (user) { %>
+          <a class="btn primary" href="/dashboard"><%- icon('layout-dashboard') %> Accéder à mon espace</a>
+          <a class="btn" href="/offres"><%- icon('briefcase') %> Voir les offres</a>
+        <% } else { %>
+          <a class="btn primary" href="/register"><%- icon('user-plus') %> Créer mon compte</a>
+          <a class="btn" href="/login"><%- icon('log-in') %> J'ai déjà un compte</a>
+        <% } %>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="metric-row">
+        <div class="card stat"><span class="stat-icon"><%- icon('users') %></span><span>Candidats</span><strong>360</strong><small>Profils actifs</small></div>
+        <div class="card stat"><span class="stat-icon"><%- icon('briefcase') %></span><span>Offres</span><strong>128</strong><small>Opportunités</small></div>
+        <div class="card stat"><span class="stat-icon"><%- icon('target') %></span><span>Match</span><strong>86%</strong><small>Score moyen</small></div>
+      </div>
+      <div class="chart-bars"><span style="height:50%"></span><span style="height:76%"></span><span style="height:42%"></span><span style="height:88%"></span><span style="height:66%"></span></div>
+    </div>
+  </section>
+</main>
+<%- include('partials/foot') %>

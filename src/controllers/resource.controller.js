@@ -8,9 +8,28 @@ const owns = async (name, id, user) => {
     const row = await Resource.get(name, id); if (!row) return null; 
     const o = ownerFor(name, user);
      return (!o || row[o.ownerField] === o.ownerId || user.role === 'administrateur') ? row : false; };
-exports.list = (name) => asyncHandler(async (req, res) => success(res, 'Liste récupérée.', await Resource.list(name, req.query, ownerFor(name, req.user) || {})));
+
+// Annuaire des entreprises : seuls les organismes approuvés sont visibles pour
+// les non-administrateurs, et les justificatifs internes (RCCM/fiscal/documents)
+// ne sont exposés qu'au propriétaire et à l'administrateur.
+const visibleCompany = (row, user) => {
+  if (!row) return row;
+  if (user.role === 'administrateur' || row.id_utilisateur === user.id_utilisateur) return row;
+  const { documents_justificatifs, numero_rccm, numero_fiscal, approved_by, ...rest } = row;
+  return rest;
+};
+
+exports.list = (name) => asyncHandler(async (req, res) => {
+  const extra = ownerFor(name, req.user) || {};
+  if (name === 'entreprises' && req.user.role !== 'administrateur') extra.companyVisibility = 'approved';
+  const result = await Resource.list(name, req.query, extra);
+  if (name === 'entreprises') result.items = result.items.map((row) => visibleCompany(row, req.user));
+  success(res, 'Liste récupérée.', result);
+});
 exports.get = (name) => asyncHandler(async (req, res) => { 
-    const row = await Resource.get(name, req.params.id); 
+    let row = await Resource.get(name, req.params.id); 
+    if (row && name === 'entreprises' && req.user.role !== 'administrateur' && row.status !== 'approved' && row.id_utilisateur !== req.user.id_utilisateur) row = null;
+    if (row && name === 'entreprises') row = visibleCompany(row, req.user);
     return row ? success(res, 'Ressource récupérée.', { item: row }) : fail(res, 'Ressource introuvable.', [], 404); });
 exports.create = (name) => asyncHandler(async (req, res) => success(res, 'Ressource créée.', { item: await Resource.create(name, req.body, ownerFor(name, req.user) || {}) }, 201));
 exports.update = (name) => asyncHandler(async (req, res) => { 

@@ -1,0 +1,19 @@
+<div class="app-topbar">
+  <button class="btn icon-btn side-toggle" data-side-toggle aria-label="Afficher le menu"><%- icon('menu') %></button>
+  <div class="page-title-wrap">
+    <h1><%= title %></h1>
+    <% if (typeof subtitle !== 'undefined' && subtitle) { %><p><%= subtitle %></p><% } %>
+  </div>
+  <div class="nav-actions">
+    <a class="btn icon-btn" href="/notifications" aria-label="Notifications" title="Notifications">
+      <span class="icon-badge-wrap"><%- icon('bell') %><% if (typeof unreadNotifications !== 'undefined' && unreadNotifications > 0) { %><span class="dot-count"><%= unreadNotifications %></span><% } %></span>
+    </a>
+    <a class="btn icon-btn" href="/messages" aria-label="Messages" title="Messages">
+      <span class="icon-badge-wrap"><%- icon('message-square') %><% if (typeof unreadMessages !== 'undefined' && unreadMessages > 0) { %><span class="dot-count"><%= unreadMessages %></span><% } %></span>
+    </a>
+    <button class="btn icon-btn" data-theme-toggle aria-label="Changer de thème" title="Changer de thème"><%- icon(theme === 'dark' ? 'sun' : 'moon') %></button>
+    <form method="post" action="/logout" class="inline-form">
+      <button class="btn" type="submit"><%- icon('log-out') %><span class="btn-label">Déconnexion</span></button>
+    </form>
+  </div>
+</div>

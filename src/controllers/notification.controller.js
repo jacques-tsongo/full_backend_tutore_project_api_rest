@@ -12,3 +12,11 @@ exports.readAll = asyncHandler(async (req, res) => {
     await db.execute("UPDATE notification SET statut_notification='Lue' WHERE id_utilisateur=? AND statut_notification='Non lue'", [req.user.id_utilisateur]);
     success(res, 'Toutes les notifications ont été marquées comme lues.');
 });
+/** Nombre de notifications non lues de l'utilisateur connecté (badge « Notifications [n] »). */
+exports.unreadCount = asyncHandler(async (req, res) => {
+    const [[{ total }]] = await db.execute(
+        "SELECT COUNT(*) AS total FROM notification WHERE id_utilisateur = ? AND statut_notification = 'Non lue'",
+        [req.user.id_utilisateur]
+    );
+    success(res, 'Notifications non lues.', { total });
+});

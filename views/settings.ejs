@@ -1,0 +1,78 @@
+<%- include('partials/head', { title, page: 'parametres' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'parametres' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Paramètres', subtitle: 'Compte, sécurité, apparence et espace recruteur.' }) %>
+    <%- include('partials/flash') %>
+
+    <section class="grid two">
+      <div class="card">
+        <h2><%- icon('user') %> Compte</h2>
+        <div class="detail-grid">
+          <p><strong>Nom complet :</strong> <%= user.prenom %> <%= user.nom %></p>
+          <p><strong>Email :</strong> <%= user.email %></p>
+          <p><strong>Téléphone :</strong> <%= user.telephone || '—' %></p>
+          <p><strong>Rôle :</strong> <span class="badge neutral"><%= user.role %></span></p>
+          <p><strong>Statut :</strong> <span class="badge <%= statusClass(user.statut_compte) %>"><%= user.statut_compte %></span></p>
+          <p><strong>Membre depuis :</strong> <%= formatDate(user.date_inscription) %></p>
+        </div>
+      </div>
+
+      <form method="post" action="/parametres" class="card form">
+        <h2 class="form-title"><%- icon('pencil') %> Informations personnelles</h2>
+        <div class="grid two">
+          <div class="field"><label for="set-prenom">Prénom</label><input id="set-prenom" name="prenom" value="<%= user.prenom %>" required></div>
+          <div class="field"><label for="set-nom">Nom</label><input id="set-nom" name="nom" value="<%= user.nom %>" required></div>
+        </div>
+        <div class="field"><label for="set-telephone">Téléphone</label><input id="set-telephone" name="telephone" value="<%= user.telephone || '' %>"></div>
+        <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+      </form>
+    </section>
+
+    <section class="grid two" style="margin-top:18px">
+      <form method="post" action="/parametres/mot-de-passe" class="card form">
+        <h2 class="form-title"><%- icon('lock') %> Mot de passe</h2>
+        <div class="field">
+          <label for="mot_de_passe_actuel">Mot de passe actuel</label>
+          <input id="mot_de_passe_actuel" name="mot_de_passe_actuel" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label for="nouveau_mot_de_passe">Nouveau mot de passe</label>
+          <input id="nouveau_mot_de_passe" name="nouveau_mot_de_passe" type="password" minlength="8" autocomplete="new-password" required>
+          <small class="muted-note">8 caractères minimum.</small>
+        </div>
+        <button class="btn primary" type="submit"><%- icon('key-round') %> Changer le mot de passe</button>
+      </form>
+
+      <div class="card">
+        <h2><%- icon('moon') %> Apparence</h2>
+        <p>Thème actuel : <strong><%= theme === 'dark' ? 'Sombre' : 'Clair' %></strong></p>
+        <button class="btn" type="button" data-theme-toggle><%- icon(theme === 'dark' ? 'sun' : 'moon') %> Basculer vers le thème <%= theme === 'dark' ? 'clair' : 'sombre' %></button>
+        <h2 style="margin-top:22px"><%- icon('log-out') %> Session</h2>
+        <form method="post" action="/logout">
+          <button class="btn danger" type="submit"><%- icon('log-out') %> Se déconnecter</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px" id="entreprise">
+      <h2><%- icon('building-2') %> Espace recruteur</h2>
+      <% if (user.role === 'recruteur' && company && company.status === 'approved') { %>
+        <p>Votre entreprise « <strong><%= company.nom_entreprise %></strong> » est approuvée. Vous pouvez gérer ses informations et publier des offres.</p>
+        <div class="nav-actions">
+          <a class="btn" href="/entreprise"><%- icon('pencil') %> Gérer mon entreprise</a>
+          <a class="btn primary" href="/dashboard#nouvelle-offre"><%- icon('plus') %> Publier une offre</a>
+        </div>
+      <% } else if (company && company.status === 'pending') { %>
+        <div class="alert alert-info"><%- icon('clock') %><span>Votre demande pour « <strong><%= company.nom_entreprise %></strong> » est <strong>en attente de validation</strong> par un administrateur. Vous serez notifié de sa décision.</span></div>
+      <% } else { %>
+        <% if (company && company.status === 'rejected') { %>
+          <div class="alert alert-danger"><%- icon('triangle-alert') %><span>Votre demande pour « <%= company.nom_entreprise %> » a été rejetée. Vous pouvez soumettre un nouveau dossier.</span></div>
+        <% } %>
+        <p>Vous êtes actuellement <strong>candidat</strong>. Pour publier des offres, soumettez votre entreprise à la validation d'un administrateur.</p>
+        <a class="btn" href="/entreprise/demande"><%- icon('building-2') %> Demander à devenir recruteur</a>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

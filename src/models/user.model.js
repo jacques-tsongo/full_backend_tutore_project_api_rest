@@ -12,6 +12,10 @@ exports.updateRole = async (id, role, connection = db) => {
   await connection.execute('UPDATE utilisateur SET role = ? WHERE id_utilisateur = ?', [role, id]);
   return exports.findById(id);
 };
+exports.updatePassword = async (id, hashedPassword) => {
+  await db.execute('UPDATE utilisateur SET mot_de_passe = ? WHERE id_utilisateur = ?', [hashedPassword, id]);
+  return exports.findById(id);
+};
 exports.update = async (id, data) => {
   const allowed = ['nom', 'prenom', 'telephone', 'photo'];
   const fields = allowed.filter((k) => data[k] !== undefined);
