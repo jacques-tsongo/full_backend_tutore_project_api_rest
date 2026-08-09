@@ -121,3 +121,27 @@ SELECT u.id_utilisateur, o.id_offre, 'Je suis motivée à rejoindre votre équip
 FROM utilisateur u, offre_emploi o
 WHERE u.email = 'candidat@example.com' AND o.titre_offre = 'Développeur Backend Node.js'
 AND NOT EXISTS (SELECT 1 FROM candidature c WHERE c.id_utilisateur = u.id_utilisateur AND c.id_offre = o.id_offre);
+
+-- --- Message non lu + notification non lue (démo des compteurs) -----------
+-- La colonne `lu` (migration 20260809_message_read_tracking.sql) vaut 0 par
+-- défaut : ce message apparaît donc comme non lu pour le candidat.
+INSERT INTO message (contenu, id_expediteur, id_destinataire)
+SELECT 'Bonjour Sarah, votre profil correspond à notre offre Backend Node.js. Pouvons-nous échanger ?',
+       r.id_utilisateur, c.id_utilisateur
+FROM utilisateur r, utilisateur c
+WHERE r.email = 'recruteur@example.com' AND c.email = 'candidat@example.com'
+AND NOT EXISTS (
+  SELECT 1 FROM message m
+  WHERE m.id_expediteur = r.id_utilisateur AND m.id_destinataire = c.id_utilisateur
+    AND m.contenu LIKE 'Bonjour Sarah, votre profil correspond%'
+);
+
+INSERT INTO notification (contenu_notification, id_utilisateur)
+SELECT 'Nouveau message de Paul Mukendi (Tech Solutions SARL).', c.id_utilisateur
+FROM utilisateur c
+WHERE c.email = 'candidat@example.com'
+AND NOT EXISTS (
+  SELECT 1 FROM notification n
+  WHERE n.id_utilisateur = c.id_utilisateur
+    AND n.contenu_notification LIKE 'Nouveau message de Paul Mukendi%'
+);

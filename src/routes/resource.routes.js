@@ -5,11 +5,11 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const valid = require('../middlewares/validate.middleware'); 
 const v = require('../validators/common.validator');
 
-const crud = (path, name, roles = ['administrateur']) => {
+const crud = (path, name, roles = ['administrateur'], options = {}) => {
     router.get(path, authenticate, c.list(name)); 
     router.get(`${path}/:id`, authenticate, v.id, valid, c.get(name)); 
     router.post(path, authenticate, authorize(...roles), c.create(name)); 
-    router.put(`${path}/:id`, authenticate, authorize(...roles), v.id, valid, c.update(name)); 
+    if (!options.skipPut) router.put(`${path}/:id`, authenticate, authorize(...roles), v.id, valid, c.update(name)); 
     router.delete(`${path}/:id`, authenticate, authorize(...roles), v.id, valid, c.remove(name));
 };
 
@@ -171,22 +171,19 @@ crud('/diplomes', 'diplomes', ['candidat']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Détails de l'entreprise }
- *   put:
- *     summary: Modifier une entreprise (Recruteur / Admin)
- *     tags: [Ressources - Entreprises]
- *     security: [{ bearerAuth: [] }]
- *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
- *     responses:
- *       200: { description: Entreprise mise à jour }
  *   delete:
- *     summary: Supprimer une entreprise (Recruteur / Admin)
+ *     summary: Supprimer une entreprise (Admin)
  *     tags: [Ressources - Entreprises]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Entreprise supprimée }
  */
-crud('/entreprises', 'entreprises', ['administrateur']);
+// NOTE : la modification d'une entreprise (PUT) passe exclusivement par
+// PUT /api/entreprises/:id de company.routes.js (propriétaire recruteur ou
+// admin) afin que le statut de validation ne soit jamais modifiable via le
+// CRUD générique (workflow admin approbation/rejet uniquement).
+crud('/entreprises', 'entreprises', ['administrateur'], { skipPut: true });
 
 /**
  * @swagger

@@ -1,0 +1,20 @@
+<%- include('partials/head', { title: title || 'Erreur', page: 'error' }) %>
+<main class="center-screen">
+  <section class="card auth-card error-card">
+    <a class="brand" href="/">
+      <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+    </a>
+    <div class="empty-state">
+      <%- icon('triangle-alert') %>
+      <h1><%= title || 'Une erreur est survenue' %></h1>
+      <% if (typeof status !== 'undefined' && status) { %><p class="muted-note">Code <%= status %></p><% } %>
+      <p><%= message || 'Erreur interne du serveur.' %></p>
+    </div>
+    <% if (user) { %>
+      <a class="btn primary full" href="/dashboard">Retour au tableau de bord</a>
+    <% } else { %>
+      <a class="btn primary full" href="/">Retour à l'accueil</a>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/foot') %>

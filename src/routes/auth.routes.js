@@ -3,6 +3,7 @@ const c=require('../controllers/auth.controller');
 const v=require('../validators/auth.validator'); 
 const valid=require('../middlewares/validate.middleware'); 
 const {authenticate}=require('../middlewares/auth.middleware');
+const cv=require('../validators/common.validator');
 
 // la configuration de la documentation Swagger se trouve dans le fichier swagger.js à la racine du projet. 
 /**
@@ -119,9 +120,43 @@ router.get('/me',authenticate,c.me);
 router.put('/me',authenticate,c.updateMe); 
 /**
  * @swagger
+ * /api/auth/mot-de-passe:
+ *   put:
+ *     summary: Changer son mot de passe (mot de passe actuel requis)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - mot_de_passe_actuel
+ *               - nouveau_mot_de_passe
+ *             properties:
+ *               mot_de_passe_actuel:
+ *                 type: string
+ *                 format: password
+ *               nouveau_mot_de_passe:
+ *                 type: string
+ *                 format: password
+ *                 example: NouveauSecret123!
+ *     responses:
+ *       200:
+ *         description: Mot de passe mis à jour
+ *       401:
+ *         description: Mot de passe actuel incorrect
+ *       422:
+ *         description: Données invalides
+ */
+router.put('/mot-de-passe',authenticate,cv.passwordChange,valid,c.changePassword);
+/**
+ * @swagger
  * /api/auth/logout:
  *   post:
- *     summary: Déconnexion de l'utilisateur
+ *     summary: Déconnexion de l'utilisateur (la session navigateur est invalidée)
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []

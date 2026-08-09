@@ -1,0 +1,57 @@
+<%- include('partials/head', { title, page: 'entreprise' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'entreprise' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Mon entreprise', subtitle: 'Informations visibles par les candidats. La validation reste gérée par l’administrateur.' }) %>
+    <%- include('partials/flash') %>
+
+    <% if (!company) { %>
+      <div class="card empty-state">
+        <%- icon('building-2') %>
+        <p>Aucune entreprise approuvée n'est associée à votre compte.</p>
+        <p class="muted-note">Si vous venez de soumettre une demande, elle doit d'abord être approuvée par un administrateur.</p>
+      </div>
+    <% } else { %>
+      <div class="card">
+        <div class="offer-head">
+          <div class="user-cell">
+            <% if (company.logo) { %><img class="company-logo" src="<%= asset(company.logo) %>" alt="Logo"><% } else { %><span class="company-logo placeholder"><%- icon('building-2') %></span><% } %>
+            <div>
+              <h2 class="form-title" style="margin:0"><%= company.nom_entreprise %></h2>
+              <span class="badge <%= statusClass(company.status) %>"><%= company.statut_validation %></span>
+            </div>
+          </div>
+          <a class="btn" href="/entreprises/<%= company.id_entreprise %>"><%- icon('eye') %> Voir la fiche publique</a>
+        </div>
+      </div>
+
+      <form method="post" action="/entreprise/<%= company.id_entreprise %>" enctype="multipart/form-data" class="card form" style="margin-top:18px">
+        <h2 class="form-title">Modifier les informations</h2>
+        <div class="grid two">
+          <div class="field"><label for="nom_entreprise">Nom de l'entreprise</label><input id="nom_entreprise" name="nom_entreprise" value="<%= company.nom_entreprise || '' %>" required></div>
+          <div class="field"><label for="secteur_activite">Secteur d'activité</label><input id="secteur_activite" name="secteur_activite" value="<%= company.secteur_activite || '' %>"></div>
+        </div>
+        <div class="field"><label for="adresse">Adresse</label><input id="adresse" name="adresse" value="<%= company.adresse || '' %>"></div>
+        <div class="grid two">
+          <div class="field"><label for="ville">Ville</label><input id="ville" name="ville" value="<%= company.ville || '' %>"></div>
+          <div class="field"><label for="pays">Pays</label><input id="pays" name="pays" value="<%= company.pays || '' %>"></div>
+        </div>
+        <div class="grid two">
+          <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="<%= company.email || '' %>"></div>
+          <div class="field"><label for="telephone">Téléphone</label><input id="telephone" name="telephone" value="<%= company.telephone || '' %>"></div>
+        </div>
+        <div class="grid two">
+          <div class="field"><label for="site_web">Site web</label><input id="site_web" name="site_web" value="<%= company.site_web || '' %>"></div>
+          <div class="field"><label for="logo">Logo (PNG ou JPEG)</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg"></div>
+        </div>
+        <div class="grid two">
+          <div class="field"><label for="numero_rccm">Numéro RCCM</label><input id="numero_rccm" name="numero_rccm" value="<%= company.numero_rccm || '' %>"></div>
+          <div class="field"><label for="numero_fiscal">Numéro fiscal</label><input id="numero_fiscal" name="numero_fiscal" value="<%= company.numero_fiscal || '' %>"></div>
+        </div>
+        <div class="field"><label for="description">Description</label><textarea id="description" name="description"><%= company.description || '' %></textarea></div>
+        <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer les modifications</button>
+      </form>
+    <% } %>
+  </main>
+</div>
+<%- include('partials/foot') %>

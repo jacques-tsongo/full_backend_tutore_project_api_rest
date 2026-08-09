@@ -1,149 +1,248 @@
-/* Smoke test frontend : charge chaque page dans jsdom (scripts réels servis par Express),
-   injecte fetch/localStorage, attend le rendu, et vérifie les zones clés. */
-const { JSDOM } = require('jsdom');
-
+/**
+ * Test de fumée des pages EJS (rendu serveur) — n'utilise que l'HTTP réel.
+ * Prérequis : serveur démarré (PORT 5000) + base initialisée
+ * (database/schema.sql + database/migrations/*.sql + database/seed.sql).
+ *
+ * Couverture : pages publiques, protections, session cookie httpOnly,
+ * navigation par rôle, compteurs non lus (messages + notifications),
+ * workflows entreprise (demande → approbation → gestion), offres,
+ * candidatures, paramètres (infos, mot de passe), déconnexion, erreurs.
+ *
+ * Exécution : node test/frontend-smoke.js
+ */
 const BASE = 'http://127.0.0.1:5000';
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// Session candidate : se connecte via l'API réelle pour obtenir un token.
-async function login(email, password) {
-  const res = await fetch(`${BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, mot_de_passe: password })
-  });
-  const json = await res.json();
-  return json.data || null;
-}
-
-async function loadPage(path, session) {
-  const errors = [];
-  const dom = await JSDOM.fromURL(`${BASE}${path}`, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
-    beforeParse(window) {
-      // Les pages utilisent des URL relatives (/api/...) : on les résout comme un navigateur.
-      window.fetch = (input, init) => {
-        const url = typeof input === 'string' ? new URL(input, `${BASE}/`).toString() : input;
-        return fetch(url, init);
-      };
-      if (session) {
-        window.localStorage.setItem('gc_token', session.token);
-        window.localStorage.setItem('gc_user', JSON.stringify(session.user));
-      }
-      window.confirm = () => true;
-      window.prompt = () => 'test';
-      window.addEventListener('error', (e) => errors.push(e.message));
-    }
-  });
-  // Laisse le temps aux scripts (DOMContentLoaded async) de s'exécuter.
-  await sleep(1500);
-  return { dom, errors };
-}
-
-const checks = [];
-const check = (name, ok, detail = '') => { checks.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  → ' + detail : ''}`); };
-
-const api = async (method, path, { token, body } = {}) => {
-  const headers = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  if (body) headers['Content-Type'] = 'application/json';
-  const res = await fetch(`${BASE}/api${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  return res.json();
+const results = [];
+const step = (name, ok, detail = '') => {
+  results.push({ name, ok });
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  → ' + detail : ''}`);
 };
 
-(async () => {
-  // Comptes du jeu de démonstration (database/seed.sql).
-  const candidate = await login('candidat@example.com', 'Candidat123!');
-  const recruiter = await login('recruteur@example.com', 'Recruteur123!');
-  const admin = await login('admin@example.com', 'Admin123!');
-  check('Sessions obtenues', !!(candidate && recruiter && admin), `${!!candidate} ${!!recruiter} ${!!admin}`);
+/** Mini-client HTTP avec jar à cookies (simule un navigateur). */
+const browser = () => {
+  const cookies = new Map();
+  const cookieHeader = () => Array.from(cookies, ([k, v]) => `${k}=${v}`).join('; ');
+  const store = (setCookies) => {
+    for (const sc of setCookies) {
+      const [pair] = sc.split(';');
+      const eq = pair.indexOf('=');
+      const name = pair.slice(0, eq).trim();
+      const value = pair.slice(eq + 1).trim();
+      if (value === '' || /max-age=0/i.test(sc)) cookies.delete(name);
+      else cookies.set(name, value);
+    }
+  };
+  const call = async (method, path, { form, headers = {}, redirect = 'manual', body, multipart } = {}) => {
+    const opts = { method, redirect, headers: { ...headers } };
+    if (cookies.size) opts.headers.cookie = cookieHeader();
+    if (multipart instanceof FormData) opts.body = multipart;
+    else if (form) {
+      opts.headers['content-type'] = 'application/x-www-form-urlencoded';
+      opts.body = new URLSearchParams(form).toString();
+    } else if (body !== undefined) {
+      opts.headers['content-type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(`${BASE}${path}`, opts);
+    store(res.headers.getSetCookie ? res.headers.getSetCookie() : []);
+    const text = await res.text();
+    return { status: res.status, location: res.headers.get('location'), text, json: () => { try { return JSON.parse(text); } catch (_) { return null; } } };
+  };
+  return {
+    get: (path, opts = {}) => call('GET', path, opts),
+    post: (path, opts = {}) => call('POST', path, opts),
+    has: (name) => cookies.has(name),
+    value: (name) => cookies.get(name)
+  };
+};
 
-  // Seed : deux offres ouvertes (une déjà pourvue de candidature, une vierge).
-  const future = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
-  const o1 = await api('POST', '/offres', { token: recruiter.token, body: { titre_offre: 'Developpeur Frontend Vue.js', description_offre: 'Poste frontend', salaire: 1200, localisation: 'Kinshasa', date_expiration: future, statut_offre: 'Ouverte' } });
-  const o2 = await api('POST', '/offres', { token: recruiter.token, body: { titre_offre: 'Developpeur Backend Node.js', description_offre: 'Poste backend', salaire: 1500, localisation: 'Lubumbashi', date_expiration: future, statut_offre: 'Ouverte' } });
-  const skills = await api('GET', '/competences', { token: candidate.token });
-  const skillId = skills.data.items[0]?.id_competence;
-  if (skillId) await api('PUT', `/offres/${o1.data.id_offre}/competences`, { token: recruiter.token, body: { competences: [{ id_competence: skillId, niveau_requis: 'Intermédiaire' }] } });
-  await api('POST', `/offres/${o1.data.id_offre}/postuler`, { token: candidate.token, body: { lettre_motivation: 'Candidature de référence' } });
-  check('Seed : offres + candidature créées', !!(o1.data?.id_offre && o2.data?.id_offre));
+const freshId = () => Math.random().toString(36).slice(2, 8);
 
-  // Page publique
-  let r = await loadPage('/');
-  check('index.html charge', r.dom.window.document.querySelector('h1')?.textContent.includes('Gestion'), r.errors.join(';'));
-  check('index sans erreurs JS', r.errors.length === 0, r.errors.join(';'));
-
-  // Login/register (non connecté)
-  r = await loadPage('/login.html', null);
-  check('login.html : formulaire présent', !!r.dom.window.document.getElementById('loginForm'));
-
-  // Jobs (candidat connecté)
-  r = await loadPage('/jobs.html', candidate);
-  const jobsList = r.dom.window.document.getElementById('jobsList');
-  check('jobs.html : liste d\'offres rendue', jobsList?.innerHTML.includes('Developpeur Frontend'), jobsList?.innerHTML.slice(0, 120));
-  check('jobs.html sans erreurs JS', r.errors.length === 0, r.errors.join(';'));
-
-  // Détail d'offre (candidat — déjà postulé sur l'offre 1)
-  r = await loadPage(`/job-details.html?id=${o1.data.id_offre}`, candidate);
-  const jobDetails = r.dom.window.document.getElementById('jobDetails');
-  check('job-details.html : détail rendu', jobDetails?.innerHTML.includes('Developpeur Frontend') && jobDetails?.innerHTML.includes('applyZone'), jobDetails?.innerHTML.slice(0, 100));
-  check('job-details : état "déjà postulé" affiché', jobDetails?.innerHTML.includes('déjà postulé'));
-
-  // Matching (candidat)
-  r = await loadPage('/matching.html', candidate);
-  const offerSelect = r.dom.window.document.getElementById('offerSelect');
-  check('matching.html : sélecteur d\'offres rempli', offerSelect?.innerHTML.includes('<option value="'));
-
-  // Applications (candidat)
-  r = await loadPage('/applications.html', candidate);
-  const appsList = r.dom.window.document.getElementById('applicationsList');
-  check('applications.html (candidat) rendu', appsList?.innerHTML.includes('table-wrap') || appsList?.innerHTML.includes('Aucune candidature') || appsList?.innerHTML.includes('pas encore postulé'), appsList?.innerHTML.slice(0, 100));
-
-  // Messages (candidat)
-  r = await loadPage('/messages.html', candidate);
-  check('messages.html : destinataires chargés', r.dom.window.document.getElementById('composeRecipient')?.innerHTML.includes('Mbala'));
-
-  // Dashboard recruteur
-  r = await loadPage('/recruiter-dashboard.html', recruiter);
-  const myOffers = r.dom.window.document.getElementById('myOffers');
-  check('recruiter-dashboard : mes offres rendues', myOffers?.innerHTML.includes('Developpeur Frontend') && myOffers?.innerHTML.includes('data-skills-form'), myOffers?.innerHTML.slice(0, 120));
-  check('recruiter-dashboard : formulaire offre lié', !!r.dom.window.document.getElementById('jobForm'));
-  check('recruiter-dashboard sans erreurs JS', r.errors.length === 0, r.errors.join(';'));
-
-  // Applications recruteur
-  r = await loadPage('/applications.html', recruiter);
-  const recApps = r.dom.window.document.getElementById('applicationsList');
-  check('applications.html (recruteur) : statuts + contact', recApps?.innerHTML.includes('data-status-update') && recApps?.innerHTML.includes('Contacter') && recApps?.innerHTML.includes('Candidature de référence'), recApps?.innerHTML.slice(0, 140));
-
-  // Admin dashboard
-  r = await loadPage('/admin-dashboard.html', admin);
-  const adminUsers = r.dom.window.document.getElementById('adminUsers');
-  const adminSkills = r.dom.window.document.getElementById('adminSkills');
-  check('admin-dashboard : utilisateurs rendus', adminUsers?.innerHTML.includes('table-wrap'), adminUsers?.innerHTML.slice(0, 80));
-  check('admin-dashboard : compétences rendues', adminSkills?.innerHTML.includes('JavaScript') || adminSkills?.innerHTML.includes('Aucune compétence'));
-  check('admin-dashboard : formulaire compétence', !!r.dom.window.document.getElementById('newSkillForm'));
-
-  // Notifications (candidat)
-  r = await loadPage('/notifications.html', candidate);
-  check('notifications.html rendu', r.dom.window.document.getElementById('notificationsList')?.innerHTML.length > 0);
-
-  // Vérification du workflow : le candidat postule via le formulaire du détail (offre vierge)
-  r = await loadPage(`/job-details.html?id=${o2.data.id_offre}`, candidate);
-  const applyBtn = r.dom.window.document.getElementById('applyBtn');
-  if (applyBtn) {
-    const letter = r.dom.window.document.getElementById('applyLetter');
-    if (letter) letter.value = 'Candidature via smoke test frontend';
-    applyBtn.click();
-    await sleep(1200);
-    const mine = await (await fetch(`${BASE}/api/candidatures/me`, { headers: { Authorization: `Bearer ${candidate.token}` } })).json();
-    check('Candidature envoyée depuis le formulaire frontend', mine.data.items.some((a) => String(a.id_offre) === String(o2.data.id_offre) && a.lettre_motivation === 'Candidature via smoke test frontend'));
-  } else {
-    check('Candidature envoyée depuis le formulaire frontend', false, 'bouton absent');
+const run = async () => {
+  /* ---------- 1. Pages publiques & protection ---------- */
+  for (const p of ['/', '/login', '/register', '/about', '/contact']) {
+    const r = await browser().get(p);
+    step(`GET ${p} (public)`, r.status === 200 && r.text.includes('LinkEmploi'));
   }
+  const guest = browser();
+  for (const p of ['/dashboard', '/offres', '/parametres', '/messages']) {
+    const r = await guest.get(p);
+    step(`GET ${p} sans session → login`, r.status === 302 && r.location.includes('/login'));
+  }
+  const legacy = await guest.get('/jobs.html');
+  step('Legacy /jobs.html → 301 /offres', legacy.status === 301 && legacy.location.includes('/offres'));
+  const notFound = await guest.get('/page-inexistante');
+  step('404 rendue en HTML', notFound.status === 404 && notFound.text.includes('Page introuvable'));
 
-  const failed = checks.filter((c) => !c.ok);
-  console.log(`\n==== ${checks.length - failed.length}/${checks.length} passed, ${failed.length} failed ====`);
-  process.exit(failed.length ? 1 : 0);
-})().catch((e) => { console.error('SMOKE CRASH:', e); process.exit(1); });
+  /* ---------- 2. Inscription & session ---------- */
+  const candidate = browser();
+  const email = `smoke.candidat.${freshId()}@example.com`;
+  const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000' } });
+  step('POST /register → 302 /dashboard + cookie httpOnly', register.status === 302 && register.location.includes('/dashboard') && candidate.has('gc_token'));
+  const authedHome = await candidate.get('/login');
+  step('Session persistante : /login redirige vers /dashboard', authedHome.status === 302 && authedHome.location.includes('/dashboard'));
+  const dashCandidate = await candidate.get('/dashboard');
+  step('Dashboard candidat rendu (SSR)', dashCandidate.status === 200 && dashCandidate.text.includes('Suivi de vos') && dashCandidate.text.includes('Testeur Smoke'));
+  step('Nav candidat : liens rôle (Pas d’administration)', dashCandidate.text.includes('/profil') && dashCandidate.text.includes('/matching') && !dashCandidate.text.includes('Nouvelle compétence'));
+  step('Nav sans « devenir recruteur » permanent', !dashCandidate.text.includes('/entreprise/demande'));
+  step('Badges non lus cachés quand 0', dashCandidate.text.includes('count hidden" data-count="unread-messages"') && dashCandidate.text.includes('count hidden" data-count="unread-notifications"'));
+
+  /* ---------- 3. Paramètres : infos personnelles + mot de passe ---------- */
+  const updInfo = await candidate.post('/parametres', { form: { prenom: 'Smoke', nom: 'Testeur', telephone: '+2439999999' } });
+  const setPage = await candidate.get('/parametres');
+  step('Paramètres : mise à jour téléphone', updInfo.status === 302 && setPage.text.includes('+2439999999'));
+  const badPass = await candidate.post('/parametres/mot-de-passe', { form: { mot_de_passe_actuel: 'WrongPass1!', nouveau_mot_de_passe: 'NouveauSecret123!' } });
+  step('Mot de passe : mauvais actuel → redirect + flash erreur', badPass.status === 302 && candidate.value('gc_flash')?.includes('danger'));
+  const goodPass = await candidate.post('/parametres/mot-de-passe', { form: { mot_de_passe_actuel: 'Secret123!', nouveau_mot_de_passe: 'NouveauSecret123!' } });
+  const relog = browser();
+  const relogRes = await relog.post('/login', { form: { email, mot_de_passe: 'NouveauSecret123!' } });
+  step('Mot de passe : changement effectif', goodPass.status === 302 && relogRes.status === 302 && relog.has('gc_token'));
+
+  /* ---------- 4. Profil candidat (bio, compétences, expérience, diplôme) ---------- */
+  const profilForm = await candidate.post('/profil', { form: { bio: 'Profil de test fumée', adresse: 'Kinshasa', date_naissance: '1996-01-01', lieu_naissance: 'Goma' } });
+  const profilPage = await candidate.get('/profil');
+  step('Profil : bio enregistrée (SSR)', profilForm.status === 302 && profilPage.text.includes('Profil de test fumée'));
+  const skillAdd = await candidate.post('/profil/competences', { form: { id_competence: '1', niveau_competence: 'Avancé' } });
+  const profilPage2 = await candidate.get('/profil');
+  step('Profil : compétence associée', skillAdd.status === 302 && profilPage2.text.includes('JavaScript'));
+  const xpAdd = await candidate.post('/profil/experiences', { form: { poste: 'Dev', entreprise: 'ACME', date_debut: '2020-01-01', description: 'Stage' } });
+  const dipAdd = await candidate.post('/profil/diplomes', { form: { intitule: 'Licence Info', etablissement: 'Unikin', annee_obtention: '2019' } });
+  const profilPage3 = await candidate.get('/profil');
+  step('Profil : expérience + diplôme', xpAdd.status === 302 && dipAdd.status === 302 && profilPage3.text.includes('Dev') && profilPage3.text.includes('Licence Info'));
+
+  /* ---------- 5. Demande recruteur → approbation admin → gestion ---------- */
+  const fd = new FormData();
+  const companyName = `Smoke Corp ${freshId()}`;
+  fd.append('nom_entreprise', companyName);
+  fd.append('secteur_activite', 'Informatique');
+  fd.append('adresse', '1 Av. Test');
+  fd.append('ville', 'Kinshasa');
+  fd.append('pays', 'RDC');
+  fd.append('telephone', '+2438100000');
+  fd.append('email', `smokecorp${freshId()}@example.com`);
+  fd.append('numero_rccm', 'RCCM/SMOKE/001');
+  fd.append('numero_fiscal', 'FISC-001');
+  fd.append('description', 'Entreprise de test fumée.');
+  fd.append('supporting_documents', new Blob(['%PDF-1.4 fake'], { type: 'application/pdf' }), 'justif.pdf');
+  const request = await candidate.post('/entreprise/demande', { multipart: fd });
+  const settings = await candidate.get('/parametres');
+  step('Demande entreprise soumise → statut « en attente » dans paramètres', request.status === 302 && settings.text.includes('en attente de validation'));
+
+  // L'annuaire ne montre pas l'entreprise en attente aux non-admins
+  const annuaire = await candidate.get('/entreprises');
+  step('Annuaire : entreprise en attente masquée aux candidats', !annuaire.text.includes(companyName));
+
+  // API entreprises/mine donne la demande
+  const mineApi = await candidate.get('/api/entreprises/mine');
+  const mineJson = mineApi.json();
+  const myCompanyId = mineJson?.data?.items?.[0]?.id_entreprise;
+  step('API /api/entreprises/mine (pending)', mineApi.status === 200 && !!myCompanyId);
+
+  // Approbation par l'administrateur (compte seedé)
+  const admin = browser();
+  await admin.post('/login', { form: { email: 'admin@example.com', mot_de_passe: 'Admin123!' } });
+  const adminDash = await admin.get('/dashboard');
+  step('Dashboard admin : demande en attente visible', adminDash.text.includes(companyName));
+  const approve = await admin.post(`/admin/companies/${myCompanyId}/approve`, { form: {} });
+  step('Admin approuve la demande', approve.status === 302);
+
+  const dashAfter = await candidate.get('/dashboard');
+  step('Utilisateur promu recruteur (dashboard recruteur)', dashAfter.text.includes('Nouvelle offre'));
+  const manage = await candidate.get('/entreprise');
+  step('Gestion entreprise : page accessible', manage.status === 200 && manage.text.includes(companyName));
+  const logical = await candidate.post(`/entreprise/${myCompanyId}`, { form: { nom_entreprise: companyName, description: 'Description mise à jour', adresse: '2 Av. Nouvelle', ville: 'Kinshasa', pays: 'RDC', telephone: '+2438100000', email: `smokecorp@example.com` } });
+  const manage2 = await candidate.get('/entreprise');
+  step('Recruteur modifie SA société (description/adr)', logical.status === 302 && manage2.text.includes('Description mise à jour'));
+  // Le recruteur ne peut PAS modifier l'entreprise d'un autre (seed : id 1 = Tech Solutions)
+  const otherResp = await fetch(`${BASE}/api/entreprises/1`, { method: 'PUT', headers: { 'content-type': 'application/json', cookie: `gc_token=${candidate.value('gc_token')}` }, body: JSON.stringify({ nom_entreprise: 'Piratage SARL' }) });
+  step('Interdiction de modifier l’entreprise d’un autre (403)', otherResp.status === 403);
+
+  /* ---------- 6. Offres : création → publication → candidature ---------- */
+  const deadline = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const offerTitle = `Offre Smoke ${freshId()}`;
+  const create = await candidate.post('/offres', { form: { titre_offre: offerTitle, description_offre: 'Description offre smoke', localisation: 'Kinshasa', salaire: '1500', date_expiration: deadline } });
+  step('Recruteur publie une offre', create.status === 302);
+  const listRec = await candidate.get('/offres');
+  step('Offre visible dans /offres (recruteur)', listRec.text.includes(offerTitle));
+  const pastDate = await candidate.post('/offres', { form: { titre_offre: 'Old', description_offre: 'x', localisation: 'kin', date_expiration: '2000-01-01' } });
+  step('Validation : date passée refusée (flash erreur)', pastDate.status === 302 && candidate.value('gc_flash')?.includes('danger'));
+
+  // Identifiant de l'offre nouvellement créée via API (cookie authentifié)
+  const offersApi = await candidate.get('/api/offres?mine=1&limit=100');
+  const myOffer = offersApi.json()?.data?.items?.find((o) => o.titre_offre === offerTitle);
+  step('Offre retrouvée via API', !!myOffer);
+  const setSkill = await candidate.post(`/offres/${myOffer.id_offre}/competences`, { form: { id_competence: '2', niveau_requis: 'Avancé' } });
+  const offerPage = await candidate.get(`/offres/${myOffer.id_offre}`);
+  step('Compétence requise ajoutée à l’offre', setSkill.status === 302 && offerPage.text.includes('Node.js'));
+
+  /* ---------- 7. Candidature (compte candidat seedé) ---------- */
+  const seeker = browser();
+  await seeker.post('/login', { form: { email: 'candidat@example.com', mot_de_passe: 'Candidat123!' } });
+  const seekerOfferPage = await seeker.get(`/offres/${myOffer.id_offre}`);
+  const already = seekerOfferPage.text.includes('Envoyer ma candidature');
+  step('Candidat : formulaire de candidature affiché', already);
+  const apply = await seeker.post(`/offres/${myOffer.id_offre}/postuler`, { form: { lettre_motivation: 'Je suis très motivé.' } });
+  const myApps = await seeker.get('/candidatures');
+  step('Candidature enregistrée et affichée', apply.status === 302 && myApps.text.includes(offerTitle) && myApps.text.includes('En attente'));
+  const dup = await seeker.post(`/offres/${myOffer.id_offre}/postuler`, { form: { lettre_motivation: 'encore' } });
+  step('Double candidature bloquée (flash erreur)', dup.status === 302 && seeker.value('gc_flash')?.includes('danger'));
+
+  // Le recruteur voit la candidature et change le statut
+  const received = await candidate.get('/candidatures');
+  step('Recruteur : candidature reçue affichée', received.text.includes('Smoke') || received.text.includes('candidat'));
+  const appsApi = await candidate.get('/api/candidatures/recues');
+  const appRow = appsApi.json()?.data?.items?.find((a) => a.id_offre === myOffer.id_offre);
+  const statusUpd = await candidate.post(`/candidatures/${appRow.id_candidature}/statut`, { form: { statut_candidature: 'Entretien' } });
+  const seekerApps = await seeker.get('/candidatures');
+  step('Statut mis à jour côté candidat', statusUpd.status === 302 && seekerApps.text.includes('Entretien'));
+  const cancel = await seeker.post(`/candidatures/${appRow.id_candidature}/annuler`, { form: {} });
+  step('Annulation impossible après changement de statut (flash erreur)', seeker.value('gc_flash')?.includes('danger'));
+
+  /* ---------- 8. Compteurs non lus (messages + notifications) ---------- */
+  const notifCountApi = await seeker.get('/api/notifications/non-lues');
+  step('API /api/notifications/non-lues', notifCountApi.status === 200 && notifCountApi.json()?.data?.total >= 1, `total=${notifCountApi.json()?.data?.total}`);
+  const seekerNotifs = await seeker.get('/notifications');
+  step('Badge notifications SSR > 0', !seekerNotifs.text.includes('count hidden" data-count="unread-notifications"'));
+  const readAll = await seeker.post('/notifications/lire-toutes', { form: {} });
+  const seekerNotifs2 = await seeker.get('/notifications');
+  step('« Tout marquer lu » remet le badge à 0', readAll.status === 302 && seekerNotifs2.text.includes('count hidden" data-count="unread-notifications"'));
+
+  // Message recruteur → candidat : le compteur monte puis redescend à la lecture
+  const send = await candidate.post('/messages', { form: { id_destinataire: String(appRow.id_utilisateur), contenu: 'Bonjour, entretien demain 10h.' } });
+  const unreadApi = await seeker.get('/api/messages/non-lus');
+  step('Message non lu compté côté destinataire', send.status === 302 && unreadApi.json()?.data?.total >= 1, `total=${unreadApi.json()?.data?.total}`);
+  const seekerMsgs = await seeker.get('/messages');
+  step('Badge messages SSR > 0 (badge visible)', !seekerMsgs.text.includes('count hidden" data-count="unread-messages"'));
+  const convsJson = (await (await fetch(`${BASE}/api/messages`, { headers: { cookie: `gc_token=${seeker.value('gc_token')}` } })).json())?.data?.items || [];
+  // Lecture de chaque fil (le seed ajoute un message non lu d'un autre contact) :
+  // après ouverture de toutes les conversations, plus aucun message non lu.
+  let allOpened = convsJson.length > 0;
+  for (const conv of convsJson) {
+    const openThread = await seeker.get(`/messages?dest=${conv.id_utilisateur}`);
+    allOpened = allOpened && openThread.status === 200;
+  }
+  const unreadAfter = await seeker.get('/api/messages/non-lus');
+  step('Lecture des fils : compteur retombe à 0', allOpened && unreadAfter.json()?.data?.total === 0, `total=${unreadAfter.json()?.data?.total} fils=${convsJson.length}`);
+
+  /* ---------- 9. Matching ---------- */
+  const matchPage = await seeker.get(`/matching?id_offre=${myOffer.id_offre}`);
+  step('Matching : score SSR affiché', matchPage.status === 200 && matchPage.text.includes('Score de compatibilité'));
+  const matchForbidden = await candidate.get('/matching');
+  step('Matching interdit au recruteur (403 page)', matchForbidden.status === 403);
+
+  /* ---------- 10. Déconnexion ---------- */
+  const logout = await seeker.post('/logout', { form: {} });
+  const afterLogout = await seeker.get('/dashboard');
+  step('Déconnexion : cookie invalidé, /dashboard → /login', logout.status === 302 && !seeker.has('gc_token') && afterLogout.status === 302);
+
+  /* ---------- 11. Erreurs serveur masquées ---------- */
+  const badId = await candidate.get('/offres/abc');
+  step('ID invalide → page 404 propre', badId.status === 404 && badId.text.includes('Page introuvable'));
+  const unknownOffer = await candidate.get('/offres/999999');
+  step('Offre inconnue → erreur conviviale', unknownOffer.status === 404 && !unknownOffer.text.includes('sql'));
+
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\n==== ${results.length - failed.length}/${results.length} passed, ${failed.length} failed ====`);
+  if (failed.length) { failed.forEach((f) => console.log('ÉCHEC :', f.name)); process.exit(1); }
+};
+
+run().catch((err) => { console.error('Erreur test :', err); process.exit(1); });

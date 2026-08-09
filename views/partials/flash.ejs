@@ -1,0 +1,7 @@
+<% if (typeof flash !== 'undefined' && flash && flash.message) { %>
+  <div class="alert alert-<%= flash.type || 'info' %>" role="status" data-flash>
+    <%- icon(flash.type === 'danger' ? 'triangle-alert' : flash.type === 'success' ? 'circle-check' : 'info') %>
+    <span><%= flash.message %></span>
+    <button type="button" class="alert-close" data-flash-close aria-label="Fermer"><%- icon('x') %></button>
+  </div>
+<% } %>

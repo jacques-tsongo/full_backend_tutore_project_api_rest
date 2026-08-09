@@ -6,6 +6,155 @@ Périmètre : inspection complète, audit des incohérences, réparation du work
 
 ---
 
+# PARTIE II — REFONTE du 2026-08-09 (EJS, sessions sécurisées, compteurs, paramètres)
+
+> **État courant du projet = cette partie.** La Partie I (plus bas) est conservée comme
+> historique de la première passe d'audit/réparation (2026-08-06).
+
+Date : 2026-08-09 — Branche : `arena/019fe5ce-full-backend-tutore-project-ap`
+Périmètre : migration des pages HTML statiques vers le rendu serveur **EJS**, sessions
+persistantes sécurisées (cookie httpOnly, plus de jeton en `localStorage`), compteurs de
+messages/notifications non lus calculés depuis la base, page de paramètres complète,
+recruteur limité à **sa seule entreprise**, demande d'entreprise déplacée hors de la
+navigation principale, UI/UX professionnelle avec icônes, gestion d'erreurs durcie,
+migration SQL additive, tests de bout en bout.
+
+## II.1 Résumé exécutif
+
+| Suite | Résultat |
+|---|---|
+| `test/e2e-workflow.js` (API réelle + MySQL 5.7) | **60 / 60 PASS** |
+| `test/frontend-smoke.js` (navigation HTTP réelle, jar à cookies, HTML rendu) | **54 / 54 PASS** |
+
+Les 20 pages HTML statiques (`frontend/*.html`) et les 15 scripts SPA associés ont été
+**supprimés** et remplacés par **21 vues EJS + 9 partials** rendues côté serveur par
+`src/controllers/page.controller.js` via `src/routes/web.routes.js`, **sans dupliquer la
+logique métier** : les formulaires web appellent les mêmes contrôleurs API
+(`src/helpers/formPost.js`), avec le même format de réponse `{success, message, data|errors}`.
+La navigation est désormais générée par rôle (`views/partials/sidebar.ejs`), les badges de
+messages/notifications non lus proviennent de requêtes SQL (`loadNavCounts`), la session
+vit dans un cookie **`gc_token` httpOnly / SameSite=Lax** posé à la connexion (transport
+Bearer conservé pour les clients API), et l'ancien stockage `localStorage` du jeton a
+disparu du code (les anciennes URLs `*.html` reçoivent une **redirection 301**).
+
+## II.2 Changements majeurs par domaine
+
+### Authentification / sessions
+- Cookie **httpOnly** `gc_token` (SameSite=Lax, `secure` en production, durée 7 j) posé sur
+  `POST /api/auth/login` et `POST /api/auth/register`, effacé sur `POST /api/auth/logout` ;
+  le jeton JWT est le même qu'avant (un seul système d'authentification).
+- `authenticate` accepte l'en-tête `Authorization: Bearer` **puis** le cookie ;
+  `webAuthorize` rend une **page 403** stylée, `webAuth` redirige vers `/login?erreur=…`.
+- Nouveau `PUT /api/auth/mot-de-passe` (validateur `passwordChange`, vérif bcrypt de
+  l'ancien mot de passe) alimenté par le formulaire de `/parametres`.
+
+### Compteurs non lus (base de données, pas seulement l'UI)
+- Migration **`database/migrations/20260809_message_read_tracking.sql`** : `message.lu
+  TINYINT(1) NOT NULL DEFAULT 0`, `message.date_lecture DATETIME NULL`, index
+  `(id_destinataire, lu)` — ALTER **idempotents** gardés par `information_schema`,
+  backfill des messages historiques en « lus » uniquement à la création de la colonne.
+- `GET /api/messages/non-lus` → `{total}` ; lecture d'un fil = `UPDATE … lu=1, date_lecture=NOW()`
+  sur les messages entrants ; la liste des conversations expose `non_lus` par contact.
+- `GET /api/notifications/non-lues` → `{total}` (s'appuie sur `statut_notification` existant).
+- Sidebar + topbar affichent les badges (cachés à 0), rafraîchis toutes les 60 s par
+  `frontend/js/app.js` ; le seed ajoute une démo (1 message + 1 notification non lus pour
+  `candidat@example.com`).
+
+### Paramètres utilisateur (`/parametres`)
+- Informations du compte, formulaire d'infos personnelles, changement de mot de passe,
+  choix de **thème** clair/sombre (cookie `gc_theme` + `data-theme`, sans flash au chargement),
+  déconnexion ; la **demande d'entreprise** (« Devenir recruteur ») n'existe que dans la
+  section « Espace recruteur » de cette page — **retirée de la navigation principale**, avec
+  états En attente / Approuvée / Rejetée et workflow d'approbation admin inchangé.
+
+### Entreprises
+- `GET /api/entreprises/mine` (recruteur → son entreprise approuvée) et `PUT
+  /api/entreprises/:id` (recruteur : uniquement la sienne ; admin : toutes ; le **statut
+  n'est jamais modifiable** via cette route — validateur `companyUpdate`).
+- La route admin générique `PUT /api/entreprises/:id` (contournement du workflow
+  d'approbation) est **retirée** (`skipPut` dans `resource.routes.js`).
+- Annuaire `/entreprises` : un non-admin ne voit que les entreprises **approuvées** ;
+  détail d'une entreprise en attente/rejetée → 404 hors propriétaire/admin ; champs
+  sensibles (`documents_justificatifs`, `numero_rccm`, `numero_fiscal`, `approved_by`)
+  masqués pour les tiers.
+
+### Offres / candidatures / matching (conservés et revérifiés)
+- Pré-contrôle « déjà postulé » → **409** explicite (la contrainte `uq_candidature` reste
+  le garde-fou d'intégrité) ; formulaire de candidature SSR + état « Vous avez déjà postulé » ;
+  gestion des offres du recruteur (création, édition, compétences requises, suppression)
+  en formulaires serveur ; matching affiché côté candidat, **403 page** pour les autres rôles.
+
+### Gestion d'erreurs
+- Pages **`404.ejs` / `error.ejs`** stylées pour les requêtes HTML (JSON inchangé pour
+  l'API) ; mapping `ER_DUP_ENTRY`→409, FK→400/409, `ER_DATA_TOO_LONG`→422, `MulterError`→400 ;
+  les erreurs 5xx n'exposent plus les internes (« Erreur interne du serveur. »).
+
+### UI/UX
+- Design system CSS (`frontend/css/app.css`), layout sidebar + topbar responsive
+  (off-canvas mobile), icônes **Lucide** (62 SVG en local dans `frontend/vendor/lucide/`,
+  aucun emoji), flash messages PRG (`gc_flash`), confirmations `data-confirm`, zéro
+  JavaScript critique inline (compatible CSP de `helmet`).
+
+## II.3 Fichiers créés
+
+- **Backend** : `src/routes/web.routes.js`, `src/controllers/page.controller.js`,
+  `src/helpers/flash.js`, `src/helpers/formPost.js`, `database/migrations/20260809_message_read_tracking.sql`.
+- **Vues** : `views/{index,about,contact,login,register,dashboard,profile,offers,offer-details,applications,applications-received,matching,messages,notifications,companies,company-details,company-manage,company-request,settings,404,error}.ejs` + `views/partials/{head,foot,flash,sidebar,topbar,public-nav,dashboard-candidat,dashboard-recruteur,dashboard-admin}.ejs`.
+- **Frontend statique** : `frontend/js/app.js`, `frontend/css/app.css`,
+  `frontend/vendor/lucide/*.svg` (62 icônes).
+
+## II.4 Routes ajoutées (API)
+
+| Route | Méthode | Rôle | Description |
+|---|---|---|---|
+| `/api/auth/mot-de-passe` | PUT | authentifié | Changement de mot de passe (ancien vérifié) |
+| `/api/auth/logout` | POST | authentifié | Efface le cookie de session |
+| `/api/messages/non-lus` | GET | authentifié | Total de messages non lus |
+| `/api/notifications/non-lues` | GET | authentifié | Total de notifications non lues |
+| `/api/entreprises/mine` | GET | recruteur/candidat | Son entreprise (approuvée) ou demande en cours |
+| `/api/entreprises/:id` | PUT | recruteur (la sienne) / admin | Édition sans toucher au statut |
+
+Plus ~45 routes **web** (GET pages + POST formulaires) dans `src/routes/web.routes.js`
+(`/`, `/about`, `/contact`, `/login`, `/register`, `/dashboard`, `/profil`, `/offres`,
+`/offres/:id`, `/candidatures`, `/matching`, `/messages`, `/notifications`, `/entreprises`,
+`/entreprise`, `/entreprise/demande`, `/parametres`…) et redirections 301 des anciennes
+URL `*.html`. `PUT /api/entreprises/:id` générique admin : **supprimée**.
+
+## II.5 Changements de base de données
+
+- **Une seule migration, additive et sans perte** :
+  `database/migrations/20260809_message_read_tracking.sql` (ALTER TABLE `message` :
+  `lu`, `date_lecture`, index ; idempotent, rejouable). Aucune autre table/colonne
+  modifiée ; `schema.sql` inchangé.
+- `database/seed.sql` : ajout d'un message + d'une notification non lus de démonstration
+  (idempotent comme le reste du seed).
+- Procédure : `mysql -u root -p gestion_carrieres < database/migrations/20260809_message_read_tracking.sql`
+  (voir README § « Mise à jour »).
+
+## II.6 Points restants (non bloquants)
+
+1. Le compteur de messages non lus est recalculé au chargement des pages + polling 60 s ;
+   pas de temps réel (SSE/WebSocket) — suffisant pour l'usage, extensible plus tard.
+2. Les anciens liens profonds `*.html` sont redirigés (301) mais les ancres/params
+   exotiques (`job-details.html?id=…` est géré ; les fragments `#` ne transitent pas par
+   le serveur, comportement navigateur standard).
+3. Limites héritées de la Partie I toujours valables : pas de table `entretien`, cascade
+   de suppression d'offre, photo/CV liés au profil courant, CI recommandée.
+
+## II.7 Preuve de fonctionnement
+
+- `test/e2e-workflow.js` : **60/60 PASS** (cookie httpOnly vérifié, lecture message 1→0,
+  `mine`, update entreprise propre, statut non modifiable, mot de passe…).
+- `test/frontend-smoke.js` : **54/54 PASS** (pages publiques, redirections 301 et
+  non-authentifié→login, nav par rôle, badges 0/cachés et non lus visibles, workflow
+  complet demande d'entreprise→approbation→promotion→gestion, 403 sur l'entreprise d'un
+  tiers, candidature→statut→annulation bloquée, compteurs SSR+API, 404 propres, pas de
+  fuite SQL). Spot-checks manuels : 5 pages × 3 rôles (200), pages publiques (200),
+  404 HTML stylée, redirects 301 par ancienne page.
+
+---
+---
+
 ## 1. Résumé exécutif
 
 Le workflow complet fonctionne désormais de bout en bout, vérifié par deux suites de tests automatisées :

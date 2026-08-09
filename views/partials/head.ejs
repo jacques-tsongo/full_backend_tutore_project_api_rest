@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="fr" data-theme="<%= typeof theme !== 'undefined' && theme ? theme : 'light' %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' && title ? `${title} · LinkEmploi` : 'LinkEmploi' %></title>
+  <link rel="icon" href="/icons/logo.png" type="image/png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="<%= typeof page !== 'undefined' ? page : '' %>"<% if (typeof user !== 'undefined' && user) { %> data-user-id="<%= user.id_utilisateur %>" data-role="<%= user.role %>"<% } %>>

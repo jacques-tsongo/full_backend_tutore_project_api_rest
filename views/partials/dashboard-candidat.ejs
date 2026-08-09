@@ -1,0 +1,43 @@
+<section class="grid two" style="margin-top:18px">
+  <div class="card">
+    <h2>Prochaine étape</h2>
+    <p>Complétez votre profil, ajoutez votre CV puis postulez aux offres ouvertes.</p>
+    <div class="nav-actions">
+      <a class="btn" href="/profil"><%- icon('user') %> Compléter mon profil</a>
+      <a class="btn primary" href="/offres"><%- icon('briefcase') %> Voir les offres ouvertes</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Devenir recruteur</h2>
+    <p>La soumission d'entreprise se fait depuis vos paramètres et reste soumise à validation d'un administrateur.</p>
+    <a class="btn" href="/parametres#entreprise"><%- icon('settings') %> Ouvrir les paramètres</a>
+  </div>
+</section>
+
+<section class="card" style="margin-top:18px">
+  <h2>Candidatures récentes</h2>
+  <% if (!extra.applications.length) { %>
+    <div class="empty-state">
+      <%- icon('inbox') %>
+      <p>Aucune candidature pour le moment.</p>
+      <a class="btn primary" href="/offres">Parcourir les offres</a>
+    </div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Offre</th><th>Entreprise</th><th>Statut</th><th>Date</th></tr></thead>
+        <tbody>
+          <% extra.applications.forEach((a) => { %>
+            <tr>
+              <td><a href="/offres/<%= a.id_offre %>"><%= a.titre_offre %></a></td>
+              <td><%= a.nom_entreprise %></td>
+              <td><span class="badge <%= statusClass(a.statut_candidature) %>"><%= a.statut_candidature %></span></td>
+              <td><%= formatDate(a.date_candidature) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div class="nav-actions" style="margin-top:12px"><a class="btn" href="/candidatures">Toutes mes candidatures</a></div>
+  <% } %>
+</section>

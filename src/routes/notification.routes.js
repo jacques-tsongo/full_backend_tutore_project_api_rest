@@ -41,6 +41,22 @@ router.patch('/lire-toutes', c.readAll);
 
 /**
  * @swagger
+ * /api/notifications/non-lues:
+ *   get:
+ *     summary: Nombre de notifications non lues de l'utilisateur connecté
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Compteur de notifications non lues
+ *       401:
+ *         description: Non authentifié
+ */
+router.get('/non-lues', c.unreadCount);
+
+/**
+ * @swagger
  * /api/notifications/{id}/lire:
  *   patch:
  *     summary: Marquer une notification spécifique comme lue

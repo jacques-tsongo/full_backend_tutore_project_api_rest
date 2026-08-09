@@ -109,6 +109,40 @@ exports.findById = async (id) => {
   return rows[0];
 };
 
+/**
+ * Champs qu'un propriétaire (recruteur) ou un administrateur peut modifier.
+ * Le statut de validation reste exclusif au workflow admin (approve/reject).
+ */
+const EDITABLE_FIELDS = [
+  'nom_entreprise',
+  'secteur_activite',
+  'adresse',
+  'ville',
+  'pays',
+  'telephone',
+  'email',
+  'site_web',
+  'description',
+  'logo',
+  'numero_rccm',
+  'numero_fiscal'
+];
+
+exports.EDITABLE_FIELDS = EDITABLE_FIELDS;
+
+/**
+ * Met à jour les informations de l'entreprise (jamais son statut de validation).
+ */
+exports.updateOwn = async (id, data) => {
+  const fields = EDITABLE_FIELDS.filter((f) => data[f] !== undefined);
+  if (!fields.length) return exports.findById(id);
+  await db.execute(
+    `UPDATE entreprise SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id_entreprise = ?`,
+    [...fields.map((f) => data[f]), id]
+  );
+  return exports.findById(id);
+};
+
 exports.setStatus = async (id, status, adminId = null, connection = db) => {
   const approvedAt = status === 'approved' ? new Date() : null;
   const approvedBy = status === 'approved' ? adminId : null;

@@ -57,6 +57,22 @@ router.get('/', c.conversations);
 
 /**
  * @swagger
+ * /api/messages/non-lus:
+ *   get:
+ *     summary: Nombre de messages non lus de l'utilisateur connecté
+ *     tags: [Messagerie]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Compteur de messages non lus
+ *       401:
+ *         description: Non authentifié
+ */
+router.get('/non-lus', c.unreadCount);
+
+/**
+ * @swagger
  * /api/messages/contacts:
  *   get:
  *     summary: Lister les utilisateurs que je peux contacter (relation métier)

@@ -448,34 +448,8 @@
           }
         }
       },
-      "put": {
-        "summary": "Modifier une entreprise (Recruteur / Admin)",
-        "tags": [
-          "Ressources - Entreprises"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Entreprise mise à jour"
-          }
-        }
-      },
       "delete": {
-        "summary": "Supprimer une entreprise (Recruteur / Admin)",
+        "summary": "Supprimer une entreprise (Admin)",
         "tags": [
           "Ressources - Entreprises"
         ],
@@ -497,6 +471,95 @@
         "responses": {
           "200": {
             "description": "Entreprise supprimée"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modifier une entreprise (recruteur propriétaire de SON entreprise approuvée, ou administrateur)",
+        "description": "Le statut de validation n'est jamais modifiable via cette route (workflow administrateur uniquement).",
+        "tags": [
+          "Entreprises & Recruteurs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nom_entreprise": {
+                    "type": "string"
+                  },
+                  "secteur_activite": {
+                    "type": "string"
+                  },
+                  "adresse": {
+                    "type": "string"
+                  },
+                  "ville": {
+                    "type": "string"
+                  },
+                  "pays": {
+                    "type": "string"
+                  },
+                  "telephone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "site_web": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "numero_rccm": {
+                    "type": "string"
+                  },
+                  "numero_fiscal": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "logo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entreprise mise à jour"
+          },
+          "403": {
+            "description": "Vous ne pouvez modifier que votre propre entreprise"
+          },
+          "404": {
+            "description": "Entreprise introuvable"
           }
         }
       }
@@ -1004,6 +1067,27 @@
         }
       }
     },
+    "/api/notifications/non-lues": {
+      "get": {
+        "summary": "Nombre de notifications non lues de l'utilisateur connecté",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compteur de notifications non lues"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
+      }
+    },
     "/api/notifications/{id}/lire": {
       "patch": {
         "summary": "Marquer une notification spécifique comme lue",
@@ -1104,6 +1188,27 @@
         "responses": {
           "200": {
             "description": "Liste des conversations et derniers messages échangés"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
+      }
+    },
+    "/api/messages/non-lus": {
+      "get": {
+        "summary": "Nombre de messages non lus de l'utilisateur connecté",
+        "tags": [
+          "Messagerie"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compteur de messages non lus"
           },
           "401": {
             "description": "Non authentifié"
@@ -1582,6 +1687,27 @@
         }
       }
     },
+    "/api/entreprises/mine": {
+      "get": {
+        "summary": "Lister les entreprises appartenant à l'utilisateur connecté (tous statuts)",
+        "tags": [
+          "Entreprises & Recruteurs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entreprises de l'utilisateur connecté"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        }
+      }
+    },
     "/api/entreprises/{id}/validation": {
       "patch": {
         "summary": "Valider ou rejeter une entreprise (Admin)",
@@ -1800,9 +1926,58 @@
         }
       }
     },
+    "/api/auth/mot-de-passe": {
+      "put": {
+        "summary": "Changer son mot de passe (mot de passe actuel requis)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mot_de_passe_actuel",
+                  "nouveau_mot_de_passe"
+                ],
+                "properties": {
+                  "mot_de_passe_actuel": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "nouveau_mot_de_passe": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "NouveauSecret123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mot de passe mis à jour"
+          },
+          "401": {
+            "description": "Mot de passe actuel incorrect"
+          },
+          "422": {
+            "description": "Données invalides"
+          }
+        }
+      }
+    },
     "/api/auth/logout": {
       "post": {
-        "summary": "Déconnexion de l'utilisateur",
+        "summary": "Déconnexion de l'utilisateur (la session navigateur est invalidée)",
         "tags": [
           "Auth"
         ],
