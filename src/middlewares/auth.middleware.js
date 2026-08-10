@@ -40,6 +40,13 @@ exports.authenticate = asyncHandler(async (req, res, next) => {
  * dans `res.locals.user`. Sans session valide, redirection vers /login
  * (et le cookie éventuellement expiré est nettoyé).
  */
+const noCacheHeaders = (res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+};
+
 exports.webAuth = asyncHandler(async (req, res, next) => {
   const token = req.cookies?.[COOKIE_NAME];
   let user = null;
@@ -49,7 +56,11 @@ exports.webAuth = asyncHandler(async (req, res, next) => {
   }
   req.user = user;
   res.locals.user = user;
-  if (!user) return res.redirect(`/login?erreur=${encodeURIComponent('Veuillez vous connecter pour continuer.')}`);
+  if (!user) {
+    noCacheHeaders(res);
+    return res.redirect(`/login?erreur=${encodeURIComponent('Veuillez vous connecter pour continuer.')}`);
+  }
+  noCacheHeaders(res);
   next();
 });
 
@@ -66,6 +77,7 @@ exports.webOptionalAuth = asyncHandler(async (req, res, next) => {
   }
   req.user = user;
   res.locals.user = user;
+  if (user) noCacheHeaders(res);
   next();
 });
 
