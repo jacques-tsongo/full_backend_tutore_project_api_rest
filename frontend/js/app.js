@@ -97,5 +97,15 @@
     };
     refreshBadges();
     setInterval(refreshBadges, 60000); // synchronisation légère toutes les minutes
+
+    /* Force la revalidation des pages authentifiées restaurées depuis le Back-Forward Cache. */
+    window.addEventListener('pageshow', (event) => {
+      const pageId = document.body.dataset.page;
+      const hasUser = Boolean(document.body.dataset.userId);
+      const isAuthPage = hasUser && pageId !== 'login' && pageId !== 'register' && pageId !== 'home' && pageId !== 'about' && pageId !== 'contact' && pageId !== '404';
+      if (isAuthPage && (event.persisted || (performance.getEntriesByType && performance.getEntriesByType('navigation').some((nav) => nav.type === 'back_forward')))) {
+        window.location.reload();
+      }
+    });
   });
 })();
