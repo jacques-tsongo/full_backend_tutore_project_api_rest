@@ -1,5 +1,5 @@
-const express = require('express'); 
-const path = require('path'); 
+const express = require('express');
+const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet'); 
 const cors = require('cors'); 
@@ -8,8 +8,9 @@ const cookieParser = require('cookie-parser');
 const { notFound, errorHandler } = require('./middlewares/error.middleware'); 
 const { readFlash } = require('./helpers/flash');
 const { success } = require('./utils/apiResponse');
-const app = express(); 
+const app = express();
 
+app.use(helmet());
 
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("../swagger");
