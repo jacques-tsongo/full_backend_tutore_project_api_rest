@@ -74,6 +74,14 @@ exports.validate = asyncHandler(async (req, res) => {
   const company = await Company.findById(req.params.id);
   if (!company) return fail(res, 'Entreprise introuvable.', [], 404);
 
+  // Idempotence : éviter d'approuver / rejeter deux fois la même entreprise.
+  if (company.status === 'rejected' && status === 'rejected') {
+    return fail(res, 'Cette demande a déjà été rejetée.', [], 409);
+  }
+  if (company.status === 'approved' && status === 'approved') {
+    return fail(res, 'Cette entreprise a déjà été approuvée.', [], 409);
+  }
+
   if (status === 'approved') {
     const approved = await Company.approve(req.params.id, req.user.id_utilisateur);
     await notify.create(approved.id_utilisateur, `Votre entreprise « ${approved.nom_entreprise} » a été approuvée. Vous êtes maintenant recruteur.`);
