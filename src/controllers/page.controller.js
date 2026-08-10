@@ -33,7 +33,7 @@ exports.contact = (req, res) => res.render('contact', { title: 'Contact', user: 
 
 exports.loginPage = (req, res) => {
   if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
-  return res.render('login', { title: 'Connexion', user: null });
+  return res.render('login', { title: 'Connexion', user: null, query: req.query });
 };
 exports.registerPage = (req, res) => {
   if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
@@ -185,18 +185,26 @@ exports.messages = asyncHandler(async (req, res) => {
   let thread = null;
   let threadUser = null;
   if (dest) {
-    req.params.userId = String(dest);
-    const { data: conv } = await collect(messageController.conversation, req);
-    thread = conv.items || [];
-    threadUser = (contactsData.items || []).find((c) => Number(c.id_utilisateur) === dest)
-      || (convs.items || []).find((c) => Number(c.id_utilisateur) === dest)
-      || (await User.findById(dest));
-    // Le fil vient d'être marqué lu : recalcule le badge de navigation pour CE rendu.
-    const [[{ total }]] = await db.execute(
-      'SELECT COUNT(*) AS total FROM message WHERE id_destinataire = ? AND lu = 0',
-      [req.user.id_utilisateur]
-    );
-    res.locals.unreadMessages = total;
+    // L'API `conversation` peut renvoyer 404 si le destinataire est introuvable
+    // ou n'est pas un contact légitime de l'utilisateur — on retombe alors
+    // sur la liste des conversations au lieu d'afficher une page d'erreur.
+    try {
+      req.params.userId = String(dest);
+      const { data: conv } = await collect(messageController.conversation, req);
+      thread = conv.items || [];
+      threadUser = (contactsData.items || []).find((c) => Number(c.id_utilisateur) === dest)
+        || (convs.items || []).find((c) => Number(c.id_utilisateur) === dest)
+        || (await User.findById(dest));
+      // Le fil vient d'être marqué lu : recalcule le badge de navigation pour CE rendu.
+      const [[{ total }]] = await db.execute(
+        'SELECT COUNT(*) AS total FROM message WHERE id_destinataire = ? AND lu = 0',
+        [req.user.id_utilisateur]
+      );
+      res.locals.unreadMessages = total;
+    } catch (err) {
+      // Destinataire inexistant / hors conversation : on retourne à la liste.
+      return res.redirect('/messages');
+    }
   }
   res.render('messages', {
     title: 'Messages',

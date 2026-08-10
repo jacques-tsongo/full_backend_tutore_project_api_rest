@@ -80,11 +80,24 @@
         <div class="list">
           <% diplomes.forEach((d) => { %>
             <div class="list-item">
-              <div><strong><%= d.intitule %></strong><p><%= d.etablissement %> — <%= d.annee_obtention %></p></div>
-              <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/supprimer" class="inline-form" data-confirm="Supprimer ce diplôme ?">
-                <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
-              </form>
+              <div>
+                <strong><%= d.intitule %></strong><p><%= d.etablissement %> — <%= d.annee_obtention %></p>
+              </div>
+              <div class="nav-actions">
+                <button class="btn" type="button" data-toggle="edit-diplome-<%= d.id_diplome %>" aria-label="Modifier"><%- icon('pencil') %></button>
+                <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/supprimer" class="inline-form" data-confirm="Supprimer ce diplôme ?">
+                  <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
+                </form>
+              </div>
             </div>
+            <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/maj" class="form edit-form hidden" id="edit-diplome-<%= d.id_diplome %>">
+              <div class="grid two">
+                <div class="field"><label>Intitulé</label><input name="intitule" value="<%= d.intitule %>" required></div>
+                <div class="field"><label>Établissement</label><input name="etablissement" value="<%= d.etablissement %>" required></div>
+              </div>
+              <div class="field"><label>Année d'obtention</label><input name="annee_obtention" type="number" min="1950" max="2100" value="<%= d.annee_obtention %>" required></div>
+              <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+            </form>
           <% }) %>
         </div>
         <form method="post" action="/profil/diplomes" class="form-inline skill-add">
@@ -106,10 +119,25 @@
               <strong><%= e.poste %></strong> — <%= e.entreprise %>
               <p><%= formatDate(e.date_debut) %> → <%= e.date_fin ? formatDate(e.date_fin) : 'Aujourd’hui' %><% if (e.description) { %><br><%= e.description %><% } %></p>
             </div>
-            <form method="post" action="/profil/experiences/<%= e.id_experience %>/supprimer" class="inline-form" data-confirm="Supprimer cette expérience ?">
-              <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
-            </form>
+            <div class="nav-actions">
+              <button class="btn" type="button" data-toggle="edit-experience-<%= e.id_experience %>" aria-label="Modifier"><%- icon('pencil') %></button>
+              <form method="post" action="/profil/experiences/<%= e.id_experience %>/supprimer" class="inline-form" data-confirm="Supprimer cette expérience ?">
+                <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
+              </form>
+            </div>
           </div>
+          <form method="post" action="/profil/experiences/<%= e.id_experience %>/maj" class="form edit-form hidden" id="edit-experience-<%= e.id_experience %>">
+            <div class="grid two">
+              <div class="field"><label>Poste</label><input name="poste" value="<%= e.poste %>" required></div>
+              <div class="field"><label>Entreprise</label><input name="entreprise" value="<%= e.entreprise %>" required></div>
+            </div>
+            <div class="grid two">
+              <div class="field"><label>Date de début</label><input name="date_debut" type="date" value="<%= dateInput(e.date_debut) %>" required></div>
+              <div class="field"><label>Date de fin (optionnel)</label><input name="date_fin" type="date" value="<%= dateInput(e.date_fin) %>"></div>
+            </div>
+            <div class="field"><label>Description</label><textarea name="description"><%= e.description || '' %></textarea></div>
+            <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+          </form>
         <% }) %>
       </div>
       <form method="post" action="/profil/experiences" class="form">
