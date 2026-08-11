@@ -4,13 +4,27 @@ const asyncHandler = require('../utils/asyncHandler');
 const notify = require('../services/notification.service');
 
 exports.send = asyncHandler(async (req, res) => {
+  // L'expéditeur est TOUJOURS l'utilisateur authentifié (req.user) :
+  // toute valeur `id_expediteur` envoyée par le navigateur est ignorée
+  // (impossibilité d'envoyer un message en se faisant passer pour quelqu'un d'autre).
+  const me = req.user.id_utilisateur;
   const { id_destinataire, contenu } = req.body;
-  if (Number(id_destinataire) === req.user.id_utilisateur) return fail(res, 'Vous ne pouvez pas vous écrire.', [], 422);
-  const [recipient] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur=? AND statut_compte='actif'", [id_destinataire]);
+
+  // Validation côté serveur (indépendante des validateurs de route) : elle
+  // protège aussi le formulaire HTML /messages qui ne passe pas par
+  // express-validator.
+  const destId = Number(id_destinataire);
+  if (!Number.isInteger(destId) || destId < 1) return fail(res, 'Destinataire invalide.', [], 422);
+  if (destId === me) return fail(res, 'Vous ne pouvez pas vous écrire.', [], 422);
+  const texte = typeof contenu === 'string' ? contenu.trim() : '';
+  if (!texte) return fail(res, 'Le message ne peut pas être vide.', [], 422);
+  if (texte.length > 5000) return fail(res, 'Le message est trop long (5000 caractères maximum).', [], 422);
+
+  const [recipient] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur=? AND statut_compte='actif'", [destId]);
   if (!recipient[0]) return fail(res, 'Destinataire introuvable.', [], 404);
   // Les nouveaux messages sont non lus (lu = 0) : ils alimentent le compteur du destinataire.
-  const [r] = await db.execute('INSERT INTO message (id_expediteur, id_destinataire, contenu) VALUES (?, ?, ?)', [req.user.id_utilisateur, id_destinataire, contenu]);
-  await notify.create(id_destinataire, 'Vous avez reçu un nouveau message.');
+  const [r] = await db.execute('INSERT INTO message (id_expediteur, id_destinataire, contenu) VALUES (?, ?, ?)', [me, destId, texte]);
+  await notify.create(destId, 'Vous avez reçu un nouveau message.');
   success(res, 'Message envoyé.', { id_message: r.insertId }, 201);
 });
 
