@@ -2,94 +2,9 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'messages' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Messages', subtitle: 'Échanges avec vos contacts professionnels.' }) %>
-    <%- include('partials/flash') %>
-
-    <section class="messages-layout">
-      <div class="messages-side">
-        <h2>Conversations</h2>
-        <% if (!conversations.length) { %>
-          <div class="card empty-state sm">
-            <%- icon('message-square') %>
-            <p>Aucune conversation.</p>
-          </div>
-        <% } else { %>
-          <div class="list">
-            <% conversations.forEach((c) => { %>
-              <a class="list-item conversation-item<%= Number(dest) === Number(c.id_utilisateur) ? ' active' : '' %>" href="/messages?dest=<%= c.id_utilisateur %>">
-                <span class="avatar-img sm">
-                  <% if (c.photo) { %><img src="<%= asset(c.photo) %>" alt=""><% } else { %><span class="avatar-fallback"><%= ((c.prenom || ' ')[0] + (c.nom || ' ')[0]).toUpperCase() %></span><% } %>
-                </span>
-                <div class="conversation-meta">
-                  <strong><%= c.prenom %> <%= c.nom %></strong>
-                  <p><%= (c.dernier_message || '').slice(0, 60) %><%= (c.dernier_message || '').length > 60 ? '…' : '' %></p>
-                </div>
-                <div class="conversation-side">
-                  <small class="muted-note"><%= formatDate(c.derniere_date) %></small>
-                  <% if (Number(c.non_lus) > 0) { %><span class="count"><%= c.non_lus %></span><% } %>
-                </div>
-              </a>
-            <% }) %>
-          </div>
-        <% } %>
-
-        <div class="card form" style="margin-top:18px">
-          <h2 class="form-title">Nouveau message</h2>
-          <% if (!contacts.length) { %>
-            <p class="muted-note">Aucun contact disponible pour le moment.</p>
-          <% } else { %>
-            <form method="post" action="/messages" class="form">
-              <div class="field">
-                <label for="compose-id_destinataire">Destinataire</label>
-                <select id="compose-id_destinataire" name="id_destinataire" required>
-                  <option value="">— Choisir un contact —</option>
-                  <% contacts.forEach((u) => { %>
-                    <option value="<%= u.id_utilisateur %>" <%= Number(dest) === Number(u.id_utilisateur) ? 'selected' : '' %>><%= u.prenom %> <%= u.nom %><%= u.email ? ` (${u.email})` : '' %></option>
-                  <% }) %>
-                </select>
-              </div>
-              <div class="field"><label for="compose-contenu">Message</label><textarea id="compose-contenu" name="contenu" rows="3" maxlength="5000" required></textarea></div>
-              <button class="btn primary" type="submit"><%- icon('send') %> Envoyer</button>
-            </form>
-          <% } %>
-        </div>
-      </div>
-
-      <div class="messages-thread">
-        <% if (!thread) { %>
-          <div class="card empty-state">
-            <%- icon('message-square') %>
-            <p>Sélectionnez une conversation ou envoyez un nouveau message.</p>
-          </div>
-        <% } else { %>
-          <div class="card thread-card">
-            <h2 class="form-title">
-              <% if (threadUser) { %>Conversation avec <%= threadUser.prenom %> <%= threadUser.nom %><% } else { %>Conversation<% } %>
-            </h2>
-            <div class="thread-list">
-              <% if (!thread.length) { %><p class="muted-note">Aucun message pour le moment. Écrivez le premier !</p><% } %>
-              <% thread.forEach((m) => { %>
-                <div class="thread-msg <%= Number(m.id_expediteur) === Number(user.id_utilisateur) ? 'own' : '' %>">
-                  <div class="thread-bubble">
-                    <strong><%= m.expediteur_prenom %> <%= m.expediteur_nom %></strong>
-                    <p><%= m.contenu %></p>
-                    <small><%= formatDateTime(m.date_message) %><%= Number(m.id_expediteur) === Number(user.id_utilisateur) && Number(m.lu) === 1 ? ' · Vu' : '' %></small>
-                  </div>
-                </div>
-              <% }) %>
-            </div>
-            <form method="post" action="/messages" class="form thread-form">
-              <input type="hidden" name="id_destinataire" value="<%= dest %>">
-              <div class="field">
-                <label class="sr-only" for="thread-contenu">Votre message</label>
-                <textarea id="thread-contenu" name="contenu" rows="2" maxlength="5000" placeholder="Votre message…" required></textarea>
-              </div>
-              <button class="btn primary" type="submit"><%- icon('send') %> Envoyer</button>
-            </form>
-          </div>
-        <% } %>
-      </div>
-    </section>
+    <div id="app-content">
+      <%- include('partials/content/messages-content') %>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

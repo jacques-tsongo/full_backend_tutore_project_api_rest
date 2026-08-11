@@ -26,7 +26,7 @@ const verify = async (token) => {
 /** Garde API : l'utilisateur DOIT être authentifié sinon 401 JSON. */
 exports.authenticate = asyncHandler(async (req, res, next) => {
   const token = tokenFrom(req);
-  if (!token) return fail(res, 'Jeton d’authentification requis.', [], 401);
+  if (!token) return fail(res, 'Jeton d\'authentification requis.', [], 401);
   try {
     const user = await verify(token);
     if (!user) return fail(res, 'Compte indisponible.', [], 401);
@@ -58,6 +58,10 @@ exports.webAuth = asyncHandler(async (req, res, next) => {
   res.locals.user = user;
   if (!user) {
     noCacheHeaders(res);
+    // SPA AJAX request: return 401 JSON so the client can redirect
+    if (req.headers['x-spa-content'] === '1' || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      return fail(res, 'Veuillez vous connecter pour continuer.', [], 401);
+    }
     return res.redirect(`/login?erreur=${encodeURIComponent('Veuillez vous connecter pour continuer.')}`);
   }
   noCacheHeaders(res);
@@ -87,11 +91,15 @@ exports.authorize = (...roles) => (req, res, next) =>
 /** Variante web : renvoie vers la page d'erreur 403 plutôt qu'un JSON. */
 exports.webAuthorize = (...roles) => (req, res, next) => {
   if (roles.includes(req.user.role)) return next();
+  // SPA AJAX request: return 403 JSON
+  if (req.headers['x-spa-content'] === '1' || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+    return fail(res, 'Vous n\'avez pas les droits nécessaires pour consulter cette page.', [], 403);
+  }
   res.status(403);
   return res.render('error', {
     title: 'Accès refusé',
     status: 403,
-    message: 'Vous n’avez pas les droits nécessaires pour consulter cette page.',
+    message: 'Vous n\'avez pas les droits nécessaires pour consulter cette page.',
     user: res.locals.user || req.user
   });
 };

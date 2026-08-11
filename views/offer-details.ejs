@@ -1,80 +1,10 @@
 <%- include('partials/head', { title, page: 'offres' }) %>
-<%
-  const expired = item.date_expiration && new Date(item.date_expiration) < new Date();
-  const open = item.statut_offre === 'Ouverte' && !expired;
-%>
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'offres' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Détail de l’offre', subtitle: null }) %>
-    <%- include('partials/flash') %>
-    <p class="back-link"><a href="/offres"><%- icon('chevron-left') %> Retour aux offres</a></p>
-
-    <div class="card job-hero">
-      <div class="offer-head">
-        <div>
-          <h2 class="job-title"><%= item.titre_offre %></h2>
-          <p class="muted-note">
-            <%- icon('building-2') %> <strong><%= item.nom_entreprise || '—' %></strong> ·
-            <%- icon('map-pin') %> <%= item.localisation %>
-            <% if (item.ville_entreprise || item.pays_entreprise) { %> (<%= [item.ville_entreprise, item.pays_entreprise].filter(Boolean).join(', ') %>)<% } %>
-          </p>
-        </div>
-        <span class="badge <%= statusClass(item.statut_offre) %>"><%= item.statut_offre %></span>
-      </div>
-      <div class="job-meta">
-        <% if (item.salaire) { %><span><%- icon('coins') %> Salaire : <strong><%= item.salaire %> $</strong></span><% } %>
-        <span><%- icon('calendar') %> Publiée le <%= formatDate(item.date_publication) %></span>
-        <span><%- icon('clock') %> Expire le <%= formatDate(item.date_expiration) %></span>
-      </div>
-      <div class="job-description"><%= item.description_offre %></div>
-
-      <% if (item.competences && item.competences.length) { %>
-        <h3>Compétences requises</h3>
-        <div class="skill-chips">
-          <% item.competences.forEach((s) => { %>
-            <span class="badge info"><%= s.nom_competence %> — <%= s.niveau_requis %></span>
-          <% }) %>
-        </div>
-      <% } %>
-
-      <% if (user.role === 'candidat' && matching) { %>
-        <div class="match-box">
-          <span class="stat-icon"><%- icon('target') %></span>
-          <div>
-            <strong>Score de matching : <%= matching.score %>%</strong>
-            <p class="muted-note"><%= matching.matched %>/<%= matching.required %> compétences requises maîtrisées. Améliorez-le en complétant <a href="/profil">vos compétences</a>.</p>
-          </div>
-        </div>
-      <% } %>
+    <div id="app-content">
+      <%- include('partials/content/offer-details-content') %>
     </div>
-
-    <% if (user.role === 'candidat') { %>
-      <div class="card" id="postuler" style="margin-top:18px">
-        <% if (!open) { %>
-          <p><%- icon('info') %> Cette offre est fermée aux nouvelles candidatures.</p>
-        <% } else if (alreadyApplied) { %>
-          <p><%- icon('circle-check') %> Vous avez déjà postulé à cette offre. Suivez son statut dans <a href="/candidatures">vos candidatures</a>.</p>
-        <% } else { %>
-          <h2 class="form-title">Postuler</h2>
-          <form method="post" action="/offres/<%= item.id_offre %>/postuler" class="form">
-            <div class="field">
-              <label for="lettre_motivation">Lettre de motivation (optionnelle)</label>
-              <textarea id="lettre_motivation" name="lettre_motivation" maxlength="5000" placeholder="Présentez-vous, expliquez votre motivation…"></textarea>
-            </div>
-            <button class="btn primary" type="submit"><%- icon('send') %> Envoyer ma candidature</button>
-          </form>
-        <% } %>
-      </div>
-    <% } else if (isOwner) { %>
-      <div class="card" style="margin-top:18px">
-        <p><%- icon('info') %> Vous êtes le propriétaire de cette offre. Gérez-la depuis <a href="/dashboard#mes-offres">votre tableau de bord</a>.</p>
-      </div>
-    <% } else { %>
-      <div class="card" style="margin-top:18px">
-        <p class="muted-note">Seuls les comptes candidats peuvent postuler à cette offre.</p>
-      </div>
-    <% } %>
   </main>
 </div>
 <%- include('partials/foot') %>

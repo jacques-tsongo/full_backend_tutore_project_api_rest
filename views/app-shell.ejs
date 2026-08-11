@@ -1,0 +1,14 @@
+<%- include('partials/head', { title: typeof title !== 'undefined' ? title : 'LinkEmploi', page: typeof _pageId !== 'undefined' ? _pageId : '' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: typeof _active !== 'undefined' ? _active : '' }) %>
+  <main class="main">
+    <%- include('partials/topbar', {
+      title: typeof title !== 'undefined' ? title : '',
+      subtitle: typeof _subtitle !== 'undefined' ? _subtitle : ''
+    }) %>
+    <div id="app-content">
+      <%- typeof spaContent !== 'undefined' ? spaContent : '' %>
+    </div>
+  </main>
+</div>
+<%- include('partials/foot') %>

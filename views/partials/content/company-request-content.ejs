@@ -1,0 +1,48 @@
+<%- include('../topbar', { title: 'Demande recruteur', subtitle: 'Soumettez votre entreprise à la validation d\'un administrateur.' }) %>
+<%- include('../flash') %>
+
+<% if (block) { %>
+  <div class="card empty-state">
+    <%- icon(current.status === 'approved' ? 'circle-check' : 'clock') %>
+    <p>
+      <% if (current.status === 'approved') { %>
+        Votre entreprise « <%= current.nom_entreprise %> » est déjà approuvée.
+      <% } else { %>
+        Votre demande pour « <%= current.nom_entreprise %> » est <strong>en attente de validation</strong> par un administrateur.
+      <% } %>
+    </p>
+    <a class="btn" href="/parametres#entreprise">Retour aux paramètres</a>
+  </div>
+<% } else { %>
+  <% if (current && current.status === 'rejected') { %>
+    <div class="alert alert-danger"><%- icon('triangle-alert') %><span>Votre précédente demande pour « <%= current.nom_entreprise %> » a été rejetée. Vous pouvez soumettre un nouveau dossier ci-dessous.</span></div>
+  <% } %>
+  <form method="post" action="/entreprise/demande" enctype="multipart/form-data" class="card form">
+    <h2 class="form-title">Informations de l'entreprise</h2>
+    <div class="grid two">
+      <div class="field"><label for="nom_entreprise">Nom de l'entreprise</label><input id="nom_entreprise" name="nom_entreprise" required></div>
+      <div class="field"><label for="secteur_activite">Secteur d'activité</label><input id="secteur_activite" name="secteur_activite" required></div>
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="ville">Ville</label><input id="ville" name="ville" required></div>
+      <div class="field"><label for="pays">Pays</label><input id="pays" name="pays" required></div>
+    </div>
+    <div class="field"><label for="adresse">Adresse</label><input id="adresse" name="adresse" required></div>
+    <div class="grid two">
+      <div class="field"><label for="email">Email professionnel</label><input id="email" name="email" type="email" required></div>
+      <div class="field"><label for="telephone">Téléphone</label><input id="telephone" name="telephone" required></div>
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="site_web">Site web (optionnel)</label><input id="site_web" name="site_web"></div>
+      <div class="field"><label for="numero_rccm">Numéro RCCM</label><input id="numero_rccm" name="numero_rccm" required></div>
+    </div>
+    <div class="field"><label for="numero_fiscal">Numéro fiscal (optionnel)</label><input id="numero_fiscal" name="numero_fiscal"></div>
+    <div class="field"><label for="description">Description</label><textarea id="description" name="description" required></textarea></div>
+    <div class="grid two">
+      <div class="field"><label for="logo">Logo (PNG ou JPEG)</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg"></div>
+      <div class="field"><label for="supporting_documents">Documents justificatifs (PDF, requis)</label><input id="supporting_documents" name="supporting_documents" type="file" multiple accept=".pdf" required></div>
+    </div>
+    <div class="alert alert-info"><%- icon('info') %><span>La soumission ne change pas votre rôle immédiatement : un administrateur doit approuver le dossier avant que vous ne deveniez recruteur.</span></div>
+    <button class="btn primary" type="submit"><%- icon('send') %> Soumettre pour validation</button>
+  </form>
+<% } %>

@@ -30,10 +30,10 @@
             <% } %>
           </div>
           <div class="nav-actions">
-            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/approve" class="inline-form">
+            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/approve" class="inline-form" data-spa-form>
               <button class="btn primary" type="submit"><%- icon('check') %> Approuver</button>
             </form>
-            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/reject" class="inline-form" data-reject-form>
+            <form method="post" action="/admin/companies/<%= c.id_entreprise %>/reject" class="inline-form" data-reject-form data-spa-form>
               <input type="hidden" name="reason" value="">
               <button class="btn danger" type="submit"><%- icon('x') %> Rejeter</button>
             </form>
@@ -66,7 +66,7 @@
             <td><%= formatDate(u.date_inscription) %></td>
             <td>
               <% if (u.id_utilisateur !== user.id_utilisateur) { %>
-                <form method="post" action="/admin/utilisateurs/<%= u.id_utilisateur %>/statut" class="inline-form">
+                <form method="post" action="/admin/utilisateurs/<%= u.id_utilisateur %>/statut" class="inline-form" data-spa-form>
                   <input type="hidden" name="statut_compte" value="<%= u.statut_compte === 'actif' ? 'suspendu' : 'actif' %>">
                   <button class="btn <%= u.statut_compte === 'actif' ? 'danger' : '' %>" type="submit">
                     <%= u.statut_compte === 'actif' ? 'Suspendre' : 'Réactiver' %>
@@ -91,7 +91,7 @@
         <% extra.skills.forEach((s) => { %>
           <div class="list-item">
             <div><strong><%= s.nom_competence %></strong><p><%= s.description || '' %></p></div>
-            <form method="post" action="/admin/competences/<%= s.id_competence %>/supprimer" class="inline-form" data-confirm="Supprimer cette compétence ?">
+            <form method="post" action="/admin/competences/<%= s.id_competence %>/supprimer" class="inline-form" data-confirm="Supprimer cette compétence ?" data-spa-form>
               <button class="btn danger" type="submit" aria-label="Supprimer <%= s.nom_competence %>"><%- icon('trash-2') %></button>
             </form>
           </div>
@@ -101,7 +101,7 @@
   </div>
   <div class="card">
     <h2>Nouvelle compétence</h2>
-    <form method="post" action="/admin/competences" class="form">
+    <form method="post" action="/admin/competences" class="form" data-spa-form>
       <div class="field"><label for="nom_competence">Nom</label><input id="nom_competence" name="nom_competence" required></div>
       <div class="field"><label for="skill_desc">Description</label><textarea id="skill_desc" name="description"></textarea></div>
       <button class="btn primary" type="submit"><%- icon('plus') %> Créer</button>

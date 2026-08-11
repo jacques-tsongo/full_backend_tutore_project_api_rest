@@ -122,6 +122,9 @@ app.use('/api/messages', require('./routes/message.routes'));
 app.use('/api/notifications', require('./routes/notification.routes')); 
 app.use('/api/admin', require('./routes/admin.routes')); 
 
+/* --------------------------- SPA Navigation ------------------------------- */
+app.use(require('./middlewares/spa.middleware'));
+
 /* --------------------------- Pages EJS ----------------------------------- */
 app.use('/', require('./routes/web.routes'));
 

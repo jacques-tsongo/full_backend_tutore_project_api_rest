@@ -2,48 +2,9 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'candidatures' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Mes candidatures', subtitle: 'Suivi des candidatures envoyées.' }) %>
-    <%- include('partials/flash') %>
-
-    <% if (!items.length) { %>
-      <div class="card empty-state">
-        <%- icon('inbox') %>
-        <p>Vous n'avez pas encore postulé.</p>
-        <a class="btn primary" href="/offres">Parcourir les offres</a>
-      </div>
-    <% } else { %>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Offre</th><th>Entreprise</th><th>Statut</th><th>Score matching</th><th>Date</th><th>Actions</th></tr></thead>
-          <tbody>
-            <% items.forEach((x) => { %>
-              <tr>
-                <td>
-                  <a href="/offres/<%= x.id_offre %>"><strong><%= x.titre_offre %></strong></a><br>
-                  <small class="muted-note"><%= x.localisation || '' %></small>
-                </td>
-                <td><%= x.nom_entreprise || '' %></td>
-                <td><span class="badge <%= statusClass(x.statut_candidature) %>"><%= x.statut_candidature %></span></td>
-                <td><%= x.score_compatibilite != null ? `${x.score_compatibilite}%` : '-' %></td>
-                <td><%= formatDate(x.date_candidature) %></td>
-                <td>
-                  <div class="nav-actions">
-                    <% if (x.id_recruteur) { %>
-                      <a class="btn" href="/messages?dest=<%= x.id_recruteur %>" title="Contacter le recruteur"><%- icon('message-square') %> Contacter</a>
-                    <% } %>
-                    <% if (x.statut_candidature === 'En attente') { %>
-                      <form method="post" action="/candidatures/<%= x.id_candidature %>/annuler" class="inline-form" data-confirm="Annuler cette candidature ?">
-                        <button class="btn danger" type="submit"><%- icon('x') %> Annuler</button>
-                      </form>
-                    <% } %>
-                  </div>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
+    <div id="app-content">
+      <%- include('partials/content/applications-content') %>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

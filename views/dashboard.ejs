@@ -2,34 +2,9 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'dashboard' }) %>
   <main class="main">
-    <%- include('partials/topbar', {
-      title: user.role === 'administrateur' ? 'Administration' : 'Tableau de bord',
-      subtitle: user.role === 'administrateur'
-        ? 'Validation des entreprises et supervision de la plateforme.'
-        : user.role === 'recruteur'
-          ? 'Publication d’offres et suivi des candidatures.'
-          : 'Suivi de vos candidatures et opportunités.'
-    }) %>
-    <%- include('partials/flash') %>
-
-    <section class="grid three stats-row">
-      <% stats.forEach((s) => { %>
-        <div class="card stat">
-          <span class="stat-icon"><%- icon(s.icon) %></span>
-          <span><%= s.label %></span>
-          <strong><%= s.value %></strong>
-          <small><%= s.hint %></small>
-        </div>
-      <% }) %>
-    </section>
-
-    <% if (user.role === 'administrateur') { %>
-      <%- include('partials/dashboard-admin', { extra }) %>
-    <% } else if (user.role === 'recruteur') { %>
-      <%- include('partials/dashboard-recruteur', { extra }) %>
-    <% } else { %>
-      <%- include('partials/dashboard-candidat', { extra }) %>
-    <% } %>
+    <div id="app-content">
+      <%- include('partials/content/dashboard-content') %>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

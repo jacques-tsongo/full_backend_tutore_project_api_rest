@@ -2,31 +2,8 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'entreprises' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: item.nom_entreprise, subtitle: null }) %>
-    <%- include('partials/flash') %>
-    <p class="back-link"><a href="/entreprises"><%- icon('chevron-left') %> Retour à l'annuaire</a></p>
-
-    <div class="card">
-      <div class="offer-head">
-        <div>
-          <h2 class="job-title"><%= item.nom_entreprise %></h2>
-          <% if (item.secteur_activite) { %><p class="muted-note"><%= item.secteur_activite %></p><% } %>
-        </div>
-        <span class="badge <%= statusClass(item.status || item.statut_validation) %>"><%= item.statut_validation || item.status %></span>
-      </div>
-      <% if (item.logo) { %><img class="company-logo lg" src="<%= asset(item.logo) %>" alt="Logo <%= item.nom_entreprise %>"><% } %>
-      <p><%= item.description || '' %></p>
-      <div class="detail-grid">
-        <p><%- icon('map-pin') %> <strong>Adresse :</strong> <%= [item.adresse, item.ville, item.pays].filter(Boolean).join(', ') || '—' %></p>
-        <p><%- icon('phone') %> <strong>Téléphone :</strong> <%= item.telephone || '—' %></p>
-        <p><%- icon('mail') %> <strong>Email :</strong> <%= item.email || '—' %></p>
-        <% if (item.site_web) { %><p><%- icon('globe') %> <strong>Site web :</strong> <a href="<%= item.site_web %>" target="_blank" rel="noopener"><%= item.site_web %></a></p><% } %>
-        <% if (item.numero_rccm) { %><p><%- icon('landmark') %> <strong>RCCM :</strong> <%= item.numero_rccm %></p><% } %>
-        <% if (item.numero_fiscal) { %><p><%- icon('landmark') %> <strong>N° fiscal :</strong> <%= item.numero_fiscal %></p><% } %>
-      </div>
-      <% if (user.role === 'recruteur' && Number(item.id_utilisateur) === Number(user.id_utilisateur)) { %>
-        <div class="nav-actions" style="margin-top:12px"><a class="btn" href="/entreprise"><%- icon('pencil') %> Gérer mon entreprise</a></div>
-      <% } %>
+    <div id="app-content">
+      <%- include('partials/content/company-details-content') %>
     </div>
   </main>
 </div>

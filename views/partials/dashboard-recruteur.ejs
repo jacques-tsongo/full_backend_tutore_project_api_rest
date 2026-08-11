@@ -11,7 +11,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
 <% } else { %>
 <section class="card" style="margin-top:18px" id="nouvelle-offre">
   <h2>Nouvelle offre</h2>
-  <form method="post" action="/offres" class="form">
+  <form method="post" action="/offres" class="form" data-spa-form>
     <div class="grid two">
       <div class="field"><label for="titre_offre">Titre</label><input id="titre_offre" name="titre_offre" required></div>
       <div class="field"><label for="localisation">Localisation</label><input id="localisation" name="localisation" required></div>
@@ -49,7 +49,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
             <div class="nav-actions">
               <a class="btn" href="/offres/<%= o.id_offre %>"><%- icon('eye') %> Voir</a>
               <button class="btn" type="button" data-toggle="edit-<%= o.id_offre %>"><%- icon('pencil') %> Modifier</button>
-              <form method="post" action="/offres/<%= o.id_offre %>/supprimer" class="inline-form" data-confirm="Supprimer définitivement cette offre et ses candidatures ?">
+              <form method="post" action="/offres/<%= o.id_offre %>/supprimer" class="inline-form" data-confirm="Supprimer définitivement cette offre et ses candidatures ?" data-spa-form>
                 <button class="btn danger" type="submit"><%- icon('trash-2') %> Supprimer</button>
               </form>
             </div>
@@ -64,14 +64,14 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
                 <span class="badge info">
                   <%= s.nom_competence %> — <%= s.niveau_requis %>
                   <button type="submit" form="offer-skill-remove-<%= o.id_offre %>-<%= s.id_competence %>" class="chip-x" aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
-                  <form method="post" action="/offres/<%= o.id_offre %>/competences" class="hidden" id="offer-skill-remove-<%= o.id_offre %>-<%= s.id_competence %>">
+                  <form method="post" action="/offres/<%= o.id_offre %>/competences" class="hidden" id="offer-skill-remove-<%= o.id_offre %>-<%= s.id_competence %>" data-spa-form>
                     <input type="hidden" name="id_competence" value="<%= s.id_competence %>">
                     <input type="hidden" name="remove" value="1">
                   </form>
                 </span>
               <% }) %>
             </div>
-            <form method="post" action="/offres/<%= o.id_offre %>/competences" class="skill-add form-inline">
+            <form method="post" action="/offres/<%= o.id_offre %>/competences" class="skill-add form-inline" data-spa-form>
               <div class="field">
                 <label class="sr-only">Compétence</label>
                 <select name="id_competence">
@@ -88,7 +88,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
             </form>
           </div>
 
-          <form method="post" action="/offres/<%= o.id_offre %>" class="form edit-form hidden" id="edit-<%= o.id_offre %>">
+          <form method="post" action="/offres/<%= o.id_offre %>" class="form edit-form hidden" id="edit-<%= o.id_offre %>" data-spa-form>
             <div class="grid two">
               <div class="field"><label>Titre</label><input name="titre_offre" value="<%= o.titre_offre %>" required></div>
               <div class="field"><label>Localisation</label><input name="localisation" value="<%= o.localisation %>" required></div>

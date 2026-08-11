@@ -1,0 +1,28 @@
+<%- include('../topbar', {
+  title: user.role === 'administrateur' ? 'Administration' : 'Tableau de bord',
+  subtitle: user.role === 'administrateur'
+    ? 'Validation des entreprises et supervision de la plateforme.'
+    : user.role === 'recruteur'
+      ? 'Publication d\'offres et suivi des candidatures.'
+      : 'Suivi de vos candidatures et opportunités.'
+}) %>
+<%- include('../flash') %>
+
+<section class="grid three stats-row">
+  <% stats.forEach((s) => { %>
+    <div class="card stat">
+      <span class="stat-icon"><%- icon(s.icon) %></span>
+      <span><%= s.label %></span>
+      <strong><%= s.value %></strong>
+      <small><%= s.hint %></small>
+    </div>
+  <% }) %>
+</section>
+
+<% if (user.role === 'administrateur') { %>
+  <%- include('../dashboard-admin', { extra }) %>
+<% } else if (user.role === 'recruteur') { %>
+  <%- include('../dashboard-recruteur', { extra }) %>
+<% } else { %>
+  <%- include('../dashboard-candidat', { extra }) %>
+<% } %>

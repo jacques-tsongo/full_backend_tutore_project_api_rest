@@ -1,0 +1,56 @@
+<%- include('../topbar', { title: 'Candidatures reçues', subtitle: 'Examinez les profils et mettez à jour les statuts.' }) %>
+<%- include('../flash') %>
+
+<% if (!items.length) { %>
+  <div class="card empty-state">
+    <%- icon('inbox') %>
+    <p>Aucune candidature reçue pour vos offres.</p>
+    <a class="btn primary" href="/dashboard#nouvelle-offre">Publier une offre</a>
+  </div>
+<% } else { %>
+  <div class="list">
+    <% items.forEach((x) => { %>
+      <div class="card application-card">
+        <div class="offer-head">
+          <div class="user-cell">
+            <span class="avatar-img">
+              <% if (x.photo) { %><img src="<%= asset(x.photo) %>" alt="<%= `${x.prenom} ${x.nom}` %>"><% } else { %><span class="avatar-fallback"><%= ((x.prenom || ' ')[0] + (x.nom || ' ')[0]).toUpperCase() %></span><% } %>
+            </span>
+            <div>
+              <strong><%= x.prenom %> <%= x.nom %></strong>
+              <p class="muted-note">
+                <%- icon('mail') %> <%= x.email || '' %>
+                <% if (x.telephone) { %> · <%- icon('phone') %> <%= x.telephone %><% } %>
+              </p>
+              <p class="muted-note">Offre : <a href="/offres/<%= x.id_offre %>"><%= x.titre_offre %></a> · Postulé le <%= formatDate(x.date_candidature) %></p>
+            </div>
+          </div>
+          <div class="nav-actions">
+            <% if (x.score_compatibilite != null) { %><span class="badge info"><%- icon('target') %> Matching <%= x.score_compatibilite %>%</span><% } %>
+            <span class="badge <%= statusClass(x.statut_candidature) %>"><%= x.statut_candidature %></span>
+          </div>
+        </div>
+        <% if (x.lettre_motivation) { %><p><strong>Lettre de motivation :</strong> <%= x.lettre_motivation %></p><% } %>
+        <% if (x.competences) { %><p><strong>Compétences :</strong> <%= x.competences %></p><% } %>
+        <% if (x.bio) { %><p><strong>Bio :</strong> <%= x.bio %></p><% } %>
+        <div class="nav-actions app-actions">
+          <% if (x.cv) { %>
+            <a class="btn" href="<%= asset(x.cv) %>" target="_blank" rel="noopener"><%- icon('download') %> Voir le CV</a>
+          <% } %>
+          <a class="btn" href="/messages?dest=<%= x.id_utilisateur %>"><%- icon('message-square') %> Contacter</a>
+          <form method="post" action="/candidatures/<%= x.id_candidature %>/statut" class="form-inline app-status" data-spa-form>
+            <div class="field">
+              <label class="sr-only">Statut</label>
+              <select name="statut_candidature">
+                <% ['En attente', 'Présélectionnée', 'Entretien', 'Acceptée', 'Refusée'].forEach((s) => { %>
+                  <option <%= x.statut_candidature === s ? 'selected' : '' %>><%= s %></option>
+                <% }) %>
+              </select>
+            </div>
+            <button class="btn primary" type="submit"><%- icon('check') %> Mettre à jour</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>

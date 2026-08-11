@@ -2,31 +2,9 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'entreprises' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: user.role === 'administrateur' ? 'Entreprises' : 'Annuaire des entreprises', subtitle: 'Entreprises approuvées de la plateforme.' }) %>
-    <%- include('partials/flash') %>
-
-    <% if (!items.length) { %>
-      <div class="card empty-state">
-        <%- icon('building-2') %>
-        <p>Aucune entreprise trouvée.</p>
-      </div>
-    <% } else { %>
-      <div class="grid three">
-        <% items.forEach((c) => { %>
-          <div class="card company-card">
-            <% if (c.logo) { %><img class="company-logo" src="<%= asset(c.logo) %>" alt="Logo <%= c.nom_entreprise %>"><% } else { %><span class="company-logo placeholder"><%- icon('building-2') %></span><% } %>
-            <h3><%= c.nom_entreprise %></h3>
-            <% if (c.secteur_activite) { %><p class="muted-note"><%= c.secteur_activite %></p><% } %>
-            <p><%= (c.description || 'Entreprise').slice(0, 140) %><%= (c.description || '').length > 140 ? '…' : '' %></p>
-            <p class="muted-note"><%- icon('map-pin') %> <%= [c.ville, c.pays].filter(Boolean).join(', ') || '—' %></p>
-            <span class="badge <%= statusClass(c.status || c.statut_validation) %>"><%= c.statut_validation || c.status %></span>
-            <div class="nav-actions" style="margin-top:10px">
-              <a class="btn" href="/entreprises/<%= c.id_entreprise %>"><%- icon('eye') %> Voir</a>
-            </div>
-          </div>
-        <% }) %>
-      </div>
-    <% } %>
+    <div id="app-content">
+      <%- include('partials/content/companies-content') %>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

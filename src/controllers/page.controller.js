@@ -152,11 +152,14 @@ exports.offerDetails = asyncHandler(async (req, res) => {
 /* ============================ Candidatures =============================== */
 
 exports.applications = asyncHandler(async (req, res) => {
+  const isSPA = req.headers['x-spa-content'] === '1';
   if (req.user.role === 'recruteur') {
     const { data } = await collect(jobController.companyApplications, req).catch(() => ({ data: { items: [] } }));
+    if (isSPA) return res.render('partials/content/applications-received-content', { title: 'Candidatures reçues', user: req.user, items: data.items || [] });
     return res.render('applications-received', { title: 'Candidatures reçues', user: req.user, items: data.items || [] });
   }
   const { data } = await collect(jobController.myApplications, req).catch(() => ({ data: { items: [] } }));
+  if (isSPA) return res.render('partials/content/applications-content', { title: 'Mes candidatures', user: req.user, items: data.items || [] });
   return res.render('applications', { title: 'Mes candidatures', user: req.user, items: data.items || [] });
 });
 

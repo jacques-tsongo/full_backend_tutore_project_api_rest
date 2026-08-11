@@ -1,0 +1,36 @@
+<%- include('../topbar', { title: 'Matching', subtitle: 'Compatibilité entre vos compétences et les offres ouvertes.' }) %>
+<%- include('../flash') %>
+
+<section class="grid two">
+  <form method="get" action="/matching" class="card form">
+    <h2>Calculer mon score</h2>
+    <p class="muted-note">Le score mesure la correspondance entre vos compétences (profil) et celles requises par l'offre.</p>
+    <div class="field">
+      <label for="id_offre">Offre</label>
+      <select id="id_offre" name="id_offre" required>
+        <option value="">— Choisir une offre —</option>
+        <% items.forEach((o) => { %>
+          <option value="<%= o.id_offre %>" <%= selectedId === Number(o.id_offre) ? 'selected' : '' %>><%= o.titre_offre %> — <%= o.nom_entreprise || '' %></option>
+        <% }) %>
+      </select>
+    </div>
+    <button class="btn primary" type="submit"><%- icon('target') %> Calculer</button>
+  </form>
+  <div>
+    <% if (score) { %>
+      <div class="card stat">
+        <span class="stat-icon"><%- icon('target') %></span>
+        <span>Score de compatibilité</span>
+        <strong><%= score.score %>%</strong>
+        <small><%= score.matched %>/<%= score.required %> compétences requises maîtrisées</small>
+        <div class="progress" style="margin-top:8px"><span style="width: <%= Math.min(Math.max(score.score, 0), 100) %>%"></span></div>
+        <% if (score.score < 100) { %><a class="btn" href="/profil" style="margin-top:12px">Compléter mes compétences</a><% } %>
+      </div>
+    <% } else { %>
+      <div class="card empty-state">
+        <%- icon('target') %>
+        <p>Choisissez une offre pour voir votre score de compatibilité.</p>
+      </div>
+    <% } %>
+  </div>
+</section>

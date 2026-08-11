@@ -1,78 +1,10 @@
 <%- include('partials/head', { title, page: 'offres' }) %>
-<%
-  const buildUrl = (overrides = {}) => {
-    const params = new URLSearchParams();
-    const base = { q, statut, page: pagination ? pagination.page : 1, ...overrides };
-    Object.entries(base).forEach(([k, val]) => { if (val !== undefined && val !== null && val !== '') params.set(k, val); });
-    return `/offres?${params.toString()}`;
-  };
-%>
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'offres' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Offres d’emploi', subtitle: 'Recherche, filtres et candidatures.' }) %>
-    <%- include('partials/flash') %>
-
-    <form method="get" action="/offres" class="toolbar">
-      <div class="field search-field">
-        <input name="q" class="search" placeholder="Rechercher (titre, ville, entreprise)…" value="<%= q %>">
-      </div>
-      <% if (user.role !== 'candidat') { %>
-        <div class="field">
-          <select name="statut" title="Filtrer par statut">
-            <option value="">Tous les statuts</option>
-            <% ['Ouverte', 'Fermée', 'Suspendue'].forEach((s) => { %><option <%= statut === s ? 'selected' : '' %>><%= s %></option><% }) %>
-          </select>
-        </div>
-      <% } %>
-      <button class="btn" type="submit"><%- icon('search') %> Rechercher</button>
-      <% if (user.role === 'recruteur') { %><a class="btn primary" href="/dashboard#nouvelle-offre"><%- icon('plus') %> Nouvelle offre</a><% } %>
-    </form>
-
-    <% if (!items.length) { %>
-      <div class="card empty-state">
-        <%- icon('briefcase') %>
-        <p>Aucune offre trouvée<%= q ? ` pour « ${q} »` : '' %>.</p>
-        <% if (q || statut) { %><a class="btn" href="/offres">Réinitialiser les filtres</a><% } %>
-      </div>
-    <% } else { %>
-      <div class="list">
-        <% items.forEach((job) => { %>
-          <div class="list-item offer-item">
-            <div class="offer-main">
-              <strong class="offer-title"><a href="/offres/<%= job.id_offre %>"><%= job.titre_offre %></a></strong>
-              <p class="muted-note">
-                <%- icon('building-2') %> <%= job.nom_entreprise || '—' %> ·
-                <%- icon('map-pin') %> <%= job.localisation %> ·
-                <%- icon('calendar') %> expire le <%= formatDate(job.date_expiration) %>
-                <% if (job.salaire) { %> · <%- icon('coins') %> <%= job.salaire %> $<% } %>
-              </p>
-            </div>
-            <div class="nav-actions">
-              <span class="badge <%= statusClass(job.statut_offre) %>"><%= job.statut_offre %></span>
-              <a class="btn" href="/offres/<%= job.id_offre %>"><%- icon('eye') %> Détails</a>
-              <% if (user.role === 'candidat' && job.statut_offre === 'Ouverte' && !appliedIds.has(Number(job.id_offre))) { %>
-                <a class="btn primary" href="/offres/<%= job.id_offre %>#postuler"><%- icon('send') %> Postuler</a>
-              <% } else if (user.role === 'candidat' && appliedIds.has(Number(job.id_offre))) { %>
-                <span class="badge success"><%- icon('check') %> Déjà postulé</span>
-              <% } %>
-            </div>
-          </div>
-        <% }) %>
-      </div>
-
-      <% if (pagination && pagination.total > 0) { %>
-        <div class="pagination">
-          <% if (pagination.page > 1) { %>
-            <a class="btn" href="<%= buildUrl({ page: pagination.page - 1 }) %>"><%- icon('chevron-left') %> Précédent</a>
-          <% } else { %><span class="btn disabled"><%- icon('chevron-left') %> Précédent</span><% } %>
-          <span class="pagination-info">Page <%= pagination.page %> / <%= pagination.pages %> — <%= pagination.total %> offre(s)</span>
-          <% if (pagination.page < pagination.pages) { %>
-            <a class="btn" href="<%= buildUrl({ page: pagination.page + 1 }) %>">Suivant <%- icon('chevron-right') %></a>
-          <% } else { %><span class="btn disabled">Suivant <%- icon('chevron-right') %></span><% } %>
-        </div>
-      <% } %>
-    <% } %>
+    <div id="app-content">
+      <%- include('partials/content/offers-content') %>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

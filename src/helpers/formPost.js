@@ -41,10 +41,29 @@ exports.formPost = (controllerFn, options = {}) => async (req, res, next) => {
   try {
     const result = await invoke(controllerFn, req, res);
     const payload = result.payload || {};
-    if (payload.success === false || result.statusCode >= 400) {
-      flash(res, 'danger', describeErrors(payload));
+    const isError = payload.success === false || result.statusCode >= 400;
+    const message = isError ? describeErrors(payload) : (payload.message || 'Opération réussie.');
+    const type = isError ? 'danger' : 'success';
+
+    // AJAX form submission: return JSON so the client can handle SPA navigation
+    if (req.headers['x-spa-content'] === '1' || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      // Clear any flash cookie that was set — not needed for AJAX
+      res.clearCookie('gc_flash', { path: '/' });
+      const target = typeof options.redirectTo === 'function'
+        ? options.redirectTo(req, payload)
+        : options.redirectTo;
+      return res.json({
+        success: !isError,
+        message,
+        flashType: type,
+        redirectTo: target || backUrl(req, '/dashboard'),
+      });
+    }
+
+    if (isError) {
+      flash(res, 'danger', message);
     } else {
-      flash(res, 'success', payload.message || 'Opération réussie.');
+      flash(res, 'success', message);
     }
     const target = typeof options.redirectTo === 'function'
       ? options.redirectTo(req, payload)
