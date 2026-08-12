@@ -1,0 +1,147 @@
+/* ============================================================
+   Pages Connexion / Inscription — refonte visuelle
+   Fond professionnel + carte en verre dépoli (glassmorphism).
+   Les règles sont scopées aux pages d'authentification
+   (body[data-page="login"] / body[data-page="register"]) :
+   les pages d'erreur 404 et error conservent leur style d'origine.
+   ============================================================ */
+
+/* ---------- 1. Arrière-plan professionnel ----------
+   Image vectorielle locale (frontend/images/auth-bg.svg) assombrie
+   par un dégradé translucide pour garantir le contraste des textes. */
+body[data-page="login"],
+body[data-page="register"] {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(6, 28, 36, 0.86) 0%, rgba(6, 28, 36, 0.6) 55%, rgba(6, 28, 36, 0.8) 100%),
+    url("/images/auth-bg.svg") center / cover no-repeat;
+  background-attachment: fixed;
+}
+@media (max-width: 920px) {
+  /* Sur tablette/mobile, l'image reste pleine page sans effet « fixed »
+     (comportement plus stable et léger sur petit écran). */
+  body[data-page="login"],
+  body[data-page="register"] { background-attachment: scroll; }
+}
+
+/* ---------- 2. Centrage ---------- */
+body[data-page="login"] .center-screen,
+body[data-page="register"] .center-screen {
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+/* ---------- 3. Carte « glassmorphism » ----------
+   Verre dépoli : fond translucide, flou de l'arrière-plan, bordure
+   subtile, coins arrondis et ombre portée. Seul l'arrière-plan est
+   flouté (backdrop-filter), jamais les textes ni les champs. */
+body[data-page="login"] .auth-card,
+body[data-page="register"] .auth-card {
+  width: min(460px, 100%);
+  padding: 34px 32px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 26px 60px rgba(4, 22, 30, 0.38);
+}
+[data-theme="dark"] body[data-page="login"] .auth-card,
+[data-theme="dark"] body[data-page="register"] .auth-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(23, 32, 51, 0.72);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 4. En-tête de carte : logo, titre, sous-titre ---------- */
+.auth-head { text-align: center; margin-bottom: 24px; }
+.auth-head .brand { display: flex; justify-content: center; margin-bottom: 14px; }
+.auth-head .brand-logo {
+  height: 46px; width: auto;
+  filter: drop-shadow(0 6px 14px rgba(6, 28, 36, 0.28));
+}
+.auth-head h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+.auth-sub { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+[data-theme="dark"] .auth-sub { color: var(--muted); }
+
+/* ---------- 5. Champs : lisibilité, coins arrondis, focus ---------- */
+body[data-page="login"] .field label,
+body[data-page="register"] .field label { font-weight: 600; font-size: 13.5px; }
+body[data-page="login"] .field input,
+body[data-page="register"] .field input {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 107, 123, 0.3);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 13px 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+body[data-page="login"] .field input:focus,
+body[data-page="register"] .field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(15, 107, 123, 0.18);
+}
+[data-theme="dark"] body[data-page="login"] .field input,
+[data-theme="dark"] body[data-page="register"] .field input {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] body[data-page="login"] .field input:focus,
+[data-theme="dark"] body[data-page="register"] .field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(63, 182, 199, 0.22);
+}
+
+/* ---------- 6. Bouton principal : dégradé, hover, transition ---------- */
+body[data-page="login"] .btn.primary,
+body[data-page="register"] .btn.primary {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 0;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+  box-shadow: 0 12px 24px rgba(15, 107, 123, 0.35);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+body[data-page="login"] .btn.primary:hover,
+body[data-page="register"] .btn.primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 16px 30px rgba(15, 107, 123, 0.42);
+}
+body[data-page="login"] .btn.primary:active,
+body[data-page="register"] .btn.primary:active { transform: translateY(0); }
+
+/* ---------- 7. Pied de carte : lien Login / Register ---------- */
+.auth-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(15, 107, 123, 0.28);
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.auth-footer a { color: var(--primary); font-weight: 650; }
+.auth-footer a:hover { text-decoration: underline; }
+[data-theme="dark"] .auth-footer { border-top-color: rgba(255, 255, 255, 0.14); }
+
+/* ---------- 8. Alertes (flash / erreur d'URL) sur fond verre ---------- */
+body[data-page="login"] .alert,
+body[data-page="register"] .alert { border-radius: 12px; }
+
+/* ---------- 9. Responsive ---------- */
+@media (max-width: 920px) {
+  body[data-page="login"] .auth-card,
+  body[data-page="register"] .auth-card { padding: 28px 22px 20px; }
+}
+@media (max-width: 640px) {
+  body[data-page="login"] .center-screen,
+  body[data-page="register"] .center-screen { padding: 20px 14px; align-items: start; }
+  body[data-page="login"] .auth-card,
+  body[data-page="register"] .auth-card {
+    padding: 26px 18px 18px;
+    border-radius: 16px;
+  }
+  .auth-head .brand-logo { height: 40px; }
+  .auth-head h1 { font-size: 23px; }
+}
