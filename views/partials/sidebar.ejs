@@ -12,10 +12,10 @@
       items.push({ href: '/matching', icon: 'target', label: 'Matching', key: 'matching' });
     }
     if (user.role === 'recruteur') {
-      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures reçues', key: 'candidatures' });
+      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures reçues', key: 'candidatures', count: typeof pendingApplications !== 'undefined' ? pendingApplications : 0 });
       items.push({ href: '/entreprise', icon: 'building-2', label: 'Mon entreprise', key: 'entreprise' });
     }
-    if (user.role === 'administrateur') items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises' });
+    if (user.role === 'administrateur') items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises', count: typeof pendingCompanies !== 'undefined' ? pendingCompanies : 0 });
     items.push({
       href: '/messages', icon: 'message-square', label: 'Messages', key: 'messages',
       count: typeof unreadMessages !== 'undefined' ? unreadMessages : 0, countKey: 'messages'
@@ -35,8 +35,11 @@
       <a href="<%= item.href %>" class="<%= typeof active !== 'undefined' && active === item.key ? 'active' : '' %>">
         <%- icon(item.icon) %>
         <span class="nav-label"><%= item.label %></span>
-        <% if (item.countKey) { %>
-          <span class="count<%= item.count > 0 ? '' : ' hidden' %>" data-count="<%= item.countKey === 'messages' ? 'unread-messages' : 'unread-notifications' %>"><%= item.count > 99 ? '99+' : item.count %></span>
+        <% if (typeof item.count !== 'undefined') { %>
+          <% // Badge dynamique : affiché uniquement si le compteur est > 0.
+             // data-count est posé uniquement pour les compteurs rafraîchis
+             // en temps réel côté client (messages / notifications). %>
+          <span class="count<%= item.count > 0 ? '' : ' hidden' %>"<% if (item.countKey) { %> data-count="<%= item.countKey === 'messages' ? 'unread-messages' : 'unread-notifications' %>"<% } %>><%= item.count > 99 ? '99+' : item.count %></span>
         <% } %>
       </a>
     <% }) %>
@@ -56,9 +59,6 @@
           <small><%= user.role %></small>
         </span>
       </div>
-      <form method="post" action="/logout" class="inline-form side-logout">
-        <button class="btn ghost" type="submit" title="Se déconnecter"><%- icon('log-out') %><span>Déconnexion</span></button>
-      </form>
     <% } %>
   </div>
 </aside>
