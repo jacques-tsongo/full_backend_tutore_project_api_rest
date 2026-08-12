@@ -1,10 +1,13 @@
 <%- include('partials/head', { title: 'Connexion', page: 'login' }) %>
 <main class="center-screen">
   <section class="card auth-card">
-    <a class="brand" href="/">
-      <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
-    </a>
-    <h1>Connexion</h1>
+    <div class="auth-head">
+      <a class="brand" href="/" aria-label="Retour à l'accueil LinkEmploi">
+        <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+      </a>
+      <h1>Bienvenue !</h1>
+      <p class="auth-sub">Connectez-vous pour gérer vos candidatures, vos offres et vos échanges professionnels.</p>
+    </div>
     <% if (typeof query !== 'undefined' && query && query.erreur) { %>
       <div class="alert alert-danger" role="status">
         <%- icon('triangle-alert') %>
@@ -22,8 +25,8 @@
         <input id="mot_de_passe" name="mot_de_passe" type="password" autocomplete="current-password" required>
       </div>
       <button class="btn primary full" type="submit"><%- icon('log-in') %> Se connecter</button>
-      <a class="nav-link" href="/register">Créer un compte candidat</a>
     </form>
+    <p class="auth-footer">Pas encore de compte ? <a href="/register">Créer un compte candidat</a></p>
   </section>
 </main>
 <%- include('partials/foot') %>
