@@ -55,7 +55,7 @@
             <td>
               <span class="user-cell">
                 <span class="avatar-img sm">
-                  <% if (u.photo) { %><img src="<%= asset(u.photo) %>" alt=""><% } else { %><span class="avatar-fallback"><%= ((u.prenom || ' ')[0] + (u.nom || ' ')[0]).toUpperCase() %></span><% } %>
+                  <% if (u.photo) { %><img src="<%= assets(u.photo) %>" alt="u.Nom"><% } else { %><span class="avatar-fallback"><%= ((u.prenom || ' ')[0] + (u.nom || ' ')[0]).toUpperCase() %></span><% } %>
                 </span>
                 <%= u.prenom %> <%= u.nom %>
               </span>
