@@ -10,7 +10,7 @@
       <div class="offer-head">
         <div>
           <h2 class="job-title"><%= item.nom_entreprise %></h2>
-          <% if (item.secteur_activite) { %><p class="muted-note"><%= item.secteur_activite %></p><% } %>
+          <% if (item.secteur_activite) { %><p class="muted-note"><span>Secteur d'activité : </span><%= item.secteur_activite %></p><% } %>
         </div>
         <span class="badge <%= statusClass(item.status || item.statut_validation) %>"><%= item.statut_validation || item.status %></span>
       </div>
