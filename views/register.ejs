@@ -1,11 +1,13 @@
 <%- include('partials/head', { title: 'Inscription', page: 'register' }) %>
 <main class="center-screen">
   <section class="card auth-card">
-    <a class="brand" href="/">
-      <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
-    </a>
-    <h1>Inscription candidat</h1>
-    <p class="muted-note">Tout nouveau compte est un compte <strong>candidat</strong>. Vous pourrez ensuite demander à devenir recruteur en soumettant votre entreprise à la validation d'un administrateur, depuis vos paramètres.</p>
+    <div class="auth-head">
+      <a class="brand" href="/" aria-label="Retour à l'accueil LinkEmploi">
+        <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+      </a>
+      <h1>Créer un compte</h1>
+      <p class="auth-sub">Rejoignez LinkEmploi et démarrez votre carrière : créez votre profil, postulez et échangez avec les recruteurs.</p>
+    </div>
     <%- include('partials/flash') %>
     <form method="post" action="/register" class="form">
       <div class="grid two">
@@ -16,8 +18,8 @@
       <div class="field"><label for="telephone">Téléphone</label><input id="telephone" name="telephone" autocomplete="tel"></div>
       <div class="field"><label for="reg-password">Mot de passe</label><input id="reg-password" name="mot_de_passe" type="password" minlength="8" autocomplete="new-password" required><small class="muted-note">8 caractères minimum.</small></div>
       <button class="btn primary full" type="submit"><%- icon('user-plus') %> Créer mon compte</button>
-      <a class="nav-link" href="/login">J'ai déjà un compte</a>
     </form>
+    <p class="auth-footer">Déjà un compte ? <a href="/login">Se connecter</a></p>
   </section>
 </main>
 <%- include('partials/foot') %>
