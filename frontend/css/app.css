@@ -134,9 +134,9 @@
 /* ---------- Détail entreprise / fiches ---------- */
 .company-card { display: grid; gap: 6px; align-content: start; }
 .company-card h3 { margin: 4px 0 0; }
-.company-logo { width: 52px; height: 52px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+.company-logo { width: 99%; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
 .company-logo.placeholder { display: grid; place-items: center; color: var(--muted); }
-.company-logo.lg { width: 96px; height: 96px; }
+.company-logo.lg { width: 400px; }
 .detail-grid { display: grid; gap: 8px; margin-top: 12px; }
 .detail-grid p { margin: 0; }
 .contact-list { display: grid; gap: 8px; margin-top: 10px; }
