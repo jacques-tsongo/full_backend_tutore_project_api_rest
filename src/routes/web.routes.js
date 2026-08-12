@@ -26,13 +26,38 @@ const { photoUpload, cvUpload, companyUpload } = require('../middlewares/upload.
 const loadNavCounts = async (req, res, next) => {
   if (!req.user) return next();
   try {
+    // Messages reçus non lus (table message : id_destinataire = connecté, lu = 0).
     const [[msg]] = await db.execute('SELECT COUNT(*) AS total FROM message WHERE id_destinataire = ? AND lu = 0', [req.user.id_utilisateur]);
+    // Notifications non lues (table notification : id_utilisateur = connecté).
     const [[notif]] = await db.execute("SELECT COUNT(*) AS total FROM notification WHERE id_utilisateur = ? AND statut_notification = 'Non lue'", [req.user.id_utilisateur]);
     res.locals.unreadMessages = msg.total;
     res.locals.unreadNotifications = notif.total;
+    // Candidatures en attente d'examen (recruteur uniquement) : candidatures
+    // « En attente » déposées sur les offres de SES entreprises. Le recruteur
+    // doit encore prendre une décision : badge sur « Candidatures reçues ».
+    if (req.user.role === 'recruteur') {
+      const [[apps]] = await db.execute(
+        `SELECT COUNT(*) AS total
+         FROM candidature c
+         JOIN offre_emploi o ON o.id_offre = c.id_offre
+         JOIN entreprise e ON e.id_entreprise = o.id_entreprise
+         WHERE e.id_utilisateur = ? AND c.statut_candidature = 'En attente'`,
+        [req.user.id_utilisateur]
+      );
+      res.locals.pendingApplications = apps.total;
+    }
+    // Demandes de création d'entreprise en attente (administrateur uniquement) :
+    // chaque entreprise au statut « pending » attend validation ou rejet.
+    if (req.user.role === 'administrateur') {
+      const [[comp]] = await db.execute("SELECT COUNT(*) AS total FROM entreprise WHERE status = 'pending'", []);
+      res.locals.pendingCompanies = comp.total;
+    }
   } catch (_) {
+    // En cas d'erreur ponctuelle, aucun badge ne doit bloquer la page.
     res.locals.unreadMessages = 0;
     res.locals.unreadNotifications = 0;
+    res.locals.pendingApplications = 0;
+    res.locals.pendingCompanies = 0;
   }
   next();
 };
