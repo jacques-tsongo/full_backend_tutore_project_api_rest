@@ -47,16 +47,17 @@ exports.dashboard = asyncHandler(async (req, res) => {
   const view = { title: 'Tableau de bord', user, stats: [], extra: {} };
 
   if (user.role === 'administrateur') {
+    // Bonne pratique : le dashboard reste synthétique — les listes complètes
+    // (utilisateurs, compétences) vivent désormais dans leurs pages dédiées.
     const { data } = await collect(adminController.stats, req);
     const { data: pending } = await collect(adminController.pendingCompanies, req);
-    const { data: usersData } = await collect(adminController.users, req);
-    const { data: skillsData } = await collect(resourceController.list('competences'), req);
     view.stats = [
-      { label: 'Utilisateurs', value: data.users.total || 0, hint: `${data.users.candidats || 0} candidats · ${data.users.recruteurs || 0} recruteurs`, icon: 'users' },
-      { label: 'Offres', value: data.offers.total || 0, hint: `${data.offers.ouvertes || 0} ouvertes`, icon: 'briefcase' },
-      { label: 'Candidatures', value: data.applications.total || 0, hint: 'Total plateforme', icon: 'file-text' }
+      // Cartes statistiques cliquables → pages de gestion dédiées.
+      { label: 'Utilisateurs', value: data.users.total || 0, hint: `${data.users.candidats || 0} candidats · ${data.users.recruteurs || 0} recruteurs`, icon: 'users', href: '/admin/utilisateurs' },
+      { label: 'Compétences', value: data.skills?.total || 0, hint: 'Gérer les compétences', icon: 'award', href: '/admin/competences' },
+      { label: 'Offres', value: data.offers.total || 0, hint: `${data.offers.ouvertes || 0} ouvertes`, icon: 'briefcase', href: '/offres' }
     ];
-    view.extra = { pendingCompanies: pending.items || [], users: usersData.items || [], skills: skillsData.items || [] };
+    view.extra = { pendingCompanies: pending.items || [] };
   } else if (user.role === 'recruteur') {
     const [apps, mine, company] = await Promise.all([
       collect(jobController.companyApplications, req).then((r) => r.data).catch(() => ({ items: [] })),
@@ -270,3 +271,34 @@ exports.settings = asyncHandler(async (req, res) => {
 /* ============================== Erreurs ================================== */
 
 exports.notFoundPage = (req, res) => res.status(404).render('404', { title: 'Page introuvable', user: res.locals.user || null });
+
+/* ====================== Administration (pages dédiées) ==================== */
+
+/**
+ * Page « Gestion des utilisateurs » : liste complète avec recherche backend
+ * (`?q=` sur nom, prénom, email, rôle) et actions suspendre/réactiver.
+ * Réservée aux administrateurs (webAuthorize appliqué sur la route).
+ */
+exports.adminUsers = asyncHandler(async (req, res) => {
+  const { data } = await collect(adminController.users, req);
+  res.render('admin-users', {
+    title: 'Gestion des utilisateurs',
+    user: req.user,
+    items: data.items || [],
+    q: data.q || ''
+  });
+});
+
+/**
+ * Page « Compétences » : catalogue + création + suppression.
+ * Les routes POST existantes (/admin/competences, /admin/competences/:id/supprimer)
+ * sont réutilisées telles quelles : seule la vitrine change d'emplacement.
+ */
+exports.adminSkills = asyncHandler(async (req, res) => {
+  const { data } = await collect(resourceController.list('competences'), req);
+  res.render('admin-skills', {
+    title: 'Compétences',
+    user: req.user,
+    items: data.items || []
+  });
+});

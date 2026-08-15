@@ -2,6 +2,18 @@ const Resource = require('../models/resource.model');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const db = require('../config/database');
+const socket = require('../socket');
+
+/**
+ * Diffusion temps réel du CATALOGUE de compétences (table `competence`) :
+ * créé/modifié/supprimé uniquement par l'administrateur, visible par tous
+ * les utilisateurs connectés (profils, offres, matching). Les autres
+ * ressources (expériences, diplômes, etc.) restent privées → non diffusées.
+ */
+const broadcastSkill = (name, event, payload) => {
+  if (name !== 'competences') return;
+  socket.emitAll(event, payload);
+};
 
 const ownerFor = (name, user) => ['experiences', 'diplomes'].includes(name) ? { ownerField: 'id_utilisateur', ownerId: user.id_utilisateur } : null;
 const owns = async (name, id, user) => { 
@@ -31,17 +43,29 @@ exports.get = (name) => asyncHandler(async (req, res) => {
     if (row && name === 'entreprises' && req.user.role !== 'administrateur' && row.status !== 'approved' && row.id_utilisateur !== req.user.id_utilisateur) row = null;
     if (row && name === 'entreprises') row = visibleCompany(row, req.user);
     return row ? success(res, 'Ressource récupérée.', { item: row }) : fail(res, 'Ressource introuvable.', [], 404); });
-exports.create = (name) => asyncHandler(async (req, res) => success(res, 'Ressource créée.', { item: await Resource.create(name, req.body, ownerFor(name, req.user) || {}) }, 201));
+exports.create = (name) => asyncHandler(async (req, res) => { 
+    const item = await Resource.create(name, req.body, ownerFor(name, req.user) || {});
+    if (name === 'competences') {
+      socket.emitAll('nouvelle_competence', { competence: item, id_competence: item.id_competence });
+    }
+    success(res, 'Ressource créée.', { item }, 201); });
 exports.update = (name) => asyncHandler(async (req, res) => { 
     const row = await owns(name, req.params.id, req.user); 
     if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
-    success(res, 'Ressource mise à jour.', { item: await Resource.update(name, req.params.id, req.body) }); });
+    const item = await Resource.update(name, req.params.id, req.body);
+    if (name === 'competences') {
+      socket.emitAll('competence_modifiee', { competence: item, id_competence: Number(req.params.id) });
+    }
+    success(res, 'Ressource mise à jour.', { item }); });
 exports.remove = (name) => asyncHandler(async (req, res) => { 
     const row = await owns(name, req.params.id, req.user); 
     if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
     const d = Resource.schema[name]; 
     await db.execute(`DELETE FROM ${d.table} WHERE ${d.id} = ?`, [req.params.id]); 
-success(res, 'Ressource supprimée.'); });
+    if (name === 'competences') {
+      socket.emitAll('competence_supprimee', { id_competence: Number(req.params.id) });
+    }
+    success(res, 'Ressource supprimée.'); });
 
 exports.mySkills = asyncHandler(async (req, res) => { 
     const [rows] = await db.execute('SELECT c.*, uc.niveau_competence FROM utilisateur_competence uc JOIN competence c ON c.id_competence = uc.id_competence WHERE uc.id_utilisateur = ?', [req.user.id_utilisateur]); 
