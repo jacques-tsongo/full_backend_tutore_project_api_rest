@@ -12,10 +12,14 @@
       items.push({ href: '/matching', icon: 'target', label: 'Matching', key: 'matching' });
     }
     if (user.role === 'recruteur') {
-      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures reçues', key: 'candidatures', count: typeof pendingApplications !== 'undefined' ? pendingApplications : 0 });
+      items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures reçues', key: 'candidatures', count: typeof pendingApplications !== 'undefined' ? pendingApplications : 0, countKey: 'applications' });
       items.push({ href: '/entreprise', icon: 'building-2', label: 'Mon entreprise', key: 'entreprise' });
     }
-    if (user.role === 'administrateur') items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises', count: typeof pendingCompanies !== 'undefined' ? pendingCompanies : 0 });
+    if (user.role === 'administrateur') {
+      items.push({ href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs', key: 'admin-users' });
+      items.push({ href: '/admin/competences', icon: 'award', label: 'Compétences', key: 'admin-skills' });
+      items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises', count: typeof pendingCompanies !== 'undefined' ? pendingCompanies : 0 });
+    }
     items.push({
       href: '/messages', icon: 'message-square', label: 'Messages', key: 'messages',
       count: typeof unreadMessages !== 'undefined' ? unreadMessages : 0, countKey: 'messages'
@@ -39,7 +43,7 @@
           <% // Badge dynamique : affiché uniquement si le compteur est > 0.
              // data-count est posé uniquement pour les compteurs rafraîchis
              // en temps réel côté client (messages / notifications). %>
-          <span class="count<%= item.count > 0 ? '' : ' hidden' %>"<% if (item.countKey) { %> data-count="<%= item.countKey === 'messages' ? 'unread-messages' : 'unread-notifications' %>"<% } %>><%= item.count > 99 ? '99+' : item.count %></span>
+          <span class="count<%= item.count > 0 ? '' : ' hidden' %>"<% if (item.countKey) { %> data-count="<%= item.countKey === 'messages' ? 'unread-messages' : item.countKey === 'notifications' ? 'unread-notifications' : 'unread-applications' %>"<% } %>><%= item.count > 99 ? '99+' : item.count %></span>
         <% } %>
       </a>
     <% }) %>

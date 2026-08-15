@@ -6,5 +6,11 @@
   <title><%= typeof title !== 'undefined' && title ? `${title} · LinkEmploi` : 'LinkEmploi' %></title>
   <link rel="icon" href="/icons/logo.png" type="image/png">
   <link rel="stylesheet" href="/css/style.css">
+  <% if (typeof user !== 'undefined' && user) { %>
+    <% // Temps réel : client Socket.IO (même origine) + cœur des événements.
+       // Chargés en <head> (defer) afin que les scripts de page les trouvent prêts. %>
+    <script src="/socket.io/socket.io.js" defer></script>
+    <script src="/js/realtime.js" defer></script>
+  <% } %>
 </head>
 <body data-page="<%= typeof page !== 'undefined' ? page : '' %>"<% if (typeof user !== 'undefined' && user) { %> data-user-id="<%= user.id_utilisateur %>" data-role="<%= user.role %>"<% } %>>
