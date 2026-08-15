@@ -10,7 +10,13 @@ const { readFlash } = require('./helpers/flash');
 const { success } = require('./utils/apiResponse');
 const app = express();
 
-app.use(helmet());
+/* ------------------------- Sécurité & parsing --------------------------- */
+// CSP : `connect-src` autorise la même origine ET les WebSocket (Socket.IO),
+// requis par le temps réel ; le reste du CSP reste celui par défaut.
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: { useDefaults: true, directives: { 'connect-src': ["'self'", 'ws:', 'wss:'] } }
+}));
 
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("../swagger");
@@ -20,8 +26,7 @@ const frontendPath = path.join(rootPath, 'frontend');
 // pour la documentation de l'API
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-/* ------------------------- Sécurité & parsing --------------------------- */
-app.use(helmet({ crossOriginResourcePolicy: false })); 
+/* ------------------------- Parsing (JSON / formulaires) ------------------ */
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || true, credentials: true })); 
 app.use(express.json({ limit: '1mb' })); 
 app.use(express.urlencoded({ extended: false, limit: '1mb' })); // formulaires HTML
@@ -113,7 +118,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => success(res, 'API opérationnelle.', { environment: process.env.NODE_ENV || 'development' })); 
 app.use('/api/auth', require('./routes/auth.routes')); 
 app.use('/api/profil', require('./routes/profile.routes'));
-// company.routes AVANT resource.routes : GET /api/entreprises/mine et
+// company.routes AVANT resource.routes  : GET /api/entreprises/mine et
 // PUT /api/entreprises/:id (propriétaire) doivent primer sur /:id générique.
 app.use('/api', require('./routes/company.routes')); 
 app.use('/api', require('./routes/resource.routes')); 
