@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "swagger": "node -e \"require('fs').writeFileSync('swagger-output.json', JSON.stringify(require('./swagger'), null, 2))\"",
     "test:e2e": "node test/e2e-workflow.js",
-    "test:pages": "node test/frontend-smoke.js"
+    "test:pages": "node test/frontend-smoke.js",
+    "test:realtime": "node test/realtime-socket.js",
+    "test:realtime-dom": "node test/realtime-dom.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -24,11 +26,14 @@
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "mysql2": "^3.12.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.0.5"
   },
   "devDependencies": {
+    "jsdom": "^29.1.1",
     "nodemon": "^3.1.9"
   }
 }

@@ -146,7 +146,7 @@
 .feature-list .icon { color: var(--primary); margin-top: 3px; }
 
 /* ---------- Messagerie ---------- */
-.messages-layout { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.messages-layout { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); min-height: 100vh; background: url('../img/messages-bg.jpg'); gap: 38px; align-items: start;  }
 .messages-side h2 { font-size: 17px; margin: 0 0 12px; }
 .conversation-item { align-items: center; gap: 12px; transition: border-color .15s ease, transform .15s ease; }
 .conversation-item:hover { border-color: var(--primary); }
