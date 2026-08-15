@@ -10,33 +10,31 @@
     <%- include('partials/flash') %>
     <p class="back-link"><a href="/offres"><%- icon('chevron-left') %> Retour aux offres</a></p>
 
-    <div class="card job-hero">
+    <div class="card job-hero" data-offer-id="<%= item.id_offre %>">
       <div class="offer-head">
         <div>
-          <h2 class="job-title"><%= item.titre_offre %></h2>
-          <p class="muted-note">
+          <h2 class="job-title" data-field="titre"><%= item.titre_offre %></h2>
+          <p class="muted-note" data-field="localisation">
             <%- icon('building-2') %> <strong><%= item.nom_entreprise || '—' %></strong> ·
             <%- icon('map-pin') %> <%= item.localisation %>
             <% if (item.ville_entreprise || item.pays_entreprise) { %> (<%= [item.ville_entreprise, item.pays_entreprise].filter(Boolean).join(', ') %>)<% } %>
           </p>
         </div>
-        <span class="badge <%= statusClass(item.statut_offre) %>"><%= item.statut_offre %></span>
+        <span class="badge <%= statusClass(item.statut_offre) %>" data-field="statut"><%= item.statut_offre %></span>
       </div>
       <div class="job-meta">
-        <% if (item.salaire) { %><span><%- icon('coins') %> Salaire : <strong><%= item.salaire %> $</strong></span><% } %>
-        <span><%- icon('calendar') %> Publiée le <%= formatDate(item.date_publication) %></span>
-        <span><%- icon('clock') %> Expire le <%= formatDate(item.date_expiration) %></span>
+        <span data-field="salaire"<% if (!item.salaire) { %> class="hidden"<% } %>><%- icon('coins') %> Salaire : <strong><%= item.salaire %> $</strong></span>
+        <span><%- icon('calendar') %> Publiée le <strong><%= formatDate(item.date_publication) %></strong></span>
+        <span data-field="expiration"><%- icon('clock') %> Expire le <strong><%= formatDate(item.date_expiration) %></strong></span>
       </div>
-      <div class="job-description"><%= item.description_offre %></div>
+      <div class="job-description" data-field="description"><%= item.description_offre %></div>
 
-      <% if (item.competences && item.competences.length) { %>
-        <h3>Compétences requises</h3>
-        <div class="skill-chips">
-          <% item.competences.forEach((s) => { %>
+      <h3 class="<%= item.competences && item.competences.length ? '' : 'hidden' %>" data-field="competences-title">Compétences requises</h3>
+      <div class="skill-chips <%= item.competences && item.competences.length ? '' : 'hidden' %>" data-field="competences">
+        <% if (item.competences) { item.competences.forEach((s) => { %>
             <span class="badge info"><%= s.nom_competence %> — <%= s.niveau_requis %></span>
-          <% }) %>
-        </div>
-      <% } %>
+          <% }); } %>
+      </div>
 
       <% if (user.role === 'candidat' && matching) { %>
         <div class="match-box">
@@ -77,4 +75,5 @@
     <% } %>
   </main>
 </div>
+<script src="/js/pages/offers.js" defer></script>
 <%- include('partials/foot') %>
