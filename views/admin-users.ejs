@@ -1,0 +1,75 @@
+<%- include('partials/head', { title: 'Gestion des utilisateurs', page: 'admin-users' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'admin-users' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Gestion des utilisateurs', subtitle: 'Gérez les comptes utilisateurs de la plateforme.' }) %>
+    <%- include('partials/flash') %>
+
+    <section class="card">
+      <div class="page-header" style="margin-bottom:16px">
+        <div>
+          <h2 style="margin:0">Comptes de la plateforme</h2>
+          <p class="muted-note"><%= items.length %> utilisateur<%= items.length > 1 ? 's' : '' %><%= q ? ` — recherche « ${q} »` : '' %></p>
+        </div>
+        <% if (q) { %>
+          <a class="btn" href="/admin/utilisateurs"><%- icon('x') %> Réinitialiser</a>
+        <% } %>
+      </div>
+
+      <% // Recherche backend : le formulaire renvoie ?q= vers la même page,
+         // le contrôleur filtre en SQL (nom, prénom, email, rôle). %>
+      <form method="get" action="/admin/utilisateurs" class="form-inline" style="margin-bottom:16px">
+        <div class="field search-field">
+          <label class="sr-only" for="q-users">Rechercher un utilisateur</label>
+          <input id="q-users" type="text" name="q" value="<%= q %>"
+                 placeholder="Rechercher un utilisateur (nom, prénom, email, rôle)…"
+                 autocomplete="off">
+        </div>
+        <button class="btn primary" type="submit"><%- icon('search') %> Rechercher</button>
+      </form>
+
+      <% // Zone de tableau à hauteur maîtrisée : la liste défile verticalement
+         // (max-height + overflow), le défilement horizontal reste possible
+         // sur mobile grâce à l'overflow auto de .table-wrap. %>
+      <div class="table-wrap table-scroll">
+        <table>
+          <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Inscription</th><th>Action</th></tr></thead>
+          <tbody>
+            <% items.forEach((u) => { %>
+              <tr>
+                <td>
+                  <span class="user-cell">
+                    <% // Avatar : la photo réelle (si présente) ou les initiales. %>
+                    <span class="avatar-img sm">
+                      <% if (u.photo) { %><img src="<%= asset(u.photo) %>" alt=""><% } else { %><span class="avatar-fallback"><%= ((u.prenom || ' ')[0] + (u.nom || ' ')[0]).toUpperCase() %></span><% } %>
+                    </span>
+                    <%= u.prenom %> <%= u.nom %>
+                  </span>
+                </td>
+                <td><%= u.email %></td>
+                <td><span class="badge neutral"><%= u.role %></span></td>
+                <td><span class="badge <%= statusClass(u.statut_compte) %>"><%= u.statut_compte %></span></td>
+                <td><%= formatDate(u.date_inscription) %></td>
+                <td>
+                  <% if (u.id_utilisateur !== user.id_utilisateur) { %>
+                    <% // Action suspendre / réactiver : route POST existante conservée. %>
+                    <form method="post" action="/admin/utilisateurs/<%= u.id_utilisateur %>/statut" class="inline-form">
+                      <input type="hidden" name="statut_compte" value="<%= u.statut_compte === 'actif' ? 'suspendu' : 'actif' %>">
+                      <button class="btn <%= u.statut_compte === 'actif' ? 'danger' : '' %>" type="submit">
+                        <%= u.statut_compte === 'actif' ? 'Suspendre' : 'Réactiver' %>
+                      </button>
+                    </form>
+                  <% } else { %><span class="muted-note">Vous</span><% } %>
+                </td>
+              </tr>
+            <% }) %>
+            <% if (!items.length) { %>
+              <tr><td colspan="6"><div class="empty-state"><%- icon('users') %><p>Aucun utilisateur trouvé.</p></div></td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

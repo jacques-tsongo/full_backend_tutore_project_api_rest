@@ -1,0 +1,64 @@
+<%- include('partials/head', { title: 'Compétences', page: 'admin-skills' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'admin-skills' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Compétences', subtitle: 'Catalogue des compétences de la plateforme.' }) %>
+    <%- include('partials/flash') %>
+
+    <section class="card" style="margin-bottom:16px">
+      <div class="page-header" style="margin-bottom:12px">
+        <div>
+          <h2 style="margin:0">Nouvelle compétence</h2>
+          <p class="muted-note">Elle sera proposée aux candidats (profil, matching) et aux recruteurs (offres).</p>
+        </div>
+      </div>
+      <form method="post" action="/admin/competences" class="form-inline">
+        <div class="field">
+          <label for="nom_competence">Nom</label>
+          <input id="nom_competence" name="nom_competence" required>
+        </div>
+        <div class="field">
+          <label for="skill_desc">Description</label>
+          <textarea id="skill_desc" name="description" rows="2" style="min-height:42px"></textarea>
+        </div>
+        <button class="btn primary" type="submit"><%- icon('plus') %> Créer</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="page-header" style="margin-bottom:12px">
+        <div>
+          <h2 style="margin:0" data-skills-count>Catalogue (<%= items.length %>)</h2>
+          <p class="muted-note">La suppression retire la compétence des offres et des profils associés (cascade).</p>
+        </div>
+      </div>
+      <% if (!items.length) { %>
+        <div class="empty-state">
+          <%- icon('award') %>
+          <p>Aucune compétence pour le moment. Créez la première ci-dessus.</p>
+        </div>
+      <% } else { %>
+        <div class="table-wrap table-scroll">
+          <table>
+            <thead><tr><th>Compétence</th><th>Description</th><th style="width:110px">Action</th></tr></thead>
+            <tbody data-skills-body>
+              <% items.forEach((s) => { %>
+                <tr data-id="<%= s.id_competence %>">
+                  <td><strong><%= s.nom_competence %></strong></td>
+                  <td><%= s.description || '—' %></td>
+                  <td>
+                    <form method="post" action="/admin/competences/<%= s.id_competence %>/supprimer" class="inline-form" data-confirm="Supprimer la compétence « <%= s.nom_competence %> » ?">
+                      <button class="btn danger" type="submit" aria-label="Supprimer <%= s.nom_competence %>"><%- icon('trash-2') %> Supprimer</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</div>
+<script src="/js/pages/admin-skills.js" defer></script>
+<%- include('partials/foot') %>
