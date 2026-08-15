@@ -36,9 +36,9 @@
         <% if (q || statut) { %><a class="btn" href="/offres">Réinitialiser les filtres</a><% } %>
       </div>
     <% } else { %>
-      <div class="list">
+      <div class="list" data-offers-list data-page="<%= pagination ? pagination.page : 1 %>" data-q="<%= q %>" data-statut="<%= statut %>" data-applied="<%= Array.from(appliedIds).join(',') %>">
         <% items.forEach((job) => { %>
-          <div class="list-item offer-item">
+          <div class="list-item offer-item" data-offer-id="<%= job.id_offre %>">
             <div class="offer-main">
               <strong class="offer-title"><a href="/offres/<%= job.id_offre %>"><%= job.titre_offre %></a></strong>
               <p class="muted-note">
@@ -75,4 +75,5 @@
     <% } %>
   </main>
 </div>
+<script src="/js/pages/offers.js" defer></script>
 <%- include('partials/foot') %>

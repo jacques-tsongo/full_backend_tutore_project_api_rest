@@ -16,7 +16,7 @@
         <% } else { %>
           <div class="list">
             <% conversations.forEach((c) => { %>
-              <a class="list-item conversation-item<%= Number(dest) === Number(c.id_utilisateur) ? ' active' : '' %>" href="/messages?dest=<%= c.id_utilisateur %>">
+              <a class="list-item conversation-item<%= Number(dest) === Number(c.id_utilisateur) ? ' active' : '' %>" data-user-id="<%= c.id_utilisateur %>" href="/messages?dest=<%= c.id_utilisateur %>">
                 <span class="avatar-img sm">
                   <% if (c.photo) { %><img src="<%= asset(c.photo) %>" alt=""><% } else { %><span class="avatar-fallback"><%= ((c.prenom || ' ')[0] + (c.nom || ' ')[0]).toUpperCase() %></span><% } %>
                 </span>
@@ -62,14 +62,14 @@
             <p>Sélectionnez une conversation ou envoyez un nouveau message.</p>
           </div>
         <% } else { %>
-          <div class="card thread-card">
+          <div class="card thread-card" data-thread-user="<%= dest %>">
             <h2 class="form-title">
               <% if (threadUser) { %>Conversation avec <%= threadUser.prenom %> <%= threadUser.nom %><% } else { %>Conversation<% } %>
             </h2>
             <div class="thread-list">
               <% if (!thread.length) { %><p class="muted-note">Aucun message pour le moment. Écrivez le premier !</p><% } %>
               <% thread.forEach((m) => { %>
-                <div class="thread-msg <%= Number(m.id_expediteur) === Number(user.id_utilisateur) ? 'own' : '' %>">
+                <div class="thread-msg <%= Number(m.id_expediteur) === Number(user.id_utilisateur) ? 'own' : '' %>" data-id="<%= m.id_message %>">
                   <div class="thread-bubble">
                     <strong><%= m.expediteur_prenom %> <%= m.expediteur_nom %></strong>
                     <p><%= m.contenu %></p>
@@ -92,4 +92,5 @@
     </section>
   </main>
 </div>
+<script src="/js/pages/messages.js" defer></script>
 <%- include('partials/foot') %>

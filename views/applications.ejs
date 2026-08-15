@@ -13,11 +13,11 @@
       </div>
     <% } else { %>
       <div class="table-wrap">
-        <table>
+        <table data-applications-table>
           <thead><tr><th>Offre</th><th>Entreprise</th><th>Statut</th><th>Score matching</th><th>Date</th><th>Actions</th></tr></thead>
           <tbody>
             <% items.forEach((x) => { %>
-              <tr>
+              <tr data-candidature-id="<%= x.id_candidature %>">
                 <td>
                   <a href="/offres/<%= x.id_offre %>"><strong><%= x.titre_offre %></strong></a><br>
                   <small class="muted-note"><%= x.localisation || '' %></small>
@@ -46,4 +46,5 @@
     <% } %>
   </main>
 </div>
+<script src="/js/pages/applications.js" defer></script>
 <%- include('partials/foot') %>

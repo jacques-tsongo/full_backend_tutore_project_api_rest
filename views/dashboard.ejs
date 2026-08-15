@@ -14,12 +14,21 @@
 
     <section class="grid three stats-row">
       <% stats.forEach((s) => { %>
-        <div class="card stat">
-          <span class="stat-icon"><%- icon(s.icon) %></span>
-          <span><%= s.label %></span>
-          <strong><%= s.value %></strong>
-          <small><%= s.hint %></small>
-        </div>
+        <% if (s.href) { %>
+          <a class="card stat stat-link" href="<%= s.href %>">
+            <span class="stat-icon"><%- icon(s.icon) %></span>
+            <span><%= s.label %></span>
+            <strong><%= s.value %></strong>
+            <small><%= s.hint %></small>
+          </a>
+        <% } else { %>
+          <div class="card stat">
+            <span class="stat-icon"><%- icon(s.icon) %></span>
+            <span><%= s.label %></span>
+            <strong><%= s.value %></strong>
+            <small><%= s.hint %></small>
+          </div>
+        <% } %>
       <% }) %>
     </section>
 

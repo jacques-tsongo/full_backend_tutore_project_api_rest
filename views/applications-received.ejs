@@ -12,9 +12,9 @@
         <a class="btn primary" href="/dashboard#nouvelle-offre">Publier une offre</a>
       </div>
     <% } else { %>
-      <div class="list">
+      <div class="list" data-applications-list>
         <% items.forEach((x) => { %>
-          <div class="card application-card">
+          <div class="card application-card" data-candidature-id="<%= x.id_candidature %>">
             <div class="offer-head">
               <div class="user-cell">
                 <span class="avatar-img">
@@ -60,4 +60,5 @@
     <% } %>
   </main>
 </div>
+<script src="/js/pages/applications-received.js" defer></script>
 <%- include('partials/foot') %>
