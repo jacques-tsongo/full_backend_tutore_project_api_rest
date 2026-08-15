@@ -2,6 +2,7 @@ const db = require('../config/database');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const notify = require('../services/notification.service');
+const socket = require('../socket');
 
 exports.send = asyncHandler(async (req, res) => {
   // L'expéditeur est TOUJOURS l'utilisateur authentifié (req.user) :
@@ -25,6 +26,26 @@ exports.send = asyncHandler(async (req, res) => {
   // Les nouveaux messages sont non lus (lu = 0) : ils alimentent le compteur du destinataire.
   const [r] = await db.execute('INSERT INTO message (id_expediteur, id_destinataire, contenu) VALUES (?, ?, ?)', [me, destId, texte]);
   await notify.create(destId, 'Vous avez reçu un nouveau message.');
+  // Temps réel : le message est poussé au destinataire (room user_destId) et à
+  // l'expéditeur (autres onglets du même utilisateur) pour la liste de conversations.
+  const payload = {
+    message: {
+      id_message: r.insertId,
+      contenu: texte,
+      date_message: new Date(),
+      id_expediteur: me,
+      id_destinataire: destId,
+      lu: 0
+    },
+    expediteur: {
+      id_utilisateur: me,
+      nom: req.user.nom,
+      prenom: req.user.prenom,
+      photo: req.user.photo
+    }
+  };
+  socket.emitToUser(destId, 'nouveau_message', payload);
+  socket.emitToUser(me, 'nouveau_message', payload);
   success(res, 'Message envoyé.', { id_message: r.insertId }, 201);
 });
 
@@ -45,6 +66,10 @@ exports.conversation = asyncHandler(async (req, res) => {
     'UPDATE message SET lu = 1, date_lecture = NOW() WHERE id_expediteur = ? AND id_destinataire = ? AND lu = 0',
     [id, req.user.id_utilisateur]
   );
+  // Temps réel : l'interlocuteur apprend que ses messages ont été lus (« Vu »),
+  // et l'utilisateur connecté met à jour son compteur dans ses autres onglets.
+  socket.emitToUser(id, 'message_lu', { id_expediteur: id, id_destinataire: req.user.id_utilisateur });
+  socket.emitToUser(req.user.id_utilisateur, 'message_lu', { id_expediteur: id, id_destinataire: req.user.id_utilisateur });
   success(res, 'Conversation récupérée.', { items: rows });
 });
 

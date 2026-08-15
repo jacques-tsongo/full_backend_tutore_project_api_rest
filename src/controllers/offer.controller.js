@@ -3,6 +3,7 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { pagination, listResult } = require('../utils/query');
 const notify = require('../services/notification.service');
+const socket = require('../socket');
 const Company = require('../models/company.model');
 
 const companyFor = (id) => Company.findApprovedByOwner(id);
@@ -29,6 +30,24 @@ const offerSelect = `
   FROM offre_emploi o
   JOIN entreprise e ON e.id_entreprise = o.id_entreprise
 `;
+
+/** Récupère une offre complète depuis la base (source de vérité) pour la diffuser. */
+const offerPayload = async (idOffre) => {
+  const [rows] = await db.execute(`${offerSelect} WHERE o.id_offre = ?`, [idOffre]);
+  return rows[0] || null;
+};
+
+/**
+ * Diffusion d'une offre selon les règles d'accès existantes :
+ * - candidats : uniquement si l'offre est « Ouverte » et non expirée ;
+ * - recruteurs / administrateurs : toutes les offres (règles actuelles).
+ */
+const broadcastOffer = async (event, rows) => {
+  const visiblePourCandidat = rows && rows.statut_offre === 'Ouverte' && String(rows.date_expiration).slice(0, 10) >= today() && rows.date_publication;
+  if (visiblePourCandidat) socket.emitToRole('candidat', event, { offer: rows });
+  socket.emitToRole('recruteur', event, { offer: rows });
+  socket.emitToRole('administrateur', event, { offer: rows });
+};
 
 exports.list = asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req.query);
@@ -117,6 +136,11 @@ exports.create = asyncHandler(async (req, res) => {
   const [candidates] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role='candidat' AND statut_compte='actif'");
   await Promise.all(candidates.map((u) => notify.create(u.id_utilisateur, `Nouvelle offre : « ${req.body.titre_offre} ».`)));
 
+  // Temps réel : la nouvelle offre est diffusée aux utilisateurs concernés
+  // (candidats actifs uniquement si elle est ouverte et non expirée).
+  const fresh = await offerPayload(r.insertId);
+  if (fresh) await broadcastOffer('nouvelle_offre', fresh);
+
   return success(res, 'Offre créée.', { id_offre: r.insertId }, 201);
 });
 
@@ -139,6 +163,9 @@ exports.update = asyncHandler(async (req, res) => {
   if (f.length) {
     await db.execute(`UPDATE offre_emploi SET ${f.map((x) => `${x}=?`).join(',')} WHERE id_offre=?`, [...f.map((x) => req.body[x]), req.params.id]);
   }
+  // Temps réel : les clients affichant cette offre reçoivent la version à jour.
+  const fresh = await offerPayload(req.params.id);
+  if (fresh) await broadcastOffer('offre_modifiee', fresh);
   return success(res, 'Offre mise à jour.');
 });
 
@@ -147,5 +174,9 @@ exports.remove = asyncHandler(async (req, res) => {
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
   const [r] = await db.execute('DELETE FROM offre_emploi WHERE id_offre=? AND id_entreprise=?', [req.params.id, company.id_entreprise]);
   if (!r.affectedRows) return fail(res, 'Offre introuvable ou accès refusé.', [], 404);
+  // Temps réel : tous les clients retirent l'offre de leur affichage.
+  socket.emitToRole('candidat', 'offre_supprimee', { id_offre: Number(req.params.id) });
+  socket.emitToRole('recruteur', 'offre_supprimee', { id_offre: Number(req.params.id) });
+  socket.emitToRole('administrateur', 'offre_supprimee', { id_offre: Number(req.params.id) });
   return success(res, 'Offre supprimée.');
 });

@@ -3,6 +3,7 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const matching = require('../services/matching.service');
 const notify = require('../services/notification.service');
+const socket = require('../socket');
 const Company = require('../models/company.model');
 
 const recruiterCompany = (userId) => Company.findApprovedByOwner(userId);
@@ -35,6 +36,25 @@ exports.apply = asyncHandler(async (req, res) => {
   const score = await matching.calculate(req.user.id_utilisateur, id);
   const [recruiters] = await db.execute("SELECT id_utilisateur FROM entreprise WHERE id_entreprise = ? AND status = 'approved'", [offer[0].id_entreprise]);
   await Promise.all(recruiters.map((x) => notify.create(x.id_utilisateur, `Nouvelle candidature pour « ${offer[0].titre_offre} ».`)));
+  // Temps réel : chaque recruteur de l'entreprise reçoit la candidature complète
+  // (room privée user_x — jamais diffusée aux autres utilisateurs).
+  const [application] = await db.execute(
+    `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, p.cv, p.bio,
+            o.titre_offre, o.localisation, m.score_compatibilite,
+            (SELECT GROUP_CONCAT(CONCAT(comp.nom_competence, ' (', uc.niveau_competence, ')') SEPARATOR ', ')
+             FROM utilisateur_competence uc JOIN competence comp ON comp.id_competence = uc.id_competence
+             WHERE uc.id_utilisateur = c.id_utilisateur) AS competences
+     FROM candidature c
+     JOIN offre_emploi o ON o.id_offre = c.id_offre
+     JOIN utilisateur u ON u.id_utilisateur = c.id_utilisateur
+     LEFT JOIN profil_professionnel p ON p.id_utilisateur = c.id_utilisateur
+     LEFT JOIN matching m ON m.id_utilisateur = c.id_utilisateur AND m.id_offre = c.id_offre
+     WHERE c.id_candidature = ?`,
+    [r.insertId]
+  );
+  if (application[0]) {
+    recruiters.forEach((rec) => socket.emitToUser(rec.id_utilisateur, 'nouvelle_candidature', { candidature: application[0] }));
+  }
   success(res, 'Candidature envoyée.', { id_candidature: r.insertId, matching: score }, 201);
 });
 
@@ -89,12 +109,19 @@ exports.updateApplicationStatus = asyncHandler(async (req, res) => {
   const statut = req.body.statut_candidature ?? req.body.statut;
   if (!company || company.status !== 'approved' || !allowed.includes(statut)) return fail(res, 'Action invalide.', [], 422);
   const [rows] = await db.execute(
-    'SELECT c.id_utilisateur, o.titre_offre FROM candidature c JOIN offre_emploi o ON o.id_offre=c.id_offre WHERE c.id_candidature=? AND o.id_entreprise=?',
+    'SELECT c.id_utilisateur, c.id_offre, o.titre_offre FROM candidature c JOIN offre_emploi o ON o.id_offre=c.id_offre WHERE c.id_candidature=? AND o.id_entreprise=?',
     [req.params.id, company.id_entreprise]
   );
   if (!rows[0]) return fail(res, 'Candidature introuvable.', [], 404);
   await db.execute('UPDATE candidature SET statut_candidature=? WHERE id_candidature=?', [statut, req.params.id]);
   await notify.create(rows[0].id_utilisateur, `Votre candidature pour « ${rows[0].titre_offre} » est maintenant : ${statut}.`);
+  // Temps réel : le candidat concerné reçoit immédiatement le changement de statut.
+  socket.emitToUser(rows[0].id_utilisateur, 'candidature_statut_modifie', {
+    id_candidature: Number(req.params.id),
+    id_offre: Number(rows[0].id_offre),
+    statut_candidature: statut,
+    titre_offre: rows[0].titre_offre
+  });
   success(res, 'Statut de candidature mis à jour.');
 });
 
