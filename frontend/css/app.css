@@ -169,6 +169,47 @@
 .thread-bubble small { opacity: .72; font-size: 11px; }
 .thread-form textarea { min-height: 68px; }
 
+/* ---------- Messagerie : recherche de destinataire ---------- */
+.compose-card { margin-top: 18px; }
+.compose-search { position: relative; }
+.compose-results {
+  position: absolute; inset: auto 0 auto 0; z-index: 15;
+  margin: 4px 0 0; padding: 6px; list-style: none;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow);
+  max-height: 280px; overflow-y: auto;
+}
+.compose-results li { padding: 0; }
+.compose-result {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); text-align: left;
+  cursor: pointer; font: inherit;
+}
+.compose-result:hover, .compose-result:focus-visible { background: var(--surface-2); }
+.compose-result .avatar-img { flex: none; }
+.compose-result strong { font-size: 13.5px; display: block; }
+.compose-result small { color: var(--muted); font-size: 12px; }
+.compose-result-state { margin-left: auto; color: var(--muted); }
+
+/* ---------- Cartes Leaflet (géolocalisation des entreprises) ---------- */
+.map-picker {
+  height: 340px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  z-index: 1;
+}
+.map-static {
+  height: 260px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.map-static.sm { height: 190px; max-width: 460px; }
+.map-locate { margin-top: 10px; }
+
 /* ---------- Tableaux ---------- */
 .table-wrap { margin-top: 8px; }
 td .nav-actions { flex-wrap: nowrap; gap: 6px; }
