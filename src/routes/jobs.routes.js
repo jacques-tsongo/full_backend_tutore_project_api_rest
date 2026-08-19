@@ -179,12 +179,12 @@ router.get('/candidatures/recues', authorize('recruteur'), c.companyApplications
  *             properties:
  *               statut_candidature:
  *                 type: string
- *                 enum: [En attente, Présélectionnée, Entretien, Acceptée, Refusée]
- *                 example: Entretien
+ *                 enum: [Acceptée, Refusée]
+ *                 example: Acceptée
  *               statut:
  *                 type: string
  *                 description: Alias accepté de statut_candidature
- *                 enum: [En attente, Présélectionnée, Entretien, Acceptée, Refusée]
+ *                 enum: [Acceptée, Refusée]
  *     responses:
  *       200:
  *         description: Statut de la candidature mis à jour

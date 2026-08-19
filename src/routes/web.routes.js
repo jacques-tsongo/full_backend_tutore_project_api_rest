@@ -85,7 +85,10 @@ router.post('/contact', (req, res) => {
 router.get('/login', webOptionalAuth, page.loginPage);
 router.post('/login', formPost(auth.login, { redirectTo: (req, payload) => page.dashboardPath(payload?.data?.user) }));
 router.get('/register', webOptionalAuth, page.registerPage);
-router.post('/register', formPost(auth.register, { redirectTo: () => '/dashboard' }));
+// Après la création du compte, le nouveau candidat est dirigé vers la page
+// « Ajouter vos compétences » (choix multiples → « Suivant » ou « Ignorer »)
+// avant d'atteindre son tableau de bord.
+router.post('/register', formPost(auth.register, { redirectTo: () => '/competences' }));
 
 // Déconnexion : invalide la session navigateur (cookie httpOnly supprimé).
 router.post('/logout', (req, res) => {
@@ -100,6 +103,12 @@ router.get('/logout', (req, res) => {
 
 /* ============================== Tableau de bord =========================== */
 router.get('/dashboard', authed, page.dashboard);
+
+/* ==================== Compétences (après inscription) ===================== */
+// Page intermédiaire post-inscription : choix multiples + « Suivant » ou
+// « Ignorer ». L'enregistrement réutilise l'API de liaison existante.
+router.get('/competences', authed, webAuthorize('candidat', 'recruteur'), page.skillsOnboarding);
+router.post('/competences', authed, webAuthorize('candidat', 'recruteur'), formPost(resource.addSkills, { redirectTo: '/dashboard' }));
 
 /* ================================ Profil ================================== */
 router.get('/profil', authed, webAuthorize('candidat', 'recruteur'), page.profile);
