@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "seed": "node scripts/seed.js",
     "swagger": "node -e \"require('fs').writeFileSync('swagger-output.json', JSON.stringify(require('./swagger'), null, 2))\"",
     "test:e2e": "node test/e2e-workflow.js",
     "test:pages": "node test/frontend-smoke.js",
@@ -22,6 +23,7 @@
     "express-validator": "^7.2.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "leaflet": "^1.9.4",
     "lucide-static": "^1.30.0",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
