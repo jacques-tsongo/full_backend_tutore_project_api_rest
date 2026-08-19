@@ -1,0 +1,124 @@
+/* ============================================================
+   Page « Ajouter vos compétences » (post-inscription)
+   Réutilise le même gabarit que les pages d'authentification
+   (fond professionnel + carte glassmorphism, voir auth.css) mais
+   élargit la carte pour accueillir le sélecteur à deux colonnes.
+   ============================================================ */
+
+body[data-page="competences"] {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(6, 28, 36, 0.86) 0%, rgba(6, 28, 36, 0.6) 55%, rgba(6, 28, 36, 0.8) 100%),
+    url("/images/auth-bg.svg") center / cover no-repeat;
+  background-attachment: fixed;
+}
+
+body[data-page="competences"] .center-screen {
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+body[data-page="competences"] .auth-card {
+  width: min(980px, 100%);
+  padding: 32px 30px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 26px 60px rgba(4, 22, 30, 0.38);
+}
+[data-theme="dark"] body[data-page="competences"] .auth-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(23, 32, 51, 0.72);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
+}
+
+body[data-page="competences"] .field input {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 107, 123, 0.3);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 13px 14px;
+}
+
+/* ---------- Sélecteur : grille cliquable + panneau des choix ---------- */
+.skills-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+@media (max-width: 860px) {
+  .skills-picker { grid-template-columns: 1fr; }
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.skill-tile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(15, 107, 123, 0.25);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  min-height: 46px;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+[data-theme="dark"] .skill-tile {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+}
+.skill-tile:hover { transform: translateY(-2px); border-color: var(--primary); }
+.skill-tile .icon { color: var(--muted); flex: none; }
+.skill-tile.chosen {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+  border-color: transparent;
+  color: #fff;
+}
+.skill-tile.chosen .icon { color: #fff; }
+[data-theme="dark"] .skill-tile.chosen { color: #fff; }
+
+.skills-selected {
+  border: 1px solid rgba(15, 107, 123, 0.22);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  align-self: start;
+}
+[data-theme="dark"] .skills-selected { background: rgba(255, 255, 255, 0.04); }
+
+.selected-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip-x {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 1px;
+  opacity: 0.75;
+  line-height: 1;
+}
+.chip-x:hover { opacity: 1; }
+.chip-x .icon { height: 14px; width: 14px; }
+
+.skills-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
