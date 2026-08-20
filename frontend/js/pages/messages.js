@@ -110,6 +110,82 @@
     } catch (_) { /* silencieux */ }
   };
 
+  /* --------------- Compose : recherche d'un destinataire ------------------- */
+  /* L'ancienne liste déroulante est remplacée par une recherche dynamique :
+     GET /api/messages/contacts?q=… (recherche nom/prénom/email, résultats
+     limités côté serveur). La sélection affiche la zone d'écriture ; à
+     l'envoi, le serveur redirige vers la conversation (pattern PRG). */
+  const composeBox = document.querySelector('.compose-search');
+  const composeInput = document.getElementById('compose-search');
+  const composeResults = document.querySelector('[data-compose-results]');
+  const composeForm = document.querySelector('[data-compose-form]');
+  const composeDest = document.querySelector('[data-compose-dest]');
+  const composeTarget = document.querySelector('[data-compose-target]');
+  let contacts = [];
+  try { contacts = JSON.parse(decodeURIComponent(composeBox.dataset.contacts || '')); } catch (_) { /* liste vide */ }
+  if (!Array.isArray(contacts)) contacts = [];
+
+  const renderResults = (list) => {
+    if (!list.length) {
+      composeResults.innerHTML = '<li class="muted-note" style="padding:8px 10px">Aucun utilisateur trouvé.</li>';
+      composeResults.classList.remove('hidden');
+      return;
+    }
+    composeResults.innerHTML = list.map((u) => `
+      <li>
+        <button type="button" class="compose-result" data-compose-pick="${Number(u.id_utilisateur)}">
+          <span class="avatar-img sm">
+            ${u.photo ? `<img src="${esc(u.photo)}" alt="">` : `<span class="avatar-fallback">${initials(u.prenom, u.nom)}</span>`}
+          </span>
+          <span>
+            <strong>${esc(u.prenom)} ${esc(u.nom)}</strong>
+            <small>${esc(u.email || '')}</small>
+          </span>
+        </button>
+      </li>`).join('');
+    composeResults.classList.remove('hidden');
+  };
+
+  const showCompose = (user) => {
+    composeDest.value = user.id_utilisateur;
+    composeTarget.textContent = `Conversation avec ${user.prenom} ${user.nom}.`;
+    composeForm.hidden = false;
+    composeForm.querySelector('textarea').focus();
+    composeResults.classList.add('hidden');
+  };
+
+  // Cache des résultats déjà affichés : permet de retrouver le profil
+  // complet d'un utilisateur cliqué sans nouvelle requête.
+  const cache = new Map(contacts.map((u) => [Number(u.id_utilisateur), u]));
+  let debounceTimer = null;
+  composeInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = composeInput.value.trim();
+    if (!q) { renderResults(contacts); return; }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/messages/contacts?q=${encodeURIComponent(q)}`, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const body = await res.json();
+        const items = (body.data && body.data.items) || [];
+        items.forEach((u) => cache.set(Number(u.id_utilisateur), u));
+        renderResults(items);
+      } catch (_) { /* silencieux */ }
+    }, 250);
+  });
+
+  composeResults.addEventListener('click', (event) => {
+    const pick = event.target.closest('[data-compose-pick]');
+    if (!pick) return;
+    const user = cache.get(Number(pick.dataset.composePick));
+    if (!user) return;
+    showCompose(user);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!composeBox.contains(event.target)) composeResults.classList.add('hidden');
+  });
+
   /* --------------------------- Événements -------------------------------- */
   document.addEventListener('gc:message', (event) => {
     const { message, expediteur } = event.detail || {};
