@@ -8,7 +8,7 @@ const v = require('../validators/common.validator');
 const crud = (path, name, roles = ['administrateur'], options = {}) => {
     router.get(path, authenticate, c.list(name)); 
     router.get(`${path}/:id`, authenticate, v.id, valid, c.get(name)); 
-    router.post(path, authenticate, authorize(...roles), c.create(name)); 
+    if (!options.skipPost) router.post(path, authenticate, authorize(...roles), c.create(name)); 
     if (!options.skipPut) router.put(`${path}/:id`, authenticate, authorize(...roles), v.id, valid, c.update(name)); 
     router.delete(`${path}/:id`, authenticate, authorize(...roles), v.id, valid, c.remove(name));
 };
@@ -183,7 +183,9 @@ crud('/diplomes', 'diplomes', ['candidat']);
 // PUT /api/entreprises/:id de company.routes.js (propriétaire recruteur ou
 // admin) afin que le statut de validation ne soit jamais modifiable via le
 // CRUD générique (workflow admin approbation/rejet uniquement).
-crud('/entreprises', 'entreprises', ['administrateur'], { skipPut: true });
+// La création (POST) est également désactivée : aucune entreprise ne peut être
+// créée en direct — ni par un administrateur — hors du workflow de demande.
+crud('/entreprises', 'entreprises', ['administrateur'], { skipPut: true, skipPost: true });
 
 /**
  * @swagger

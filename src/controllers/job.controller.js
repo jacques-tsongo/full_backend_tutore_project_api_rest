@@ -35,6 +35,11 @@ exports.apply = asyncHandler(async (req, res) => {
   // reste le garde-fou d'intégrité ; ici un message métier explicite).
   const [existing] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, id]);
   if (existing[0]) return fail(res, 'Vous avez déjà postulé à cette offre.', [], 409);
+  // Sécurité : avant d'enregistrer la candidature, on vérifie la compatibilité
+  // complète (toutes les compétences requises présentes). Un candidat ne peut
+  // pas contourner cette règle en appelant directement la route/API.
+  const compatible = await matching.hasAllRequired(req.user.id_utilisateur, id);
+  if (!compatible) return fail(res, 'Candidature refusée : vos compétences ne couvrent pas toutes les compétences requises par cette offre.', [], 403);
   const lettre = req.body.lettre_motivation ?? req.body.lettreMotivation ?? null;
   const [r] = await db.execute(
     'INSERT INTO candidature (id_utilisateur, id_offre, lettre_motivation) VALUES (?, ?, ?)',
@@ -93,7 +98,8 @@ exports.companyApplications = asyncHandler(async (req, res) => {
   const company = await recruiterCompany(req.user.id_utilisateur);
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
   const [rows] = await db.execute(
-    `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, p.cv, p.bio,
+    `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, u.photo_couverture, p.cv, p.bio,
+            p.adresse AS profil_adresse,
             o.titre_offre, o.localisation, m.score_compatibilite,
             (SELECT GROUP_CONCAT(CONCAT(comp.nom_competence, ' (', uc.niveau_competence, ')') SEPARATOR ', ')
              FROM utilisateur_competence uc JOIN competence comp ON comp.id_competence = uc.id_competence
@@ -111,6 +117,36 @@ exports.companyApplications = asyncHandler(async (req, res) => {
   // `offre_pourvue` sert au frontend pour désactiver les boutons d'acceptation
   // des AUTRES candidatures (le backend reste la source de vérité : verrou
   // transactionnel dans updateApplicationStatus).
+  //
+  // Informations professionnelles complètes du candidat (relations existantes) :
+  // expériences et diplômes rattachés à chaque candidature pour que le recruteur
+  // consulte l'intégralité du profil sans requête supplémentaire.
+  const applicantIds = [...new Set(rows.map((r) => r.id_utilisateur))];
+  if (applicantIds.length) {
+    const placeholders = applicantIds.map(() => '?').join(',');
+    const [experiences] = await db.execute(
+      `SELECT id_utilisateur, poste, entreprise, date_debut, date_fin, description
+       FROM experience_professionnelle WHERE id_utilisateur IN (${placeholders})
+       ORDER BY date_debut DESC`,
+      applicantIds
+    );
+    const [diplomes] = await db.execute(
+      `SELECT id_utilisateur, intitule, etablissement, annee_obtention
+       FROM diplome WHERE id_utilisateur IN (${placeholders})
+       ORDER BY annee_obtention DESC`,
+      applicantIds
+    );
+    const byUser = (list) => list.reduce((acc, row) => {
+      (acc[row.id_utilisateur] = acc[row.id_utilisateur] || []).push(row);
+      return acc;
+    }, {});
+    const expByUser = byUser(experiences);
+    const dipByUser = byUser(diplomes);
+    rows.forEach((row) => {
+      row.experiences = expByUser[row.id_utilisateur] || [];
+      row.diplomes = dipByUser[row.id_utilisateur] || [];
+    });
+  }
   success(res, 'Candidatures reçues.', { items: rows });
 });
 
