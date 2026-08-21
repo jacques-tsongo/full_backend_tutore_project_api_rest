@@ -84,7 +84,8 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 - `GET /api/offres` (`q`, `statut`, `mine=1`, `page`, `limit`, `sort`, `order`), `GET|POST /api/offres`, `GET|PUT|DELETE /api/offres/:id`
 - `PUT /api/offres/:id/competences`, `GET /api/offres/:id/matching`, `POST /api/offres/:id/postuler`
 - `GET|POST|DELETE /api/mes-competences`
-- `GET|PUT /api/profil`, `POST /api/profil/photo`, `POST /api/profil/cv`
+- `GET|PUT /api/profil`, `POST /api/profil/photo`, `POST /api/profil/couverture`, `POST /api/profil/cv`
+- `GET|POST /api/profil/langues`, `PATCH|DELETE /api/profil/langues/:id`
 - `GET /api/candidatures/me`, `PATCH /api/candidatures/:id/annuler`, `GET /api/candidatures/recues`, `PATCH /api/candidatures/:id/statut`
 - `POST|GET /api/messages`, `GET /api/messages/:userId`, `GET /api/messages/contacts`, `GET /api/messages/non-lus`
 - `GET /api/notifications`, `PATCH /api/notifications/:id/lire`, `PATCH /api/notifications/lire-toutes`, `GET /api/notifications/non-lues`
@@ -94,13 +95,32 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 
 ## Migrations de base de données
 
-Le schéma d'origine est conservé. Une seule évolution est nécessaire :
+Le schéma d'origine est conservé. Les migrations sont additives et idempotentes,
+à appliquer dans l'ordre :
 
 ```bash
 mysql -u root -p < database/migrations/20260809_message_read_tracking.sql
+mysql -u root -p < database/migrations/20260817_entreprise_geolocalisation.sql
+mysql -u root -p < database/migrations/20260820_photo_couverture.sql
+mysql -u root -p < database/migrations/20260821_profile_fields.sql
 ```
 
-Elle ajoute `message.lu` + `message.date_lecture` + index (compteurs de messages non lus), de manière idempotente et sans perte de données (les historiques sont marqués lus).
+- `20260809` : `message.lu` + `message.date_lecture` + index (compteurs non lus).
+- `20260817` : `entreprise.latitude` + `entreprise.longitude` (géolocalisation).
+- `20260820` : `utilisateur.photo_couverture` (bannière de profil).
+- `20260821` : champs du profil professionnel (`post_nom`, `sexe`, `territoire`,
+  `province`, `nationalite`, `etat_civil`, `accroche`), période de formation
+  (`diplome.date_debut` / `date_fin`, `annee_obtention` optionnel) et tables
+  relationnelles `langue` + `utilisateur_langue`.
+
+## Règle de visibilité des offres (matching)
+
+Le score de compatibilité candidat ⇄ offre est calculé par un unique service
+(`src/services/matching.service.js`). Un candidat ne voit, ne consulte et ne
+postule qu'aux offres ouvertes/non expirées dont le score est **supérieur ou
+égal à 10 %** (une offre sans compétence requise est toujours accessible). La
+règle est appliquée côté serveur (liste, détail, candidature, notifications) —
+le frontend n'est pas la seule protection.
 
 ## Tests
 

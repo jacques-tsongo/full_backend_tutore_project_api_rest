@@ -35,11 +35,14 @@ exports.apply = asyncHandler(async (req, res) => {
   // reste le garde-fou d'intégrité ; ici un message métier explicite).
   const [existing] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, id]);
   if (existing[0]) return fail(res, 'Vous avez déjà postulé à cette offre.', [], 409);
-  // Sécurité : avant d'enregistrer la candidature, on vérifie la compatibilité
-  // complète (toutes les compétences requises présentes). Un candidat ne peut
-  // pas contourner cette règle en appelant directement la route/API.
-  const compatible = await matching.hasAllRequired(req.user.id_utilisateur, id);
-  if (!compatible) return fail(res, 'Candidature refusée : vos compétences ne couvrent pas toutes les compétences requises par cette offre.', [], 403);
+  // Sécurité : avant d'enregistrer la candidature, on vérifie que le score de
+  // compatibilité atteint le seuil (>= 10 %). Un candidat ne peut pas
+  // contourner cette règle en appelant directement la route/API (même en
+  // modifiant le HTML ou en envoyant une requête manuelle).
+  const evaluation = await matching.evaluate(req.user.id_utilisateur, id);
+  if (!matching.canAccess(evaluation)) {
+    return fail(res, 'Candidature refusée : votre score de compatibilité est inférieur au seuil requis pour cette offre.', [], 403);
+  }
   const lettre = req.body.lettre_motivation ?? req.body.lettreMotivation ?? null;
   const [r] = await db.execute(
     'INSERT INTO candidature (id_utilisateur, id_offre, lettre_motivation) VALUES (?, ?, ?)',
@@ -52,10 +55,14 @@ exports.apply = asyncHandler(async (req, res) => {
   // (room privée user_x — jamais diffusée aux autres utilisateurs).
   const [application] = await db.execute(
     `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, p.cv, p.bio,
+            p.accroche AS accroche,
             o.titre_offre, o.localisation, m.score_compatibilite,
             (SELECT GROUP_CONCAT(CONCAT(comp.nom_competence, ' (', uc.niveau_competence, ')') SEPARATOR ', ')
              FROM utilisateur_competence uc JOIN competence comp ON comp.id_competence = uc.id_competence
-             WHERE uc.id_utilisateur = c.id_utilisateur) AS competences
+             WHERE uc.id_utilisateur = c.id_utilisateur) AS competences,
+            (SELECT GROUP_CONCAT(CONCAT(l.nom_langue, ' (', ul.niveau, ')') SEPARATOR ', ')
+             FROM utilisateur_langue ul JOIN langue l ON l.id_langue = ul.id_langue
+             WHERE ul.id_utilisateur = c.id_utilisateur) AS langues
      FROM candidature c
      JOIN offre_emploi o ON o.id_offre = c.id_offre
      JOIN utilisateur u ON u.id_utilisateur = c.id_utilisateur
@@ -99,11 +106,15 @@ exports.companyApplications = asyncHandler(async (req, res) => {
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
   const [rows] = await db.execute(
     `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, u.photo_couverture, p.cv, p.bio,
+            p.accroche AS accroche,
             p.adresse AS profil_adresse,
             o.titre_offre, o.localisation, m.score_compatibilite,
             (SELECT GROUP_CONCAT(CONCAT(comp.nom_competence, ' (', uc.niveau_competence, ')') SEPARATOR ', ')
              FROM utilisateur_competence uc JOIN competence comp ON comp.id_competence = uc.id_competence
              WHERE uc.id_utilisateur = c.id_utilisateur) AS competences,
+            (SELECT GROUP_CONCAT(CONCAT(l.nom_langue, ' (', ul.niveau, ')') SEPARATOR ', ')
+             FROM utilisateur_langue ul JOIN langue l ON l.id_langue = ul.id_langue
+             WHERE ul.id_utilisateur = c.id_utilisateur) AS langues,
             (SELECT COUNT(*) FROM candidature a WHERE a.id_offre = c.id_offre AND a.statut_candidature = 'Acceptée') > 0 AS offre_pourvue
      FROM candidature c
      JOIN offre_emploi o ON o.id_offre = c.id_offre
@@ -131,9 +142,9 @@ exports.companyApplications = asyncHandler(async (req, res) => {
       applicantIds
     );
     const [diplomes] = await db.execute(
-      `SELECT id_utilisateur, intitule, etablissement, annee_obtention
+      `SELECT id_utilisateur, intitule, etablissement, annee_obtention, date_debut, date_fin
        FROM diplome WHERE id_utilisateur IN (${placeholders})
-       ORDER BY annee_obtention DESC`,
+       ORDER BY date_debut DESC, annee_obtention DESC`,
       applicantIds
     );
     const byUser = (list) => list.reduce((acc, row) => {

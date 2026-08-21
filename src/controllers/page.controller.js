@@ -12,6 +12,7 @@ const matching = require('../services/matching.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { collect } = require('../helpers/formPost');
 const offerController = require('./offer.controller');
+const profileController = require('./profile.controller');
 const jobController = require('./job.controller');
 const resourceController = require('./resource.controller');
 const messageController = require('./message.controller');
@@ -122,7 +123,9 @@ exports.profile = asyncHandler(async (req, res) => {
   const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
   const [catalog] = await db.execute('SELECT id_competence, nom_competence FROM competence ORDER BY nom_competence');
   const [experiences] = await db.execute('SELECT * FROM experience_professionnelle WHERE id_utilisateur = ? ORDER BY date_debut DESC', [req.user.id_utilisateur]);
-  const [diplomes] = await db.execute('SELECT * FROM diplome WHERE id_utilisateur = ? ORDER BY annee_obtention DESC', [req.user.id_utilisateur]);
+  const [diplomes] = await db.execute('SELECT * FROM diplome WHERE id_utilisateur = ? ORDER BY date_debut DESC, annee_obtention DESC', [req.user.id_utilisateur]);
+  // Langues du profil (relation N:N) via le même contrôleur que l'API.
+  const { data: languesData } = await collect(profileController.listLanguages, req).catch(() => ({ data: { items: [] } }));
   res.render('profile', {
     title: 'Mon profil',
     user: req.user,
@@ -130,7 +133,8 @@ exports.profile = asyncHandler(async (req, res) => {
     mySkills: mine.items || [],
     catalog: catalog || [],
     experiences: experiences || [],
-    diplomes: diplomes || []
+    diplomes: diplomes || [],
+    langues: languesData.items || []
   });
 });
 

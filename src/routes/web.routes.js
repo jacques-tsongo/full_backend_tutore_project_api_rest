@@ -124,6 +124,10 @@ router.post('/profil/experiences/:id/supprimer', authed, webAuthorize('candidat'
 router.post('/profil/diplomes', authed, webAuthorize('candidat'), formPost(resource.create('diplomes'), { redirectTo: '/profil' }));
 router.post('/profil/diplomes/:id/maj', authed, webAuthorize('candidat'), formPost(resource.update('diplomes'), { redirectTo: '/profil' }));
 router.post('/profil/diplomes/:id/supprimer', authed, webAuthorize('candidat'), formPost(resource.remove('diplomes'), { redirectTo: '/profil' }));
+// Langues du profil (relation N:N) : ajout / modification de niveau / retrait.
+router.post('/profil/langues', authed, webAuthorize('candidat'), formPost(profile.addLanguage, { redirectTo: '/profil' }));
+router.post('/profil/langues/:id/maj', authed, webAuthorize('candidat'), formPost(profile.updateLanguage, { redirectTo: '/profil' }));
+router.post('/profil/langues/:id/supprimer', authed, webAuthorize('candidat'), formPost(profile.removeLanguage, { redirectTo: '/profil' }));
 
 /* ================================ Offres ================================== */
 router.get('/offres', authed, page.offers);

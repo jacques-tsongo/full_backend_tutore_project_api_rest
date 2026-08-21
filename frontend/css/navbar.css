@@ -1,4 +1,13 @@
 .topbar { height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+/* Barre de navigation publique : fixe au défilement (sticky), fond opaque et
+   séparation légère. Reste responsive (les actions se replient sur mobile). */
+.topbar.public-nav {
+  position: sticky; top: 0; z-index: 30;
+  margin: -12px 0 24px;
+  padding: 0 4px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: var(--primary-strong); }
 /* .brand-mark { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: var(--primary); color: white; font-weight: 900; } */
 .nav-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }

@@ -52,26 +52,16 @@ const broadcastOffer = async (event, rows) => {
 
 exports.list = asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req.query);
+  const isCandidat = req.user.role === 'candidat';
   const where = [];
   const values = [];
 
-  // Un candidat ne voit que les offres ouvertes, non expirées ET compatibles
-  // (il possède TOUTES les compétences requises). Une offre incompatible est
-  // simplement absente de la liste — jamais « affichée comme non compatible ».
-  // Un recruteur voit toutes les offres (ou les siennes avec ?mine=1).
-  if (req.user.role === 'candidat') {
+  // Un candidat ne voit que les offres ouvertes et non expirées. La règle de
+  // seuil (score >= 10 %) est appliquée APRÈS la requête (filtrage en mémoire
+  // ci-dessous), à partir de la formule unique du service de matching.
+  if (isCandidat) {
     where.push("o.statut_offre = 'Ouverte'");
     where.push('o.date_expiration >= CURDATE()');
-    // Exclut toute offre ayant au moins une compétence requise que le
-    // candidat ne possède pas (donc seules restent les offres dont TOUTES
-    // les compétences requises sont couvertes, y compris sans compétence).
-    where.push(`o.id_offre NOT IN (
-      SELECT oc.id_offre FROM offre_competence oc
-      WHERE oc.id_competence NOT IN (
-        SELECT uc.id_competence FROM utilisateur_competence uc WHERE uc.id_utilisateur = ?
-      )
-    )`);
-    values.push(req.user.id_utilisateur);
   }
   if (req.query.statut) {
     if (!['Ouverte', 'Fermée', 'Suspendue'].includes(req.query.statut)) {
@@ -100,6 +90,44 @@ exports.list = asyncHandler(async (req, res) => {
   const direction = String(req.query.order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
   const condition = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+
+  if (isCandidat) {
+    // --- Liste candidat : filtrage par score de compatibilité -----------------
+    // On récupère d'abord toutes les offres ouvertes/non expirées (pas de
+    // LIMIT), on charge en une seule requête leurs compétences requises et en
+    // une autre les compétences du candidat, puis on calcule le score via la
+    // formule unique `matching.computeScore`. Les offres sous le seuil
+    // (< 10 %) sont retirées de la liste (jamais affichées comme « non
+    // pertinentes »), puis la pagination est appliquée en mémoire.
+    const [rows] = await db.execute(`${offerSelect}${condition} ORDER BY o.${order} ${direction}`, values);
+    const offerIds = rows.map((r) => Number(r.id_offre));
+    const requiredByOffer = new Map();
+    if (offerIds.length) {
+      const [reqs] = await db.execute(
+        `SELECT oc.id_offre, oc.id_competence, oc.niveau_requis
+         FROM offre_competence oc
+         WHERE oc.id_offre IN (${offerIds.map(() => '?').join(',')})`,
+        offerIds
+      );
+      reqs.forEach((r) => {
+        const list = requiredByOffer.get(Number(r.id_offre)) || [];
+        list.push({ id_competence: Number(r.id_competence), niveau_requis: r.niveau_requis });
+        requiredByOffer.set(Number(r.id_offre), list);
+      });
+    }
+    const [mySkills] = await db.execute(
+      'SELECT id_competence, niveau_competence FROM utilisateur_competence WHERE id_utilisateur = ?',
+      [req.user.id_utilisateur]
+    );
+    const visible = rows.filter((o) =>
+      matching.canAccess(matching.computeScore(requiredByOffer.get(Number(o.id_offre)) || [], mySkills))
+    );
+    const total = visible.length;
+    const paged = visible.slice(offset, offset + limit);
+    return success(res, 'Offres récupérées.', listResult(paged, total, page, limit));
+  }
+
+  // --- Recruteur / administrateur : pagination SQL classique ----------------
   const [rows] = await db.execute(
     `${offerSelect}${condition} ORDER BY o.${order} ${direction} LIMIT ? OFFSET ?`,
     [...values, limit, offset]
@@ -120,12 +148,15 @@ exports.get = asyncHandler(async (req, res) => {
     if ((offer.statut_offre !== 'Ouverte' || dateOnly(offer.date_expiration) < today()) && !alreadyApplied) {
       return fail(res, 'Offre introuvable.', [], 404);
     }
-    // Sécurité : même en accédant directement à /offres/:id, un candidat qui
-    // n'a pas encore postulé et qui manque au moins une compétence requise se
-    // voit refuser l'accès. Le filtrage n'est PAS limité au frontend.
+    // Sécurité : même en accédant directement à /offres/:id, un candidat dont
+    // le score de compatibilité est sous le seuil (< 10 %) se voit refuser
+    // l'accès. Le filtrage n'est PAS limité au frontend : la règle est
+    // appliquée ici, côté serveur (source de vérité = matching.canAccess).
     if (!alreadyApplied) {
-      const compatible = await matching.hasAllRequired(req.user.id_utilisateur, req.params.id);
-      if (!compatible) return fail(res, 'Accès refusé : vos compétences ne couvrent pas toutes les compétences requises par cette offre.', [], 403);
+      const evaluation = await matching.evaluate(req.user.id_utilisateur, req.params.id);
+      if (!matching.canAccess(evaluation)) {
+        return fail(res, 'Accès refusé : votre score de compatibilité est inférieur au seuil requis pour cette offre.', [], 403);
+      }
     }
   }
   const [skills] = await db.execute(
@@ -173,13 +204,14 @@ exports.create = asyncHandler(async (req, res) => {
     );
   }
 
-  // Notifications : uniquement les candidats compatibles (possédant TOUTES les
-  // compétences requises). Le filtrage est effectué AVANT la création des
-  // notifications — on ne notifie jamais tous les candidats pour filtrer ensuite.
+  // Notifications : uniquement les candidats dont le score atteint le seuil
+  // (>= 10 %). Le filtrage est effectué AVANT la création des notifications —
+  // on ne notifie jamais tous les candidats pour filtrer ensuite.
   const [candidates] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role='candidat' AND statut_compte='actif'");
   const recipients = [];
   for (const c of candidates) {
-    if (await matching.hasAllRequired(c.id_utilisateur, r.insertId)) recipients.push(c.id_utilisateur);
+    const evaluation = await matching.evaluate(c.id_utilisateur, r.insertId);
+    if (matching.canAccess(evaluation)) recipients.push(c.id_utilisateur);
   }
   await Promise.all(recipients.map((id) => notify.create(id, `Nouvelle offre : « ${req.body.titre_offre} ».`)));
 

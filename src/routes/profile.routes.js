@@ -132,4 +132,10 @@ router.post('/photo', photoUpload, c.uploadPhoto);
  */
 router.post('/cv', cvUpload, c.uploadCv); 
 
+/* Langues du profil professionnel (relation N:N utilisateur_langue). */
+router.get('/langues', c.listLanguages);
+router.post('/langues', c.addLanguage);
+router.patch('/langues/:id', c.updateLanguage);
+router.delete('/langues/:id', c.removeLanguage);
+
 module.exports = router;
