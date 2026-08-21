@@ -21,6 +21,21 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
       <div class="field"><label for="salaire">Salaire mensuel ($)</label><input id="salaire" name="salaire" type="number" min="0" step="0.01"></div>
       <div class="field"><label for="date_expiration">Date d'expiration</label><input id="date_expiration" name="date_expiration" type="date" required></div>
     </div>
+    <!-- Compétences requises : sélection à la création (catalogue existant).
+         Le niveau par défaut est « Débutant » ; il peut être affiné ensuite
+         dans « Mes offres » (même relation offre_competence). -->
+    <div class="field">
+      <label>Compétences requises</label>
+      <div class="skill-checkboxes">
+        <% extra.skills.forEach((s) => { %>
+          <label class="checkbox-chip">
+            <input type="checkbox" name="competences" value="<%= s.id_competence %>">
+            <span><%= s.nom_competence %></span>
+          </label>
+        <% }) %>
+      </div>
+      <small class="muted-note">Seuls les candidats possédant <strong>toutes</strong> ces compétences verront l'offre et pourront postuler.</small>
+    </div>
     <button class="btn primary" type="submit"><%- icon('plus') %> Publier l'offre</button>
   </form>
 </section>

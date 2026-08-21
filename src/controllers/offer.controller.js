@@ -3,6 +3,7 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { pagination, listResult } = require('../utils/query');
 const notify = require('../services/notification.service');
+const matching = require('../services/matching.service');
 const socket = require('../socket');
 const Company = require('../models/company.model');
 
@@ -54,31 +55,23 @@ exports.list = asyncHandler(async (req, res) => {
   const where = [];
   const values = [];
 
-  // Un candidat ne voit que les offres ouvertes et non expirées.
+  // Un candidat ne voit que les offres ouvertes, non expirées ET compatibles
+  // (il possède TOUTES les compétences requises). Une offre incompatible est
+  // simplement absente de la liste — jamais « affichée comme non compatible ».
   // Un recruteur voit toutes les offres (ou les siennes avec ?mine=1).
   if (req.user.role === 'candidat') {
     where.push("o.statut_offre = 'Ouverte'");
     where.push('o.date_expiration >= CURDATE()');
-    // Adaptation au profil : une offre EXIGEANT des compétences n'apparaît
-    // que si le candidat en maîtrise au moins une (les offres ne requérant
-    // aucune compétence restent visibles). Un candidat sans compétences
-    // renseignées voit toutes les offres ouvertes (aucun filtre applicable).
-    const [[{ hasSkills }]] = await db.execute(
-      'SELECT EXISTS(SELECT 1 FROM utilisateur_competence WHERE id_utilisateur = ?) AS hasSkills',
-      [req.user.id_utilisateur]
-    );
-    if (Number(hasSkills)) {
-      where.push(`(
-        NOT EXISTS (SELECT 1 FROM offre_competence oc2 WHERE oc2.id_offre = o.id_offre)
-        OR EXISTS (
-          SELECT 1 FROM offre_competence oc
-          JOIN utilisateur_competence uc
-            ON uc.id_competence = oc.id_competence AND uc.id_utilisateur = ?
-          WHERE oc.id_offre = o.id_offre
-        )
-      )`);
-      values.push(req.user.id_utilisateur);
-    }
+    // Exclut toute offre ayant au moins une compétence requise que le
+    // candidat ne possède pas (donc seules restent les offres dont TOUTES
+    // les compétences requises sont couvertes, y compris sans compétence).
+    where.push(`o.id_offre NOT IN (
+      SELECT oc.id_offre FROM offre_competence oc
+      WHERE oc.id_competence NOT IN (
+        SELECT uc.id_competence FROM utilisateur_competence uc WHERE uc.id_utilisateur = ?
+      )
+    )`);
+    values.push(req.user.id_utilisateur);
   }
   if (req.query.statut) {
     if (!['Ouverte', 'Fermée', 'Suspendue'].includes(req.query.statut)) {
@@ -120,10 +113,20 @@ exports.get = asyncHandler(async (req, res) => {
   const [rows] = await db.execute(`${offerSelect} WHERE o.id_offre = ?`, [req.params.id]);
   if (!rows[0]) return fail(res, 'Offre introuvable.', [], 404);
   const offer = rows[0];
-  if (req.user.role === 'candidat' && (offer.statut_offre !== 'Ouverte' || dateOnly(offer.date_expiration) < today())) {
-    // Un candidat peut consulter une offre fermée seulement s'il y a déjà candidaté.
+  if (req.user.role === 'candidat') {
     const [app] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, req.params.id]);
-    if (!app[0]) return fail(res, 'Offre introuvable.', [], 404);
+    const alreadyApplied = !!app[0];
+    // Un candidat peut consulter une offre fermée seulement s'il y a déjà candidaté.
+    if ((offer.statut_offre !== 'Ouverte' || dateOnly(offer.date_expiration) < today()) && !alreadyApplied) {
+      return fail(res, 'Offre introuvable.', [], 404);
+    }
+    // Sécurité : même en accédant directement à /offres/:id, un candidat qui
+    // n'a pas encore postulé et qui manque au moins une compétence requise se
+    // voit refuser l'accès. Le filtrage n'est PAS limité au frontend.
+    if (!alreadyApplied) {
+      const compatible = await matching.hasAllRequired(req.user.id_utilisateur, req.params.id);
+      if (!compatible) return fail(res, 'Accès refusé : vos compétences ne couvrent pas toutes les compétences requises par cette offre.', [], 403);
+    }
   }
   const [skills] = await db.execute(
     `SELECT c.id_competence, c.nom_competence, oc.niveau_requis
@@ -153,13 +156,44 @@ exports.create = asyncHandler(async (req, res) => {
     [...values, company.id_entreprise]
   );
 
-  const [candidates] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role='candidat' AND statut_compte='actif'");
-  await Promise.all(candidates.map((u) => notify.create(u.id_utilisateur, `Nouvelle offre : « ${req.body.titre_offre} ».`)));
+  // Compétences requises sélectionnées à la création : on réutilise la table
+  // `offre_competence` existante (aucune nouvelle table). Niveau par défaut
+  // « Débutant » ; le recruteur peut l'affiner ensuite depuis son tableau de
+  // bord (même mécanisme que pour le profil candidat).
+  const competences = Array.isArray(req.body.competences) ? req.body.competences : [];
+  for (const item of competences) {
+    const idc = Number(item?.id_competence ?? item);
+    if (!Number.isInteger(idc) || idc < 1) continue;
+    const niveau = typeof item === 'object' && item?.niveau_requis
+      ? item.niveau_requis
+      : 'Débutant';
+    await db.execute(
+      'INSERT INTO offre_competence (id_offre, id_competence, niveau_requis) VALUES (?, ?, ?)',
+      [r.insertId, idc, niveau]
+    );
+  }
 
-  // Temps réel : la nouvelle offre est diffusée aux utilisateurs concernés
-  // (candidats actifs uniquement si elle est ouverte et non expirée).
+  // Notifications : uniquement les candidats compatibles (possédant TOUTES les
+  // compétences requises). Le filtrage est effectué AVANT la création des
+  // notifications — on ne notifie jamais tous les candidats pour filtrer ensuite.
+  const [candidates] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role='candidat' AND statut_compte='actif'");
+  const recipients = [];
+  for (const c of candidates) {
+    if (await matching.hasAllRequired(c.id_utilisateur, r.insertId)) recipients.push(c.id_utilisateur);
+  }
+  await Promise.all(recipients.map((id) => notify.create(id, `Nouvelle offre : « ${req.body.titre_offre} ».`)));
+
+  // Temps réel : la nouvelle offre est diffusée aux recruteurs/admins et,
+  // pour les candidats, uniquement à ceux qui sont compatibles (jamais à tous).
   const fresh = await offerPayload(r.insertId);
-  if (fresh) await broadcastOffer('nouvelle_offre', fresh);
+  if (fresh) {
+    const visiblePourCandidat = fresh.statut_offre === 'Ouverte' && String(fresh.date_expiration).slice(0, 10) >= today() && fresh.date_publication;
+    socket.emitToRole('recruteur', 'nouvelle_offre', { offer: fresh });
+    socket.emitToRole('administrateur', 'nouvelle_offre', { offer: fresh });
+    if (visiblePourCandidat) {
+      recipients.forEach((id) => socket.emitToUser(id, 'nouvelle_offre', { offer: fresh }));
+    }
+  }
 
   return success(res, 'Offre créée.', { id_offre: r.insertId }, 201);
 });

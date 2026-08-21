@@ -224,6 +224,16 @@ td .btn { min-height: 34px; padding: 6px 10px; font-size: 13px; }
 .list-item { transition: border-color .15s ease; }
 .list-item:hover { border-color: var(--primary); }
 
+/* ---------- Sélection des compétences requises à la création d'une offre ---------- */
+.skill-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.checkbox-chip input { accent-color: var(--primary); cursor: pointer; }
+.checkbox-chip:hover { border-color: var(--primary); }
+
+/* ---------- Sections du profil candidat côté recruteur (candidatures reçues) ---------- */
+.applicant-section { margin-top: 14px; }
+.applicant-section > strong { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 920px) {
   .side-toggle { display: inline-flex; }

@@ -44,6 +44,10 @@ exports.get = (name) => asyncHandler(async (req, res) => {
     if (row && name === 'entreprises') row = visibleCompany(row, req.user);
     return row ? success(res, 'Ressource récupérée.', { item: row }) : fail(res, 'Ressource introuvable.', [], 404); });
 exports.create = (name) => asyncHandler(async (req, res) => { 
+    // Règle métier : une entreprise ne se crée que via le workflow « demande
+    // candidat → validation administrateur ». Aucune création directe — même
+    // par un administrateur — n'est autorisée (garde-fou en plus du routage).
+    if (name === 'entreprises') return fail(res, 'La création d’entreprise passe obligatoirement par la demande candidat (workflow de validation).', [], 403);
     const item = await Resource.create(name, req.body, ownerFor(name, req.user) || {});
     if (name === 'competences') {
       socket.emitAll('nouvelle_competence', { competence: item, id_competence: item.id_competence });
