@@ -100,6 +100,23 @@ exports.dashboard = asyncHandler(async (req, res) => {
 
 /* ============================== Profil =================================== */
 
+/**
+ * Page « Ajouter vos compétences » (étape intermédiaire post-inscription) :
+ * l'utilisateur choisit ses compétences puis « Ignorer » ou « Suivant »
+ * (POST /competences → resource.addSkills). La page affiche le catalogue
+ * complet et les éventuelles compétences déjà associées (accès via /profil).
+ */
+exports.skillsOnboarding = asyncHandler(async (req, res) => {
+  const [catalog] = await db.execute('SELECT id_competence, nom_competence, description FROM competence ORDER BY nom_competence');
+  const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
+  res.render('skills-onboarding', {
+    title: 'Ajouter vos compétences',
+    user: req.user,
+    catalog: catalog || [],
+    mySkills: (mine.items || []).map((s) => String(s.id_competence))
+  });
+});
+
 exports.profile = asyncHandler(async (req, res) => {
   const [profile] = await db.execute('SELECT * FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
   const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
@@ -140,7 +157,10 @@ exports.offers = asyncHandler(async (req, res) => {
 exports.offerDetails = asyncHandler(async (req, res) => {
   const { data } = await collect(offerController.get, req);
   const item = data.item;
-  const view = { title: item.titre_offre, user: req.user, item, alreadyApplied: false, matching: null, isOwner: false };
+  // `open` : l'offre accepte de nouvelles candidatures (cohérent avec la
+  // règle de visibilité des listes : Ouverte + non expirée + non pourvue).
+  const expired = String(item.date_expiration || '').slice(0, 10) < new Date().toISOString().slice(0, 10);
+  const view = { title: item.titre_offre, user: req.user, item, alreadyApplied: false, matching: null, isOwner: false, open: item.statut_offre === 'Ouverte' && !expired };
   if (req.user.role === 'candidat') {
     const [app] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, req.params.id]);
     view.alreadyApplied = !!app[0];

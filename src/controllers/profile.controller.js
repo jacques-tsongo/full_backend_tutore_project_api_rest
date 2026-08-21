@@ -22,6 +22,11 @@ exports.uploadPhoto = asyncHandler(async (req, res) => {
   const user = await User.update(req.user.id_utilisateur, { photo: `uploads/photos/${req.file.filename}` });
   success(res, 'Photo enregistrée.', { user });
 });
+exports.uploadCover = asyncHandler(async (req, res) => {
+  if (!req.file) return fail(res, 'Photo de couverture requise.', [], 422);
+  const user = await User.update(req.user.id_utilisateur, { photo_couverture: `uploads/covers/${req.file.filename}` });
+  success(res, 'Photo de couverture enregistrée.', { user });
+});
 exports.uploadCv = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'CV requis.', [], 422);
   const cv = `uploads/cv/${req.file.filename}`;

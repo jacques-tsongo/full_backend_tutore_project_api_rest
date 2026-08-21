@@ -59,6 +59,26 @@ exports.list = asyncHandler(async (req, res) => {
   if (req.user.role === 'candidat') {
     where.push("o.statut_offre = 'Ouverte'");
     where.push('o.date_expiration >= CURDATE()');
+    // Adaptation au profil : une offre EXIGEANT des compétences n'apparaît
+    // que si le candidat en maîtrise au moins une (les offres ne requérant
+    // aucune compétence restent visibles). Un candidat sans compétences
+    // renseignées voit toutes les offres ouvertes (aucun filtre applicable).
+    const [[{ hasSkills }]] = await db.execute(
+      'SELECT EXISTS(SELECT 1 FROM utilisateur_competence WHERE id_utilisateur = ?) AS hasSkills',
+      [req.user.id_utilisateur]
+    );
+    if (Number(hasSkills)) {
+      where.push(`(
+        NOT EXISTS (SELECT 1 FROM offre_competence oc2 WHERE oc2.id_offre = o.id_offre)
+        OR EXISTS (
+          SELECT 1 FROM offre_competence oc
+          JOIN utilisateur_competence uc
+            ON uc.id_competence = oc.id_competence AND uc.id_utilisateur = ?
+          WHERE oc.id_offre = o.id_offre
+        )
+      )`);
+      values.push(req.user.id_utilisateur);
+    }
   }
   if (req.query.statut) {
     if (!['Ouverte', 'Fermée', 'Suspendue'].includes(req.query.statut)) {

@@ -21,6 +21,11 @@
               <% if (c.secteur_activite) { %> · Secteur : <%= c.secteur_activite %><% } %>
             </p>
             <% if (c.description) { %><p class="muted-note"><%= c.description.slice(0, 220) %><%= c.description.length > 220 ? '…' : '' %></p><% } %>
+            <% if (c.latitude && c.longitude) { %>
+              <% // Localisation fournie : l'administrateur vérifie le lieu
+                 // annoncé avant d'approuver (carte statique Leaflet). %>
+              <div class="map-static" style="height:180px;margin-top:10px" data-map-static data-lat="<%= c.latitude %>" data-lng="<%= c.longitude %>"></div>
+            <% } %>
             <% if (docs.length) { %>
               <p>Documents :
                 <% docs.forEach((d, i) => { %>
@@ -41,5 +46,10 @@
         </div>
       <% }) %>
     </div>
+  <% } %>
+  <% if (extra.pendingCompanies.some((c) => c.latitude && c.longitude)) { %>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+    <script src="/vendor/leaflet/leaflet.js" defer></script>
+    <script src="/js/maps.js" defer></script>
   <% } %>
 </section>

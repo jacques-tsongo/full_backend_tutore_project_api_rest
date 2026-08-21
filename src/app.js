@@ -15,7 +15,14 @@ const app = express();
 // requis par le temps réel ; le reste du CSP reste celui par défaut.
 app.use(helmet({
   crossOriginResourcePolicy: false,
-  contentSecurityPolicy: { useDefaults: true, directives: { 'connect-src': ["'self'", 'ws:', 'wss:'] } }
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'connect-src': ["'self'", 'ws:', 'wss:'],
+      // Tuiles cartographiques OpenStreetMap (feuilles Leaflet locales).
+      'img-src': ["'self'", 'data:', 'https://tile.openstreetmap.org']
+    }
+  }
 }));
 
 const swaggerUi = require("swagger-ui-express");

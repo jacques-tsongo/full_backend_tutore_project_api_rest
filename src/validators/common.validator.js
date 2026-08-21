@@ -23,8 +23,12 @@ exports.offerUpdate = [
   body('statut_offre').optional().isIn(['Ouverte','Fermée','Suspendue'])
 ];
 exports.application = [
-  body('statut_candidature').optional().isIn(['En attente','Présélectionnée','Entretien','Acceptée','Refusée']),
-  body('statut').optional().isIn(['En attente','Présélectionnée','Entretien','Acceptée','Refusée'])
+  // Depuis la refonte des décisions de recrutement, le recruteur ne peut
+  // qu'accepter ou refuser une candidature (plus d'états intermédiaires
+  // modifiables arbitrairement : En attente / Présélectionnée / Entretien
+  // restent des états d'affichage historiques, jamais positionnables ici).
+  body('statut_candidature').optional().isIn(['Acceptée', 'Refusée']),
+  body('statut').optional().isIn(['Acceptée', 'Refusée'])
     .withMessage('Statut de candidature invalide.'),
   body().custom((value) => {
     const statut = value.statut_candidature ?? value.statut;

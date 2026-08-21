@@ -24,10 +24,20 @@
         <% if (item.numero_rccm) { %><p><%- icon('landmark') %> <strong>RCCM :</strong> <%= item.numero_rccm %></p><% } %>
         <% if (item.numero_fiscal) { %><p><%- icon('landmark') %> <strong>N° fiscal :</strong> <%= item.numero_fiscal %></p><% } %>
       </div>
+      <% // Carte statique : localisation enregistrée par le recruteur
+         // (visible uniquement si des coordonnées ont été fournies). %>
+      <% if (item.latitude && item.longitude) { %>
+        <div class="map-static" data-map-static data-lat="<%= item.latitude %>" data-lng="<%= item.longitude %>"></div>
+      <% } %>
       <% if (user.role === 'recruteur' && Number(item.id_utilisateur) === Number(user.id_utilisateur)) { %>
         <div class="nav-actions" style="margin-top:12px"><a class="btn" href="/entreprise"><%- icon('pencil') %> Gérer mon entreprise</a></div>
       <% } %>
     </div>
   </main>
 </div>
+<% if (item.latitude && item.longitude) { %>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <script src="/vendor/leaflet/leaflet.js" defer></script>
+  <script src="/js/maps.js" defer></script>
+<% } %>
 <%- include('partials/foot') %>

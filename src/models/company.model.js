@@ -18,6 +18,15 @@ const normalizePayload = (body, files = {}) => {
     ...(files.supporting_documents || [])
   ].map((file) => `/uploads/companies/${file.filename}`);
 
+  // Géolocalisation : coordonnées libres (décimales, bornes valides).
+  // Le recruteur peut les saisir ou les choisir via la carte (maps.js).
+  const latitude = body.latitude === undefined || body.latitude === ''
+    ? undefined
+    : Number.parseFloat(body.latitude);
+  const longitude = body.longitude === undefined || body.longitude === ''
+    ? undefined
+    : Number.parseFloat(body.longitude);
+
   return {
     nom_entreprise: body.nom_entreprise || body.company_name || body.name,
     secteur_activite: body.secteur_activite || body.business_sector || body.sector,
@@ -31,7 +40,9 @@ const normalizePayload = (body, files = {}) => {
     logo: files.logo?.[0] ? `/uploads/companies/${files.logo[0].filename}` : body.logo,
     numero_rccm: body.numero_rccm || body.registration_number || body.rccm,
     numero_fiscal: body.numero_fiscal || body.tax_number,
-    documents_justificatifs: documents.length ? JSON.stringify(documents) : body.documents_justificatifs
+    documents_justificatifs: documents.length ? JSON.stringify(documents) : body.documents_justificatifs,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined
   };
 };
 
@@ -60,6 +71,8 @@ exports.createPending = async (userId, data) => {
     'numero_rccm',
     'numero_fiscal',
     'documents_justificatifs',
+    'latitude',
+    'longitude',
     'id_utilisateur',
     'status',
     'statut_validation'
@@ -78,6 +91,8 @@ exports.createPending = async (userId, data) => {
     data.numero_rccm,
     data.numero_fiscal || null,
     data.documents_justificatifs || null,
+    data.latitude ?? null,
+    data.longitude ?? null,
     userId,
     'pending',
     frenchStatus.pending
@@ -125,7 +140,9 @@ const EDITABLE_FIELDS = [
   'description',
   'logo',
   'numero_rccm',
-  'numero_fiscal'
+  'numero_fiscal',
+  'latitude',
+  'longitude'
 ];
 
 exports.EDITABLE_FIELDS = EDITABLE_FIELDS;

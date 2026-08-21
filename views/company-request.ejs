@@ -46,10 +46,23 @@
           <div class="field"><label for="logo">Logo (PNG ou JPEG)</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg"></div>
           <div class="field"><label for="supporting_documents">Documents justificatifs (PDF, requis)</label><input id="supporting_documents" name="supporting_documents" type="file" multiple accept=".pdf" required></div>
         </div>
+        <% // Localisation : clic sur la carte → coordonnées envoyées avec le
+           // formulaire (latitude/longitude). Obligatoire pour la fiche
+           // publique et la validation admin (vérification du lieu). %>
+        <div class="field">
+          <label for="map">Localisation sur la carte</label>
+          <input type="hidden" data-map-lat name="latitude" step="any">
+          <input type="hidden" data-map-lng name="longitude" step="any">
+          <div id="map" class="map-picker" data-map-picker></div>
+          <p class="muted-note" data-map-coords>Cliquez sur la carte pour positionner le siège de l'entreprise (ou utilisez « Me localiser »).</p>
+        </div>
         <div class="alert alert-info"><%- icon('info') %><span>La soumission ne change pas votre rôle immédiatement : un administrateur doit approuver le dossier avant que vous ne deveniez recruteur.</span></div>
         <button class="btn primary" type="submit"><%- icon('send') %> Soumettre pour validation</button>
       </form>
     <% } %>
   </main>
 </div>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script src="/vendor/leaflet/leaflet.js" defer></script>
+<script src="/js/maps.js" defer></script>
 <%- include('partials/foot') %>

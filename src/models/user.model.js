@@ -1,6 +1,6 @@
 const db = require('../config/database');
 
-const publicFields = 'id_utilisateur, nom, prenom, email, telephone, photo, role, date_inscription, statut_compte';
+const publicFields = 'id_utilisateur, nom, prenom, email, telephone, photo, photo_couverture, role, date_inscription, statut_compte';
 exports.publicFields = publicFields;
 exports.findByEmail = async (email) => (await db.execute(`SELECT ${publicFields}, mot_de_passe FROM utilisateur WHERE email = ?`, [email]))[0][0];
 exports.findById = async (id) => (await db.execute(`SELECT ${publicFields} FROM utilisateur WHERE id_utilisateur = ?`, [id]))[0][0];
@@ -17,7 +17,7 @@ exports.updatePassword = async (id, hashedPassword) => {
   return exports.findById(id);
 };
 exports.update = async (id, data) => {
-  const allowed = ['nom', 'prenom', 'telephone', 'photo'];
+  const allowed = ['nom', 'prenom', 'telephone', 'photo', 'photo_couverture'];
   const fields = allowed.filter((k) => data[k] !== undefined);
   if (!fields.length) return exports.findById(id);
   await db.execute(`UPDATE utilisateur SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id_utilisateur = ?`, [...fields.map((f) => data[f]), id]);

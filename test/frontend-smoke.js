@@ -10,7 +10,7 @@
  *
  * Exécution : node test/frontend-smoke.js
  */
-const BASE = 'http://127.0.0.1:5000';
+const BASE = `http://127.0.0.1:${process.env.PORT || 5000}`;
 const results = [];
 const step = (name, ok, detail = '') => {
   results.push({ name, ok });
@@ -77,7 +77,11 @@ const run = async () => {
   const candidate = browser();
   const email = `smoke.candidat.${freshId()}@example.com`;
   const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000' } });
-  step('POST /register → 302 /dashboard + cookie httpOnly', register.status === 302 && register.location.includes('/dashboard') && candidate.has('gc_token'));
+  step('POST /register → 302 /competences + cookie httpOnly', register.status === 302 && register.location.includes('/competences') && candidate.has('gc_token'));
+  const onboard = await candidate.get('/competences');
+  step('Page compétences post-inscription rendue (SSR)', onboard.status === 200 && onboard.text.includes('Ajouter vos compétences') && onboard.text.includes('skills-onboarding-form'));
+  const skip = await candidate.post('/competences', { form: {} });
+  step('« Ignorer » (POST /competences sans choix) → /dashboard', skip.status === 302 && skip.location.includes('/dashboard'));
   const authedHome = await candidate.get('/login');
   step('Session persistante : /login redirige vers /dashboard', authedHome.status === 302 && authedHome.location.includes('/dashboard'));
   const dashCandidate = await candidate.get('/dashboard');
@@ -98,10 +102,22 @@ const run = async () => {
   step('Mot de passe : changement effectif', goodPass.status === 302 && relogRes.status === 302 && relog.has('gc_token'));
 
   /* ---------- 4. Profil candidat (bio, compétences, expérience, diplôme) ---------- */
+  // Les ids de compétences ne sont pas stables d'une base à l'autre (le seed
+  // n'impose pas d'auto-increment) : on les résout via la page de sélection
+  // post-inscription dont le rendu SSR inclut le catalogue complet.
+  const onboardPage = await candidate.get('/competences');
+  const catById = new Map();
+  const catRe = /data-skill-id="(\d+)" aria-pressed="(?:true|false)">[\s\S]*?<span>([^<]+)<\/span>/g;
+  let cm;
+  while ((cm = catRe.exec(onboardPage.text))) catById.set(cm[2].trim(), Number(cm[1]));
+  const cid = (name) => catById.get(name);
+  const skillJs = cid('JavaScript');
+  const skillNode = cid('Node.js');
+  step('Catalogue de compétences résolu (page SSR)', catById.size > 0 && !!skillJs && !!skillNode, `js=${skillJs} node=${skillNode} total=${catById.size}`);
   const profilForm = await candidate.post('/profil', { form: { bio: 'Profil de test fumée', adresse: 'Kinshasa', date_naissance: '1996-01-01', lieu_naissance: 'Goma' } });
   const profilPage = await candidate.get('/profil');
   step('Profil : bio enregistrée (SSR)', profilForm.status === 302 && profilPage.text.includes('Profil de test fumée'));
-  const skillAdd = await candidate.post('/profil/competences', { form: { id_competence: '1', niveau_competence: 'Avancé' } });
+  const skillAdd = await candidate.post('/profil/competences', { form: { id_competence: String(skillJs), niveau_competence: 'Avancé' } });
   const profilPage2 = await candidate.get('/profil');
   step('Profil : compétence associée', skillAdd.status === 302 && profilPage2.text.includes('JavaScript'));
   const xpAdd = await candidate.post('/profil/experiences', { form: { poste: 'Dev', entreprise: 'ACME', date_debut: '2020-01-01', description: 'Stage' } });
@@ -170,13 +186,20 @@ const run = async () => {
   const offersApi = await candidate.get('/api/offres?mine=1&limit=100');
   const myOffer = offersApi.json()?.data?.items?.find((o) => o.titre_offre === offerTitle);
   step('Offre retrouvée via API', !!myOffer);
-  const setSkill = await candidate.post(`/offres/${myOffer.id_offre}/competences`, { form: { id_competence: '2', niveau_requis: 'Avancé' } });
+  const setSkill = await candidate.post(`/offres/${myOffer.id_offre}/competences`, { form: { id_competence: String(skillNode), niveau_requis: 'Avancé' } });
   const offerPage = await candidate.get(`/offres/${myOffer.id_offre}`);
   step('Compétence requise ajoutée à l’offre', setSkill.status === 302 && offerPage.text.includes('Node.js'));
 
-  /* ---------- 7. Candidature (compte candidat seedé) ---------- */
+  /* ---------- 7. Candidature (candidat fraîchement créé, autonome) ---------- */
+  // NB : le compte seedé candidat@example.com peut avoir été promu « recruteur »
+  // par des runs précédents (validation d'entreprise) — on crée donc notre propre
+  // candidat pour que le scénario reste rejouable quelle que soit la base.
   const seeker = browser();
-  await seeker.post('/login', { form: { email: 'candidat@example.com', mot_de_passe: 'Candidat123!' } });
+  await seeker.post('/register', { form: { nom: 'Candi', prenom: 'Seeker', email: `smoke.seeker.${freshId()}@example.com`, mot_de_passe: 'Secret123!', telephone: '+2438000002' } });
+  await seeker.post('/competences', { form: {} });
+  // Compétence alignée sur l'offre : garantit sa visibilité dans la liste
+  // filtrée par compétences (fonctionnalité « offres adaptées au profil »).
+  await seeker.post('/profil/competences', { form: { id_competence: String(skillNode), niveau_competence: 'Avancé' } });
   const seekerOfferPage = await seeker.get(`/offres/${myOffer.id_offre}`);
   const already = seekerOfferPage.text.includes('Envoyer ma candidature');
   step('Candidat : formulaire de candidature affiché', already);
@@ -186,16 +209,17 @@ const run = async () => {
   const dup = await seeker.post(`/offres/${myOffer.id_offre}/postuler`, { form: { lettre_motivation: 'encore' } });
   step('Double candidature bloquée (flash erreur)', dup.status === 302 && seeker.value('gc_flash')?.includes('danger'));
 
-  // Le recruteur voit la candidature et change le statut
+  // Le recruteur voit la candidature et la REFUSE (décision finale : aucun
+  // état intermédiaire n'est plus positionnable — seul Accepter/Refuser).
   const received = await candidate.get('/candidatures');
   step('Recruteur : candidature reçue affichée', received.text.includes('Smoke') || received.text.includes('candidat'));
   const appsApi = await candidate.get('/api/candidatures/recues');
   const appRow = appsApi.json()?.data?.items?.find((a) => a.id_offre === myOffer.id_offre);
-  const statusUpd = await candidate.post(`/candidatures/${appRow.id_candidature}/statut`, { form: { statut_candidature: 'Entretien' } });
+  const statusRejected = await candidate.post(`/candidatures/${appRow.id_candidature}/statut`, { form: { statut_candidature: 'Refusée' } });
   const seekerApps = await seeker.get('/candidatures');
-  step('Statut mis à jour côté candidat', statusUpd.status === 302 && seekerApps.text.includes('Entretien'));
+  step('Refus enregistré et visible côté candidat', statusRejected.status === 302 && seekerApps.text.includes('Refusée'));
   const cancel = await seeker.post(`/candidatures/${appRow.id_candidature}/annuler`, { form: {} });
-  step('Annulation impossible après changement de statut (flash erreur)', seeker.value('gc_flash')?.includes('danger'));
+  step('Annulation impossible après décision finale (flash erreur)', seeker.value('gc_flash')?.includes('danger'));
 
   /* ---------- 8. Compteurs non lus (messages + notifications) ---------- */
   const notifCountApi = await seeker.get('/api/notifications/non-lues');
@@ -223,9 +247,9 @@ const run = async () => {
   const unreadAfter = await seeker.get('/api/messages/non-lus');
   step('Lecture des fils : compteur retombe à 0', allOpened && unreadAfter.json()?.data?.total === 0, `total=${unreadAfter.json()?.data?.total} fils=${convsJson.length}`);
 
-  /* ---------- 9. Matching ---------- */
-  const matchPage = await seeker.get(`/matching?id_offre=${myOffer.id_offre}`);
-  step('Matching : score SSR affiché', matchPage.status === 200 && matchPage.text.includes('Score de compatibilité'));
+  /* ---------- 9. Matching (cartes avec bouton de calcul par offre) ---------- */
+  const matchPage = await seeker.get(`/matching`);
+  step('Matching : grille de cartes + boutons de compatibilité', matchPage.status === 200 && matchPage.text.includes('data-match-grid') && matchPage.text.includes('Calculer la compatibilité') && matchPage.text.includes(myOffer.id_offre));
   const matchForbidden = await candidate.get('/matching');
   step('Matching interdit au recruteur (403 page)', matchForbidden.status === 403);
 

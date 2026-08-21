@@ -33,22 +33,27 @@
           </div>
         <% } %>
 
-        <div class="card form" style="margin-top:18px">
+        <div class="card form compose-search" style="margin-top:18px" data-contacts="<%= encodeURIComponent(JSON.stringify(contacts)) %>">
           <h2 class="form-title">Nouveau message</h2>
           <% if (!contacts.length) { %>
             <p class="muted-note">Aucun contact disponible pour le moment.</p>
           <% } else { %>
-            <form method="post" action="/messages" class="form">
+            <% // Barre de recherche (remplace l'ancienne liste déroulante) :
+               // filtre localement puis interroge GET /api/messages/contacts?q=
+               // (nom / prénom / email). La sélection affiche la zone d'écriture ;
+               // l'envoi redirige vers la conversation (pattern PRG). %>
+            <div class="field">
+              <label for="compose-search">Destinataire</label>
+              <input id="compose-search" class="search" placeholder="Rechercher par nom, prénom ou email…" autocomplete="off">
+              <ul class="compose-results hidden" data-compose-results></ul>
+            </div>
+            <form method="post" action="/messages" class="form" data-compose-form hidden>
+              <p class="muted-note" data-compose-target></p>
+              <input type="hidden" name="id_destinataire" data-compose-dest>
               <div class="field">
-                <label for="compose-id_destinataire">Destinataire</label>
-                <select id="compose-id_destinataire" name="id_destinataire" required>
-                  <option value="">— Choisir un contact —</option>
-                  <% contacts.forEach((u) => { %>
-                    <option value="<%= u.id_utilisateur %>" <%= Number(dest) === Number(u.id_utilisateur) ? 'selected' : '' %>><%= u.prenom %> <%= u.nom %><%= u.email ? ` (${u.email})` : '' %></option>
-                  <% }) %>
-                </select>
+                <label for="compose-contenu">Message</label>
+                <textarea id="compose-contenu" name="contenu" rows="3" maxlength="5000" required></textarea>
               </div>
-              <div class="field"><label for="compose-contenu">Message</label><textarea id="compose-contenu" name="contenu" rows="3" maxlength="5000" required></textarea></div>
               <button class="btn primary" type="submit"><%- icon('send') %> Envoyer</button>
             </form>
           <% } %>

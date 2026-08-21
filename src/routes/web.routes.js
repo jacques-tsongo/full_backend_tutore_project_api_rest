@@ -20,7 +20,7 @@ const admin = require('../controllers/admin.controller');
 const { webAuth, webOptionalAuth, webAuthorize, COOKIE_NAME } = require('../middlewares/auth.middleware');
 const { formPost } = require('../helpers/formPost');
 const { flash } = require('../helpers/flash');
-const { photoUpload, cvUpload, companyUpload } = require('../middlewares/upload.middleware');
+const { photoUpload, cvUpload, coverUpload, companyUpload } = require('../middlewares/upload.middleware');
 
 /* ---------- Compteurs de navigation (badges Messages / Notifications) ---------- */
 const loadNavCounts = async (req, res, next) => {
@@ -114,6 +114,7 @@ router.post('/competences', authed, webAuthorize('candidat', 'recruteur'), formP
 router.get('/profil', authed, webAuthorize('candidat', 'recruteur'), page.profile);
 router.post('/profil', authed, webAuthorize('candidat', 'recruteur'), formPost(profile.upsert, { redirectTo: '/profil' }));
 router.post('/profil/photo', authed, webAuthorize('candidat', 'recruteur'), photoUpload, formPost(profile.uploadPhoto, { redirectTo: '/profil' }));
+router.post('/profil/couverture', authed, webAuthorize('candidat', 'recruteur'), coverUpload, formPost(profile.uploadCover, { redirectTo: '/profil' }));
 router.post('/profil/cv', authed, webAuthorize('candidat', 'recruteur'), cvUpload, formPost(profile.uploadCv, { redirectTo: '/profil' }));
 router.post('/profil/competences', authed, webAuthorize('candidat'), formPost(resource.addSkill, { redirectTo: '/profil' }));
 router.post('/profil/competences/:id/supprimer', authed, webAuthorize('candidat'), formPost(resource.removeSkill, { redirectTo: '/profil' }));

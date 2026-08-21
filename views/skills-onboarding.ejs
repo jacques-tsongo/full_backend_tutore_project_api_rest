@@ -1,0 +1,65 @@
+<%- include('partials/head', { title, page: 'competences' }) %>
+<% // Page intermédiaire post-inscription : choix multiples de compétences.
+   // « Suivant » enregistre les compétences cochées (POST /competences →
+   // resource.addSkills) ; « Ignorer » envoie le même formulaire sans
+   // compétence et redirige aussi vers le tableau de bord (aucune donnée).
+   // Les tuiles / chips sont pilotées par /js/pages/skills-onboarding.js
+   // (attributs data-skill-id, data-skill-grid, data-selected-chips…). %>
+<main class="center-screen">
+  <section class="card auth-card">
+    <div class="auth-head">
+      <a class="brand" href="/" aria-label="Retour à l'accueil LinkEmploi">
+        <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+      </a>
+      <h1>Ajouter vos compétences</h1>
+      <p class="auth-sub">Choisissez vos compétences : elles alimentent vos recommandations, le matching et votre visibilité auprès des recruteurs. Vous pourrez les modifier à tout moment depuis votre profil.</p>
+    </div>
+    <%- include('partials/flash') %>
+
+    <form method="post" action="/competences" class="form" id="skills-onboarding-form">
+      <% if (!catalog.length) { %>
+        <div class="alert alert-info">
+          <%- icon('info') %>
+          <span>Aucune compétence n'est encore disponible sur la plateforme. Vous pourrez en ajouter dès que le catalogue sera alimenté.</span>
+        </div>
+      <% } else { %>
+        <div class="skills-picker">
+          <div>
+            <label>Compétences disponibles</label>
+            <div class="skill-grid" data-skill-grid>
+              <% catalog.forEach((s) => { %>
+                <% const chosen = mySkills.includes(String(s.id_competence)); %>
+                <button type="button" class="skill-tile<%= chosen ? ' chosen' : '' %>" data-skill-id="<%= s.id_competence %>" aria-pressed="<%= chosen %>">
+                  <%- icon('award') %>
+                  <span><%= s.nom_competence %></span>
+                </button>
+              <% }) %>
+            </div>
+          </div>
+          <aside class="skills-selected">
+            <strong>Compétences sélectionnées</strong>
+            <% // Chips des choix : un bouton « × » retire la compétence avant validation. %>
+            <div class="selected-chips" data-selected-chips>
+              <% catalog.forEach((s) => { %>
+                <% const chosen = mySkills.includes(String(s.id_competence)); %>
+                <span class="badge info" data-chip data-skill-id="<%= s.id_competence %>" <%= chosen ? '' : 'hidden' %>>
+                  <%= s.nom_competence %>
+                  <button type="button" class="chip-x" data-chip-remove aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
+                </span>
+              <% }) %>
+              <span class="muted-note selected-empty" <%= mySkills.length ? 'hidden' : '' %>>Aucune compétence pour l'instant.</span>
+            </div>
+          </aside>
+        </div>
+      <% } %>
+
+      <div class="skills-actions">
+        <button class="btn" type="submit" name="action" value="ignorer"><%- icon('x') %> Ignorer</button>
+        <button class="btn primary" type="submit" name="action" value="suivant"><%- icon('chevron-right') %> Suivant</button>
+      </div>
+    </form>
+    <p class="auth-footer">Vous pourrez compléter vos compétences à tout moment depuis <a href="/profil">votre profil</a>.</p>
+  </section>
+</main>
+<script src="/js/pages/skills-onboarding.js" defer></script>
+<%- include('partials/foot') %>

@@ -73,6 +73,53 @@ exports.mySkills = asyncHandler(async (req, res) => {
 exports.addSkill = asyncHandler(async (req, res) => { 
     await db.execute('INSERT INTO utilisateur_competence (id_utilisateur, id_competence, niveau_competence) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE niveau_competence = VALUES(niveau_competence)', [req.user.id_utilisateur, req.body.id_competence, req.body.niveau_competence]); 
     success(res, 'Compétence associée.'); });
+
+/**
+ * Enregistrement EN MASSE des compétences choisies (page « Ajouter vos
+ * compétences » post-inscription). `req.body.competences` est un tableau
+ * d'identifiants (champs cachés répétés du formulaire HTML).
+ *
+ * Règles appliquées :
+ * - liste vide ou absente → succès sans effet (le bouton « Ignorer » de la
+ *   page onbording emprunte le même chemin : aucune compétence n'est ajoutée) ;
+ * - les identifiants sont contrôlés contre le catalogue `competence` (aucun
+ *   ORM indirect ne peut injecter d'id inconnu) ;
+ * - INSERT ... ON DUPLICATE KEY UPDATE : rejouer la page ne crée jamais de
+ *   doublon (clé primaire id_utilisateur + id_competence), et le niveau déjà
+ *   défini par l'utilisateur dans son profil n'est pas écrasé (niveau_competence
+ *   reste inchangé si la compétence existait déjà).
+ */
+exports.addSkills = asyncHandler(async (req, res) => {
+  const raw = req.body.competences;
+  const ids = (Array.isArray(raw) ? raw : raw ? [raw] : [])
+    .map((v) => Number(v))
+    .filter((v) => Number.isInteger(v) && v > 0);
+  const unique = Array.from(new Set(ids));
+  if (!unique.length) return success(res, 'Aucune compétence sélectionnée.', { added: 0 });
+
+  // Vérification d'existence dans le catalogue : les clés étrangères vers
+  // `competence` interdiraient déjà les ids inconnus, mais un message clair
+  // est plus utile qu'une erreur SQL générique (ER_NO_REFERENCED_ROW_2).
+  const [known] = await db.execute(
+    `SELECT id_competence FROM competence WHERE id_competence IN (${unique.map(() => '?').join(',')})`,
+    unique
+  );
+  const knownIds = new Set(known.map((k) => Number(k.id_competence)));
+  const valid = unique.filter((id) => knownIds.has(id));
+  if (!valid.length) return fail(res, 'Les compétences sélectionnées sont introuvables.', [], 422);
+
+  // Enregistrement en une seule requête (multi-lignes), sans écraser un
+  // niveau déjà choisi par l'utilisateur : ON DUPLICATE KEY UPDATE met à jour
+  // niveau_competence = niveau_competence (no-op).
+  const values = valid.map((id) => [req.user.id_utilisateur, id, 'Débutant']);
+  await db.execute(
+    `INSERT INTO utilisateur_competence (id_utilisateur, id_competence, niveau_competence)
+     VALUES ${valid.map(() => '(?, ?, ?)').join(',')}
+     ON DUPLICATE KEY UPDATE niveau_competence = niveau_competence`,
+    values.flat()
+  );
+  success(res, 'Compétences enregistrées.', { added: valid.length });
+});
 exports.removeSkill = asyncHandler(async (req, res) => { 
     await db.execute('DELETE FROM utilisateur_competence WHERE id_utilisateur = ? AND id_competence = ?', [req.user.id_utilisateur, req.params.id]); 
     success(res, 'Compétence retirée.'); });

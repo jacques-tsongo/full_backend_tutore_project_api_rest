@@ -20,6 +20,9 @@ const companyFilter = (req, file, cb) => {
 exports.photoUpload = multer({ 
   storage: storage('photos'), fileFilter: filter(['.jpg', '.jpeg', '.png']), 
   limits: { fileSize: 5 * 1024 * 1024 } }).single('photo');
+exports.coverUpload = multer({ 
+  storage: storage('covers'), fileFilter: filter(['.jpg', '.jpeg', '.png']), 
+  limits: { fileSize: 5 * 1024 * 1024 } }).single('couverture');
 exports.cvUpload = multer({ 
   storage: storage('cv'), fileFilter: filter(['.pdf', '.doc', '.docx']), 
   limits: { fileSize: 10 * 1024 * 1024 } }).single('cv');

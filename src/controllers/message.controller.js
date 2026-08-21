@@ -105,14 +105,24 @@ exports.unreadCount = asyncHandler(async (req, res) => {
  */
 exports.contacts = asyncHandler(async (req, res) => {
   const me = req.user.id_utilisateur;
+  // Recherche dynamique (barre « Nouveau message ») : filtre par nom,
+  // prénom ou email, insensible à la casse et aux accents de saisie.
+  const q = (req.query.q || '').toString().trim().slice(0, 100);
+  const like = q ? `%${q}%` : null;
+  const searchWhere = q
+    ? 'AND (u.nom LIKE ? OR u.prenom LIKE ? OR CONCAT(u.prenom, \' \', u.nom) LIKE ? OR u.email LIKE ?)'
+    : '';
+  const searchValues = q ? [like, like, like, like] : [];
   let rows;
   if (req.user.role === 'candidat') {
     [rows] = await db.execute(
       `SELECT DISTINCT u.id_utilisateur, u.nom, u.prenom, u.photo, u.email
        FROM entreprise e JOIN utilisateur u ON u.id_utilisateur = e.id_utilisateur
        WHERE e.status = 'approved' AND u.id_utilisateur != ? AND u.statut_compte = 'actif'
-       ORDER BY u.nom, u.prenom`,
-      [me]
+       ${searchWhere}
+       ORDER BY u.nom, u.prenom
+       LIMIT ?`,
+      [me, ...searchValues, 50]
     );
   } else if (req.user.role === 'recruteur') {
     [rows] = await db.execute(
@@ -122,13 +132,20 @@ exports.contacts = asyncHandler(async (req, res) => {
        JOIN entreprise e ON e.id_entreprise = o.id_entreprise
        JOIN utilisateur u ON u.id_utilisateur = c.id_utilisateur
        WHERE e.id_utilisateur = ? AND u.id_utilisateur != ? AND u.statut_compte = 'actif'
-       ORDER BY u.nom, u.prenom`,
-      [me, me]
+       ${searchWhere}
+       ORDER BY u.nom, u.prenom
+       LIMIT ?`,
+      [me, me, ...searchValues, 50]
     );
   } else {
     [rows] = await db.execute(
-      "SELECT id_utilisateur, nom, prenom, photo, email FROM utilisateur WHERE id_utilisateur != ? AND statut_compte = 'actif' ORDER BY nom, prenom",
-      [me]
+      `SELECT u.id_utilisateur, u.nom, u.prenom, u.photo, u.email
+       FROM utilisateur u
+       WHERE u.id_utilisateur != ? AND u.statut_compte = 'actif'
+       ${searchWhere}
+       ORDER BY u.nom, u.prenom
+       LIMIT ?`,
+      [me, ...searchValues, 50]
     );
   }
   success(res, 'Contacts récupérés.', { items: rows });

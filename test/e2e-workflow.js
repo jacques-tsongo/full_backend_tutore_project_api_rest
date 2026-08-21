@@ -1,5 +1,5 @@
 /* E2E test of the complete workflow — run with ADMIN_TOKEN env var. */
-const BASE = 'http://127.0.0.1:5000/api';
+const BASE = `http://127.0.0.1:${process.env.PORT || 5000}/api`;
 const results = [];
 const step = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  → ' + detail : ''}`); };
 
@@ -67,8 +67,10 @@ const run = async () => {
 
   const adminToken = process.env.ADMIN_TOKEN;
   const pend = await call('GET', '/admin/companies/pending', { token: adminToken });
-  step('GET /admin/companies/pending', pend.status === 200 && pend.json?.data?.items?.length === 1);
-  const comp = pend.json?.data?.items?.[0];
+  // La file d'attente peut contenir d'autres dossiers laissés par des runs
+  // précédents : on cible la demande de CETTE exécution (robuste aux reruns).
+  const comp = (pend.json?.data?.items || []).find((c) => Number(c.id_utilisateur) === id1);
+  step('GET /admin/companies/pending (notre demande présente)', !!comp, `count=${pend.json?.data?.items?.length}`);
   const appr = await call('PUT', `/admin/companies/${comp.id_entreprise}/approve`, { token: adminToken, body: {} });
   step('PUT /admin/companies/:id/approve', appr.status === 200, `status=${appr.status} ${appr.json?.message || ''}`);
   const apprAgain = await call('PUT', `/admin/companies/${comp.id_entreprise}/approve`, { token: adminToken, body: {} });
@@ -131,24 +133,46 @@ const run = async () => {
   const cancelAgain = await call('PATCH', `/candidatures/${candId}/annuler`, { token: tok2 });
   step('Cancel non-pending → 400', cancelAgain.status === 400);
 
+  // Décision de recrutement : seuls Accepter/Refuser existent désormais (les
+  // états intermédiaires comme « Entretien » ne sont plus positionnables).
+  // Nouvelle offre pour tester le flux complet (l'ancienne est annulée).
+  const off2 = await call('POST', '/offres', { token: tok1, body: { ...off, titre_offre: 'Offre decision', date_expiration: '2026-12-31', statut_offre: 'Ouverte' } });
+  const off2Id = off2.json?.data?.id_offre;
+  step('POST /offres (offre de décision)', off2.status === 201, `status=${off2.status}`);
+  const ap2 = await call('POST', `/offres/${off2Id}/postuler`, { token: tok2, body: { lettre_motivation: 'Pour la décision' } });
+  step('POST /offres/:id/postuler (offre de décision)', ap2.status === 201, `status=${ap2.status} ${ap2.json?.message || ''}`);
+  const cand2Id = ap2.json?.data?.id_candidature;
+
   const rec = await call('GET', '/candidatures/recues', { token: tok1 });
   const recRow = rec.json?.data?.items?.[0];
-  step('GET /candidatures/recues (1)', rec.json?.data?.items?.length === 1);
+  step('GET /candidatures/recues (annulée masquée, 1 en attente)', rec.json?.data?.items?.length === 1, `count=${rec.json?.data?.items?.length}`);
   step('Recruiter view has CV/contact/score', !!recRow?.cv && !!recRow?.telephone && recRow?.score_compatibilite !== undefined && !!recRow?.competences, `cv=${recRow?.cv} tel=${recRow?.telephone} score=${recRow?.score_compatibilite} skills=${recRow?.competences}`);
+  step('offre_pourvue exposé (false avant décision)', recRow?.offre_pourvue === 0 || recRow?.offre_pourvue === false, `offre_pourvue=${recRow?.offre_pourvue}`);
 
-  const st = await call('PATCH', `/candidatures/${candId}/statut`, { token: tok1, body: { statut_candidature: 'Entretien' } });
-  step('PATCH statut (statut_candidature)', st.status === 200);
-  const st2 = await call('PATCH', `/candidatures/${candId}/statut`, { token: tok1, body: { statut: 'Acceptée' } });
-  step('PATCH statut (alias `statut`)', st2.status === 200, `status=${st2.status} ${st2.json?.message || ''}`);
-  const stBad = await call('PATCH', `/candidatures/${candId}/statut`, { token: tok1, body: { statut: 'inconnu' } });
+  const stInter = await call('PATCH', `/candidatures/${cand2Id}/statut`, { token: tok1, body: { statut_candidature: 'Entretien' } });
+  step('PATCH statut intermédiaire → 422 (bloqué)', stInter.status === 422, `status=${stInter.status}`);
+  const stBad = await call('PATCH', `/candidatures/${cand2Id}/statut`, { token: tok1, body: { statut: 'inconnu' } });
   step('PATCH statut invalid → 422', stBad.status === 422);
+  const stAcc = await call('PATCH', `/candidatures/${cand2Id}/statut`, { token: tok1, body: { statut: 'Acceptée' } });
+  step('PATCH statut Acceptée → 200', stAcc.status === 200, `status=${stAcc.status} ${stAcc.json?.message || ''}`);
+  const stAgain = await call('PATCH', `/candidatures/${cand2Id}/statut`, { token: tok1, body: { statut: 'Refusée' } });
+  step('Décision définitive → re-traiter → 409', stAgain.status === 409, `status=${stAgain.status} ${stAgain.json?.message || ''}`);
 
   const notif = await call('GET', '/notifications', { token: tok2 });
-  step('Candidate notified of status', notif.json?.data?.items?.some((n) => n.contenu_notification.includes('Acceptée')));
+  step('Candidate notified of status', notif.json?.data?.items?.some((n) => /accept/i.test(n.contenu_notification || '')), `contenus=${JSON.stringify((notif.json?.data?.items || []).slice(0, 3).map((n) => n.contenu_notification))}`);
   const notifRec = await call('GET', '/notifications', { token: tok1 });
   step('Recruiter notified of application', notifRec.json?.data?.items?.some((n) => n.contenu_notification.includes('Nouvelle candidature')));
   const readAll = await call('PATCH', '/notifications/lire-toutes', { token: tok2 });
   step('PATCH /notifications/lire-toutes', readAll.status === 200);
+
+  // Offre attribuée → fermée : le candidat qui a postulé peut toujours
+  // consulter sa fiche (suivi), mais AUCUNE nouvelle candidature n'entre.
+  const closedAfter = await call('GET', `/offres/${off2Id}`, { token: tok2 });
+  step('Offre pourvue consultable par l\'ayant postulé (200)', closedAfter.status === 200, `status=${closedAfter.status}`);
+  const postClosed = await call('POST', `/offres/${off2Id}/postuler`, { token: tok2, body: { lettre_motivation: 'trop tard' } });
+  step('Candidature sur offre pourvue bloquée (404)', postClosed.status === 404, `status=${postClosed.status}`);
+  const finalRec = await call('GET', '/candidatures/recues', { token: tok1 });
+  step('offre_pourvue exposé (true après acceptation)', finalRec.json?.data?.items?.[0]?.offre_pourvue === 1 || finalRec.json?.data?.items?.[0]?.offre_pourvue === true, `offre_pourvue=${finalRec.json?.data?.items?.[0]?.offre_pourvue}`);
 
   // Closed offer invisible to candidate who didn't apply
   const o2 = await call('POST', '/offres', { token: tok1, body: { ...off, titre_offre: 'Offre fermee', date_expiration: '2026-12-31', statut_offre: 'Fermée' } });
@@ -158,7 +182,13 @@ const run = async () => {
   const closedDet = await call('GET', `/offres/${closedId}`, { token: tok2 });
   step('Candidate cannot open closed offer (404)', closedDet.status === 404, `status=${closedDet.status}`);
   const recList = await call('GET', '/offres?mine=1', { token: tok1 });
-  step('Recruiter ?mine=1 lists own offers', recList.json?.data?.items?.length === 2, `count=${recList.json?.data?.items?.length}`);
+  step('Recruiter ?mine=1 lists own offers', recList.json?.data?.items?.length === 3, `count=${recList.json?.data?.items?.length}`);
+
+  // Offre expirée : création refusée (date passée) et score de matching bloqué
+  const expired = await call('POST', '/offres', { token: tok1, body: { ...off, titre_offre: 'Offre expiree', date_expiration: '2020-01-01', statut_offre: 'Ouverte' } });
+  step('POST /offres avec date passée → 422', expired.status === 422, `status=${expired.status} ${expired.json?.message || ''}`);
+  const matchExpired = await call('GET', `/offres/${expired.json?.data?.id_offre || 999999}/matching`, { token: tok2 });
+  step('Score de matching refusé si offre indisponible (404)', matchExpired.status === 404, `status=${matchExpired.status} ${matchExpired.json?.message || ''}`);
 
   const up = await call('PUT', `/offres/${offId}`, { token: tok1, body: { salaire: 1800 } });
   step('PUT /offres/:id', up.status === 200);

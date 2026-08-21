@@ -25,9 +25,15 @@ exports.register = asyncHandler(async (req, res) => {
   const { nom, prenom, email, mot_de_passe, telephone } = req.body;
   if (await User.findByEmail(email)) return fail(res, 'Cette adresse e-mail est déjà utilisée.', [], 409);
   const user = await User.create({ nom, prenom, email, telephone, role: 'candidat', password: await bcrypt.hash(mot_de_passe, 12) });
-  const token = tokenFor(user);
+  // Valeurs par défaut d'apparence (uniquement à l'inscription, jamais en
+  // écrasement) : avatar et photo de couverture standards. Les comptes déjà
+  // existants conservent leurs données (NULL → affichage des défauts côté vue).
+  const DEFAULT_AVATAR = 'uploads/photos/default-avatar.png';
+  const DEFAULT_COVER = 'uploads/covers/default-cover.png';
+  const fresh = await User.update(user.id_utilisateur, { photo: DEFAULT_AVATAR, photo_couverture: DEFAULT_COVER });
+  const token = tokenFor(fresh);
   persistSession(res, token);
-  return success(res, 'Compte créé avec succès.', { user, token }, 201);
+  return success(res, 'Compte créé avec succès.', { user: fresh, token }, 201);
 });
 exports.login = asyncHandler(async (req, res) => {
   const user = await User.findByEmail(req.body.email);
