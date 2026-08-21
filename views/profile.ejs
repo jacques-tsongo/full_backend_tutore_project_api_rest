@@ -2,159 +2,322 @@
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'profil' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Mon profil', subtitle: 'Informations professionnelles, fichiers, compétences, expériences et diplômes.' }) %>
+    <%- include('partials/topbar', { title: 'Mon profil', subtitle: 'Identité, présentation, compétences, langues, parcours et fichiers.' }) %>
     <%- include('partials/flash') %>
 
-    <section class="grid two">
-      <form method="post" action="/profil" class="card form">
-        <h2 class="form-title"><%- icon('id-card') %> Informations professionnelles</h2>
-        <div class="field"><label for="bio">Bio</label><textarea id="bio" name="bio"><%= profile?.bio || '' %></textarea></div>
-        <div class="field"><label for="adresse">Adresse</label><input id="adresse" name="adresse" value="<%= profile?.adresse || '' %>"></div>
-        <div class="grid two">
-          <div class="field"><label for="date_naissance">Date de naissance</label><input id="date_naissance" name="date_naissance" type="date" value="<%= profile ? dateInput(profile.date_naissance) : '' %>"></div>
-          <div class="field"><label for="lieu_naissance">Lieu de naissance</label><input id="lieu_naissance" name="lieu_naissance" value="<%= profile?.lieu_naissance || '' %>"></div>
+    <% /* En-tête du profil : photo de couverture + avatar + identité + accroche. */ %>
+    <section class="profile-hero" aria-label="En-tête du profil">
+      <% if (user.photo_couverture) { %>
+        <img class="profile-cover" src="<%= asset(user.photo_couverture) %>" alt="Photo de couverture">
+      <% } else { %>
+        <div class="profile-cover profile-cover--placeholder"></div>
+      <% } %>
+      <div class="profile-hero-body">
+        <span class="avatar-img profile-avatar">
+          <% if (user.photo) { %><img src="<%= asset(user.photo) %>" alt="Photo de profil"><% } else { %><span class="avatar-fallback lg"><%= ((user.prenom || ' ')[0] + (user.nom || ' ')[0]).toUpperCase() %></span><% } %>
+        </span>
+        <div class="profile-hero-meta">
+          <h2><%= user.prenom %> <%= user.nom %><% if (profile?.post_nom) { %> <span class="muted-note"><%= profile.post_nom %></span><% } %></h2>
+          <% if (profile?.accroche) { %><p class="profile-accroche"><%= profile.accroche %></p><% } else { %><p class="profile-accroche muted-note">Ajoutez une accroche pour vous présenter en une phrase.</p><% } %>
+          <span class="badge neutral"><%= user.role %></span>
         </div>
-        <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
-      </form>
-
-      <div class="card">
-        <h2><%- icon('upload') %> Fichiers</h2>
-        <form method="post" action="/profil/photo" enctype="multipart/form-data" class="form upload-block">
-          <div class="avatar-preview">
-            <% if (user.photo) { %><img src="<%= asset(user.photo) %>" alt="Photo de profil"><% } else { %><span class="avatar-fallback lg"><%= ((user.prenom || ' ')[0] + (user.nom || ' ')[0]).toUpperCase() %></span><% } %>
-          </div>
-          <div class="field">
-            <label for="photo">Photo de profil (PNG ou JPEG, 5 Mo max)</label>
-            <input id="photo" name="photo" type="file" accept="image/png,image/jpeg" required>
-          </div>
-          <button class="btn" type="submit"><%- icon('upload') %> Mettre à jour la photo</button>
-        </form>
-        <form method="post" action="/profil/cv" enctype="multipart/form-data" class="form upload-block">
-          <div class="field">
-            <label for="cv">Curriculum Vitae (PDF, DOC ou DOCX, 10 Mo max)</label>
-            <input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" required>
-          </div>
-          <% if (profile?.cv) { %>
-            <p><%- icon('file-text') %> CV actuel : <a href="<%= asset(profile.cv) %>" target="_blank" rel="noopener">Télécharger</a></p>
-          <% } %>
-          <button class="btn" type="submit"><%- icon('upload') %> Envoyer le CV</button>
-        </form>
-        <p class="muted-note">Vos informations de compte (nom, e-mail, téléphone) se gèrent depuis les <a href="/parametres">paramètres</a>.</p>
       </div>
     </section>
 
-    <% if (user.role === 'candidat') { %>
-    <section class="grid two" style="margin-top:18px">
-      <div class="card">
-        <h2><%- icon('award') %> Compétences</h2>
-        <% if (!mySkills.length) { %><p class="muted-note">Aucune compétence ajoutée. Elles alimentent votre score de matching.</p><% } %>
-        <div class="skill-chips">
-        <% mySkills.forEach((s) => { %>
-          <span class="badge info">
-            <%= s.nom_competence %> — <%= s.niveau_competence %>
-            <button type="submit" form="profile-skill-remove-<%= s.id_competence %>" class="chip-x" aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
-            <form method="post" action="/profil/competences/<%= s.id_competence %>/supprimer" class="hidden" id="profile-skill-remove-<%= s.id_competence %>"></form>
-          </span>
-        <% }) %>
-        </div>
-        <form method="post" action="/profil/competences" class="form-inline skill-add">
-          <div class="field">
-            <label class="sr-only" for="id_competence">Compétence</label>
-            <select id="id_competence" name="id_competence">
-              <% catalog.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
-            </select>
-          </div>
-          <div class="field">
-            <label class="sr-only" for="niveau_competence">Niveau</label>
-            <select id="niveau_competence" name="niveau_competence">
-              <% ['Débutant', 'Intermédiaire', 'Avancé', 'Expert'].forEach((n) => { %><option><%= n %></option><% }) %>
-            </select>
-          </div>
-          <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
-        </form>
-      </div>
+    <div class="profile-grid">
+      <% /* -------- Colonne principale -------- */ %>
+      <div class="profile-main">
 
-      <div class="card">
-        <h2><%- icon('graduation-cap') %> Diplômes</h2>
-        <% if (!diplomes.length) { %><p class="muted-note">Aucun diplôme enregistré.</p><% } %>
-        <div class="list">
-          <% diplomes.forEach((d) => { %>
-            <div class="list-item">
-              <div>
-                <strong><%= d.intitule %></strong><p><%= d.etablissement %> — <%= d.annee_obtention %></p>
-              </div>
-              <div class="nav-actions">
-                <button class="btn" type="button" data-toggle="edit-diplome-<%= d.id_diplome %>" aria-label="Modifier"><%- icon('pencil') %></button>
-                <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/supprimer" class="inline-form" data-confirm="Supprimer ce diplôme ?">
-                  <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
-                </form>
-              </div>
+        <% /* 1. Présentation */ %>
+        <form method="post" action="/profil" class="card form">
+          <h2 class="form-title"><%- icon('square-pen') %> Présentation</h2>
+          <div class="field">
+            <label for="accroche">Accroche professionnelle <span class="muted-note">(facultatif)</span></label>
+            <input id="accroche" name="accroche" maxlength="255" placeholder="Ex. Étudiant en informatique, développeur web junior…" value="<%= profile?.accroche || '' %>">
+          </div>
+          <div class="field">
+            <label for="bio">Biographie / parcours <span class="muted-note">(facultatif)</span></label>
+            <textarea id="bio" name="bio" placeholder="Présentez votre parcours, vos motivations et vos points forts…"><%= profile?.bio || '' %></textarea>
+          </div>
+          <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer la présentation</button>
+        </form>
+
+        <% /* 2. Informations personnelles (identité) */ %>
+        <form method="post" action="/profil" class="card form">
+          <h2 class="form-title"><%- icon('id-card') %> Informations personnelles</h2>
+          <div class="grid two">
+            <div class="field">
+              <label for="post_nom">Post-nom <span class="muted-note">(facultatif)</span></label>
+              <input id="post_nom" name="post_nom" value="<%= profile?.post_nom || '' %>">
             </div>
-            <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/maj" class="form edit-form hidden" id="edit-diplome-<%= d.id_diplome %>">
-              <div class="grid two">
-                <div class="field"><label>Intitulé</label><input name="intitule" value="<%= d.intitule %>" required></div>
-                <div class="field"><label>Établissement</label><input name="etablissement" value="<%= d.etablissement %>" required></div>
-              </div>
-              <div class="field"><label>Année d'obtention</label><input name="annee_obtention" type="number" min="1950" max="2100" value="<%= d.annee_obtention %>" required></div>
-              <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
-            </form>
+            <div class="field">
+              <label for="sexe">Sexe</label>
+              <select id="sexe" name="sexe">
+                <option value="">— Non précisé —</option>
+                <% ['Masculin', 'Féminin', 'Autre'].forEach((s) => { %><option value="<%= s %>" <%= profile?.sexe === s ? 'selected' : '' %>><%= s %></option><% }) %>
+              </select>
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="date_naissance">Date de naissance</label>
+              <input id="date_naissance" name="date_naissance" type="date" value="<%= profile ? dateInput(profile.date_naissance) : '' %>">
+            </div>
+            <div class="field">
+              <label for="lieu_naissance">Lieu de naissance</label>
+              <input id="lieu_naissance" name="lieu_naissance" value="<%= profile?.lieu_naissance || '' %>">
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="territoire">Territoire <span class="muted-note">(facultatif)</span></label>
+              <input id="territoire" name="territoire" value="<%= profile?.territoire || '' %>">
+            </div>
+            <div class="field">
+              <label for="province">Province <span class="muted-note">(facultatif)</span></label>
+              <input id="province" name="province" value="<%= profile?.province || '' %>">
+            </div>
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label for="nationalite">Nationalité <span class="muted-note">(facultatif)</span></label>
+              <input id="nationalite" name="nationalite" value="<%= profile?.nationalite || '' %>">
+            </div>
+            <div class="field">
+              <label for="etat_civil">État civil</label>
+              <select id="etat_civil" name="etat_civil">
+                <option value="">— Non précisé —</option>
+                <% ['Célibataire', 'Marié(e)', 'Divorcé(e)', 'Veuf(ve)', 'Autre'].forEach((e) => { %><option value="<%= e %>" <%= profile?.etat_civil === e ? 'selected' : '' %>><%= e %></option><% }) %>
+              </select>
+            </div>
+          </div>
+          <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer les informations</button>
+        </form>
+
+        <% /* 3. Contact */ %>
+        <form method="post" action="/profil" class="card form">
+          <h2 class="form-title"><%- icon('contact') %> Contact</h2>
+          <div class="field">
+            <label for="adresse">Adresse <span class="muted-note">(facultatif)</span></label>
+            <input id="adresse" name="adresse" placeholder="Ex. Kinshasa, RDC" value="<%= profile?.adresse || '' %>">
+          </div>
+          <p class="muted-note"><%- icon('info') %> Votre <strong>e-mail</strong> et votre <strong>téléphone</strong> se gèrent depuis les <a href="/parametres">paramètres</a>.</p>
+          <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer le contact</button>
+        </form>
+
+        <% if (user.role === 'candidat') { %>
+        <% /* 4. Compétences */ %>
+        <div class="card">
+          <h2><%- icon('award') %> Compétences</h2>
+          <% if (!mySkills.length) { %><p class="muted-note">Aucune compétence ajoutée. Elles alimentent votre score de matching et votre visibilité.</p><% } %>
+          <div class="skill-chips">
+          <% mySkills.forEach((s) => { %>
+            <span class="badge info">
+              <%= s.nom_competence %> — <%= s.niveau_competence %>
+              <button type="submit" form="profile-skill-remove-<%= s.id_competence %>" class="chip-x" aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
+              <form method="post" action="/profil/competences/<%= s.id_competence %>/supprimer" class="hidden" id="profile-skill-remove-<%= s.id_competence %>"></form>
+            </span>
           <% }) %>
-        </div>
-        <form method="post" action="/profil/diplomes" class="form-inline skill-add">
-          <div class="field"><label class="sr-only">Intitulé</label><input name="intitule" placeholder="Intitulé" required></div>
-          <div class="field"><label class="sr-only">Établissement</label><input name="etablissement" placeholder="Établissement" required></div>
-          <div class="field"><label class="sr-only">Année</label><input name="annee_obtention" type="number" min="1950" max="2100" placeholder="Année" required></div>
-          <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
-        </form>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:18px">
-      <h2><%- icon('briefcase') %> Expériences professionnelles</h2>
-      <% if (!experiences.length) { %><p class="muted-note">Aucune expérience enregistrée.</p><% } %>
-      <div class="list">
-        <% experiences.forEach((e) => { %>
-          <div class="list-item">
-            <div>
-              <strong><%= e.poste %></strong> — <%= e.entreprise %>
-              <p><%= formatDate(e.date_debut) %> → <%= e.date_fin ? formatDate(e.date_fin) : 'Aujourd’hui' %><% if (e.description) { %><br><%= e.description %><% } %></p>
-            </div>
-            <div class="nav-actions">
-              <button class="btn" type="button" data-toggle="edit-experience-<%= e.id_experience %>" aria-label="Modifier"><%- icon('pencil') %></button>
-              <form method="post" action="/profil/experiences/<%= e.id_experience %>/supprimer" class="inline-form" data-confirm="Supprimer cette expérience ?">
-                <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
-              </form>
-            </div>
           </div>
-          <form method="post" action="/profil/experiences/<%= e.id_experience %>/maj" class="form edit-form hidden" id="edit-experience-<%= e.id_experience %>">
-            <div class="grid two">
-              <div class="field"><label>Poste</label><input name="poste" value="<%= e.poste %>" required></div>
-              <div class="field"><label>Entreprise</label><input name="entreprise" value="<%= e.entreprise %>" required></div>
+          <form method="post" action="/profil/competences" class="form-inline skill-add">
+            <div class="field">
+              <label class="sr-only" for="id_competence">Compétence</label>
+              <select id="id_competence" name="id_competence">
+                <% catalog.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
+              </select>
             </div>
-            <div class="grid two">
-              <div class="field"><label>Date de début</label><input name="date_debut" type="date" value="<%= dateInput(e.date_debut) %>" required></div>
-              <div class="field"><label>Date de fin (optionnel)</label><input name="date_fin" type="date" value="<%= dateInput(e.date_fin) %>"></div>
+            <div class="field">
+              <label class="sr-only" for="niveau_competence">Niveau</label>
+              <select id="niveau_competence" name="niveau_competence">
+                <% ['Débutant', 'Intermédiaire', 'Avancé', 'Expert'].forEach((n) => { %><option><%= n %></option><% }) %>
+              </select>
             </div>
-            <div class="field"><label>Description</label><textarea name="description"><%= e.description || '' %></textarea></div>
-            <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+            <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
           </form>
-        <% }) %>
+        </div>
+
+        <% /* 5. Langues */ %>
+        <div class="card">
+          <h2><%- icon('globe') %> Langues</h2>
+          <% if (!langues.length) { %><p class="muted-note">Aucune langue ajoutée. Indiquez vos langues et leur niveau de maîtrise.</p><% } %>
+          <div class="list">
+            <% langues.forEach((l) => { %>
+              <div class="list-item">
+                <div>
+                  <strong><%= l.nom_langue %></strong>
+                  <p><span class="badge info"><%= l.niveau %></span></p>
+                </div>
+                <div class="nav-actions">
+                  <form method="post" action="/profil/langues/<%= l.id_langue %>/maj" class="form-inline inline-form">
+                    <div class="field">
+                      <label class="sr-only" for="niveau-langue-<%= l.id_langue %>">Niveau</label>
+                      <select id="niveau-langue-<%= l.id_langue %>" name="niveau" onchange="this.form.submit()">
+                        <% ['Débutant', 'Élémentaire', 'Intermédiaire', 'Courant', 'Langue maternelle'].forEach((n) => { %><option value="<%= n %>" <%= l.niveau === n ? 'selected' : '' %>><%= n %></option><% }) %>
+                      </select>
+                    </div>
+                  </form>
+                  <form method="post" action="/profil/langues/<%= l.id_langue %>/supprimer" class="inline-form" data-confirm="Retirer cette langue ?">
+                    <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+          <form method="post" action="/profil/langues" class="form-inline skill-add">
+            <div class="field">
+              <label class="sr-only" for="nom_langue">Langue</label>
+              <input id="nom_langue" name="nom_langue" placeholder="Ex. Français, Anglais…" required>
+            </div>
+            <div class="field">
+              <label class="sr-only" for="niveau-langue-add">Niveau</label>
+              <select id="niveau-langue-add" name="niveau">
+                <% ['Débutant', 'Élémentaire', 'Intermédiaire', 'Courant', 'Langue maternelle'].forEach((n) => { %><option><%= n %></option><% }) %>
+              </select>
+            </div>
+            <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
+          </form>
+        </div>
+
+        <% /* 6. Formations / Diplômes */ %>
+        <div class="card">
+          <h2><%- icon('graduation-cap') %> Formations &amp; diplômes</h2>
+          <% if (!diplomes.length) { %><p class="muted-note">Aucune formation enregistrée.</p><% } %>
+          <div class="list">
+            <% diplomes.forEach((d) => { %>
+              <div class="list-item">
+                <div>
+                  <strong><%= d.intitule %></strong>
+                  <p><%= d.etablissement %>
+                    <% if (d.date_debut || d.annee_obtention) { %> · <%= d.date_debut ? formatDate(d.date_debut) : d.annee_obtention %> → <%= d.date_fin ? formatDate(d.date_fin) : 'Aujourd’hui' %><% } %>
+                  </p>
+                </div>
+                <div class="nav-actions">
+                  <button class="btn" type="button" data-toggle="edit-diplome-<%= d.id_diplome %>" aria-label="Modifier"><%- icon('pencil') %></button>
+                  <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/supprimer" class="inline-form" data-confirm="Supprimer cette formation ?">
+                    <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
+                  </form>
+                </div>
+              </div>
+              <form method="post" action="/profil/diplomes/<%= d.id_diplome %>/maj" class="form edit-form hidden" id="edit-diplome-<%= d.id_diplome %>">
+                <div class="grid two">
+                  <div class="field"><label>Formation / diplôme</label><input name="intitule" value="<%= d.intitule %>" required></div>
+                  <div class="field"><label>Établissement</label><input name="etablissement" value="<%= d.etablissement %>" required></div>
+                </div>
+                <div class="grid two">
+                  <div class="field"><label>Date de début</label><input name="date_debut" type="date" value="<%= dateInput(d.date_debut) %>"></div>
+                  <div class="field"><label>Date de fin (vide si en cours)</label><input name="date_fin" type="date" value="<%= dateInput(d.date_fin) %>"></div>
+                </div>
+                <div class="field"><label>Année d'obtention (facultatif)</label><input name="annee_obtention" type="number" min="1950" max="2100" value="<%= d.annee_obtention || '' %>"></div>
+                <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+              </form>
+            <% }) %>
+          </div>
+          <form method="post" action="/profil/diplomes" class="form">
+            <h3 class="form-title">Ajouter une formation</h3>
+            <div class="grid two">
+              <div class="field"><label>Formation / diplôme</label><input name="intitule" placeholder="Ex. Systèmes informatiques" required></div>
+              <div class="field"><label>Établissement</label><input name="etablissement" placeholder="Ex. Université Adventiste de Lukanga" required></div>
+            </div>
+            <div class="grid two">
+              <div class="field"><label>Date de début</label><input name="date_debut" type="date"></div>
+              <div class="field"><label>Date de fin (vide si en cours)</label><input name="date_fin" type="date"></div>
+            </div>
+            <div class="field"><label>Année d'obtention (facultatif)</label><input name="annee_obtention" type="number" min="1950" max="2100" placeholder="Année"></div>
+            <button class="btn primary" type="submit"><%- icon('plus') %> Ajouter la formation</button>
+          </form>
+        </div>
+
+        <% /* 7. Expériences professionnelles */ %>
+        <div class="card">
+          <h2><%- icon('briefcase') %> Expériences professionnelles</h2>
+          <% if (!experiences.length) { %><p class="muted-note">Aucune expérience enregistrée.</p><% } %>
+          <div class="list">
+            <% experiences.forEach((e) => { %>
+              <div class="list-item">
+                <div>
+                  <strong><%= e.poste %></strong> — <%= e.entreprise %>
+                  <p><%= formatDate(e.date_debut) %> → <%= e.date_fin ? formatDate(e.date_fin) : 'Aujourd’hui' %><% if (e.description) { %><br><%= e.description %><% } %></p>
+                </div>
+                <div class="nav-actions">
+                  <button class="btn" type="button" data-toggle="edit-experience-<%= e.id_experience %>" aria-label="Modifier"><%- icon('pencil') %></button>
+                  <form method="post" action="/profil/experiences/<%= e.id_experience %>/supprimer" class="inline-form" data-confirm="Supprimer cette expérience ?">
+                    <button class="btn danger" type="submit" aria-label="Supprimer"><%- icon('trash-2') %></button>
+                  </form>
+                </div>
+              </div>
+              <form method="post" action="/profil/experiences/<%= e.id_experience %>/maj" class="form edit-form hidden" id="edit-experience-<%= e.id_experience %>">
+                <div class="grid two">
+                  <div class="field"><label>Poste</label><input name="poste" value="<%= e.poste %>" required></div>
+                  <div class="field"><label>Entreprise</label><input name="entreprise" value="<%= e.entreprise %>" required></div>
+                </div>
+                <div class="grid two">
+                  <div class="field"><label>Date de début</label><input name="date_debut" type="date" value="<%= dateInput(e.date_debut) %>" required></div>
+                  <div class="field"><label>Date de fin (optionnel)</label><input name="date_fin" type="date" value="<%= dateInput(e.date_fin) %>"></div>
+                </div>
+                <div class="field"><label>Description</label><textarea name="description"><%= e.description || '' %></textarea></div>
+                <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer</button>
+              </form>
+            <% }) %>
+          </div>
+          <form method="post" action="/profil/experiences" class="form">
+            <h3 class="form-title">Ajouter une expérience</h3>
+            <div class="grid two">
+              <div class="field"><label>Poste</label><input name="poste" required></div>
+              <div class="field"><label>Entreprise</label><input name="entreprise" required></div>
+            </div>
+            <div class="grid two">
+              <div class="field"><label>Date de début</label><input name="date_debut" type="date" required></div>
+              <div class="field"><label>Date de fin (optionnel)</label><input name="date_fin" type="date"></div>
+            </div>
+            <div class="field"><label>Description</label><textarea name="description"></textarea></div>
+            <button class="btn primary" type="submit"><%- icon('plus') %> Ajouter l'expérience</button>
+          </form>
+        </div>
+        <% } %>
       </div>
-      <form method="post" action="/profil/experiences" class="form">
-        <h3 class="form-title">Ajouter une expérience</h3>
-        <div class="grid two">
-          <div class="field"><label>Poste</label><input name="poste" required></div>
-          <div class="field"><label>Entreprise</label><input name="entreprise" required></div>
+
+      <% /* -------- Colonne latérale : photos + CV -------- */ %>
+      <aside class="profile-side">
+        <div class="card">
+          <h2><%- icon('user') %> Photos</h2>
+          <form method="post" action="/profil/photo" enctype="multipart/form-data" class="form upload-block">
+            <div class="avatar-preview">
+              <% if (user.photo) { %><img src="<%= asset(user.photo) %>" alt="Photo de profil"><% } else { %><span class="avatar-fallback lg"><%= ((user.prenom || ' ')[0] + (user.nom || ' ')[0]).toUpperCase() %></span><% } %>
+            </div>
+            <div class="field">
+              <label for="photo">Photo de profil (PNG ou JPEG, 5 Mo max)</label>
+              <input id="photo" name="photo" type="file" accept="image/png,image/jpeg" required>
+            </div>
+            <button class="btn" type="submit"><%- icon('upload') %> Mettre à jour la photo</button>
+          </form>
+          <form method="post" action="/profil/couverture" enctype="multipart/form-data" class="form upload-block">
+            <div class="cover-preview">
+              <% if (user.photo_couverture) { %><img src="<%= asset(user.photo_couverture) %>" alt="Aperçu de la photo de couverture"><% } else { %><span class="cover-fallback"><%- icon('upload') %> Aucune couverture</span><% } %>
+            </div>
+            <div class="field">
+              <label for="couverture">Photo de couverture (PNG ou JPEG, 5 Mo max)</label>
+              <input id="couverture" name="couverture" type="file" accept="image/png,image/jpeg" required>
+            </div>
+            <button class="btn" type="submit"><%- icon('upload') %> Mettre à jour la couverture</button>
+          </form>
         </div>
-        <div class="grid two">
-          <div class="field"><label>Date de début</label><input name="date_debut" type="date" required></div>
-          <div class="field"><label>Date de fin (optionnel)</label><input name="date_fin" type="date"></div>
+
+        <div class="card">
+          <h2><%- icon('file-text') %> Curriculum Vitae</h2>
+          <form method="post" action="/profil/cv" enctype="multipart/form-data" class="form upload-block">
+            <div class="field">
+              <label for="cv">Fichier CV (PDF, DOC ou DOCX, 10 Mo max)</label>
+              <input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" required>
+            </div>
+            <% if (profile?.cv) { %>
+              <p><%- icon('file-text') %> CV actuel : <a href="<%= asset(profile.cv) %>" target="_blank" rel="noopener">Télécharger</a></p>
+            <% } %>
+            <button class="btn" type="submit"><%- icon('upload') %> Envoyer le CV</button>
+          </form>
+          <p class="muted-note">Le CV complète (sans remplacer) les informations structurées de votre profil.</p>
         </div>
-        <div class="field"><label>Description</label><textarea name="description"></textarea></div>
-        <button class="btn primary" type="submit"><%- icon('plus') %> Ajouter l'expérience</button>
-      </form>
-    </section>
-    <% } %>
+      </aside>
+    </div>
   </main>
 </div>
 <%- include('partials/foot') %>

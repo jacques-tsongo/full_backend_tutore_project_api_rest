@@ -12,7 +12,13 @@
   const emptyNote = form.querySelector('.selected-empty');
   if (!grid || !chipsBox) return;
 
-  const ids = new Set(Array.from(chipsBox.querySelectorAll('[data-chip]')).map((c) => c.dataset.skillId));
+  // IMPORTANT (aucune présélection) : on initialise `ids` UNIQUEMENT à partir
+  // des chips réellement marqués « choisi » par le serveur (attribut `hidden`
+  // absent). On ne retient donc jamais par défaut les compétences non
+  // sélectionnées : un nouveau compte démarre avec zéro case cochée.
+  const ids = new Set(
+    Array.from(chipsBox.querySelectorAll('[data-chip]:not([hidden])')).map((c) => c.dataset.skillId)
+  );
   let inputs = []; // champs cachés synchros avec `ids`
 
   const syncInputs = () => {

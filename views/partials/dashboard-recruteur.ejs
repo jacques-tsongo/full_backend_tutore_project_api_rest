@@ -34,7 +34,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
           </label>
         <% }) %>
       </div>
-      <small class="muted-note">Seuls les candidats possédant <strong>toutes</strong> ces compétences verront l'offre et pourront postuler.</small>
+      <small class="muted-note">Seuls les candidats dont le score de compatibilité atteint le seuil requis (10&nbsp;%) verront l'offre, recevront une notification et pourront postuler.</small>
     </div>
     <button class="btn primary" type="submit"><%- icon('plus') %> Publier l'offre</button>
   </form>

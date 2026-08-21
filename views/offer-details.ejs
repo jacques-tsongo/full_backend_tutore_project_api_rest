@@ -37,11 +37,14 @@
       </div>
 
       <% if (user.role === 'candidat' && matching) { %>
-        <div class="match-box">
+        <div class="match-box<%= matching.accessible ? '' : ' match-box--low' %>">
           <span class="stat-icon"><%- icon('target') %></span>
           <div>
             <strong>Score de matching : <%= matching.score %>%</strong>
             <p class="muted-note"><%= matching.matched %>/<%= matching.required %> compétences requises maîtrisées. Améliorez-le en complétant <a href="/profil">vos compétences</a>.</p>
+            <% if (!matching.accessible) { %>
+              <p class="muted-note"><%- icon('triangle-alert') %> Score inférieur au seuil requis : la candidature n'est pas disponible pour cette offre.</p>
+            <% } %>
           </div>
         </div>
       <% } %>
@@ -53,6 +56,11 @@
           <p><%- icon('info') %> Cette offre est fermée aux nouvelles candidatures.</p>
         <% } else if (alreadyApplied) { %>
           <p><%- icon('circle-check') %> Vous avez déjà postulé à cette offre. Suivez son statut dans <a href="/candidatures">vos candidatures</a>.</p>
+        <% } else if (matching && !matching.accessible) { %>
+          <% /* Règle de seuil : score < 10 % → bouton Postuler désactivé.
+             (Défense en profondeur : l'accès est déjà bloqué côté serveur.) */ %>
+          <p class="muted-note"><%- icon('triangle-alert') %> Votre score de compatibilité est inférieur au seuil requis : vous ne pouvez pas postuler à cette offre.</p>
+          <span class="btn primary disabled"><%- icon('send') %> Postuler</span>
         <% } else { %>
           <h2 class="form-title">Postuler</h2>
           <form method="post" action="/offres/<%= item.id_offre %>/postuler" class="form">

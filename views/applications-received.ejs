@@ -35,7 +35,9 @@
               </div>
             </div>
             <% if (x.lettre_motivation) { %><p><strong>Lettre de motivation :</strong> <%= x.lettre_motivation %></p><% } %>
+            <% if (x.accroche) { %><p><strong>Présentation :</strong> <%= x.accroche %></p><% } %>
             <% if (x.competences) { %><p><strong>Compétences :</strong> <%= x.competences %></p><% } %>
+            <% if (x.langues) { %><p><strong>Langues :</strong> <%= x.langues %></p><% } %>
             <% if (x.bio) { %><p><strong>Bio :</strong> <%= x.bio %></p><% } %>
             <% if (x.profil_adresse) { %><p><strong>Adresse :</strong> <%= x.profil_adresse %></p><% } %>
             <% if (x.experiences && x.experiences.length) { %>
@@ -61,7 +63,9 @@
                     <div class="list-item">
                       <div>
                         <strong><%= d.intitule %></strong>
-                        <p><%= d.etablissement %> — <%= d.annee_obtention %></p>
+                        <p><%= d.etablissement %>
+                          <% if (d.date_debut || d.annee_obtention) { %> · <%= d.date_debut ? formatDate(d.date_debut) : d.annee_obtention %> → <%= d.date_fin ? formatDate(d.date_fin) : 'Aujourd’hui' %><% } %>
+                        </p>
                       </div>
                     </div>
                   <% }) %>

@@ -94,6 +94,13 @@ exports.addSkill = asyncHandler(async (req, res) => {
  *   reste inchangé si la compétence existait déjà).
  */
 exports.addSkills = asyncHandler(async (req, res) => {
+  // Bouton « Ignorer » de la page post-inscription : on poursuit vers le
+  // tableau de bord SANS enregistrer quoi que ce soit (aucune compétence par
+  // défaut, aucune association créée en base pour le nouvel utilisateur).
+  if (req.body.action === 'ignorer') {
+    return success(res, 'Étape ignorée — aucune compétence enregistrée.', { added: 0 });
+  }
+
   const raw = req.body.competences;
   const ids = (Array.isArray(raw) ? raw : raw ? [raw] : [])
     .map((v) => Number(v))

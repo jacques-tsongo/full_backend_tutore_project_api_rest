@@ -59,7 +59,9 @@
         </div>
       </div>
       ${c.lettre_motivation ? `<p><strong>Lettre de motivation :</strong> ${esc(c.lettre_motivation)}</p>` : ''}
+      ${c.accroche ? `<p><strong>Présentation :</strong> ${esc(c.accroche)}</p>` : ''}
       ${c.competences ? `<p><strong>Compétences :</strong> ${esc(c.competences)}</p>` : ''}
+      ${c.langues ? `<p><strong>Langues :</strong> ${esc(c.langues)}</p>` : ''}
       ${c.bio ? `<p><strong>Bio :</strong> ${esc(c.bio)}</p>` : ''}
       <div class="nav-actions app-actions">
         ${c.cv ? `<a class="btn" href="${esc(c.cv)}" target="_blank" rel="noopener">Voir le CV</a>` : ''}
