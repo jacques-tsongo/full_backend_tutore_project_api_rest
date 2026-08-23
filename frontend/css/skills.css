@@ -132,29 +132,59 @@ body[data-page="competences"] .field input {
   flex-wrap: wrap;
 }
 /* ============================================================
-   Domaine professionnel : verrouillage définitif + modal de
-   confirmation. Les tuiles réutilisent .skill-tile (cohérence
-   visuelle avec le sélecteur de compétences).
+   Domaine professionnel : sélection directe et verrouillage définitif.
+   Les tuiles réutilisent .skill-tile pour rester cohérentes avec le
+   sélecteur de compétences.
    ============================================================ */
 
-/* Tuile désactivée après confirmation du domaine (les autres domaines
-   ne sont plus sélectionnables — le backend applique la même règle). */
+.domain-tile.chosen {
+  position: relative;
+  cursor: default;
+  box-shadow: 0 10px 24px rgba(15, 107, 123, 0.22);
+}
+.domain-tile.chosen:hover { transform: none; }
+.domain-tile.chosen::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.domain-tile.chosen > .icon:first-child { display: none; }
+
+/* Tuiles désactivées après la première sélection : les autres domaines ne
+   sont plus sélectionnables — le backend applique la même règle. */
 .skill-tile.domain-disabled,
-.skill-tile.domain-disabled:hover {
+.skill-tile.domain-disabled:hover,
+.domain-tile:disabled:not(.chosen),
+.domain-tile:disabled:not(.chosen):hover,
+[data-domain-picker][data-locked="true"] .domain-tile:not(.chosen) {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
   border-color: rgba(120, 130, 140, 0.25);
   background: rgba(200, 205, 210, 0.25);
   color: var(--muted);
+  box-shadow: none;
 }
 [data-theme="dark"] .skill-tile.domain-disabled,
-[data-theme="dark"] .skill-tile.domain-disabled:hover {
+[data-theme="dark"] .skill-tile.domain-disabled:hover,
+[data-theme="dark"] .domain-tile:disabled:not(.chosen),
+[data-theme="dark"] .domain-tile:disabled:not(.chosen):hover,
+[data-theme="dark"] [data-domain-picker][data-locked="true"] .domain-tile:not(.chosen) {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Bandeau « domaine confirmé » au-dessus d'un picker verrouillé. */
+/* Bandeau « domaine choisi » au-dessus d'un picker verrouillé. */
 .domain-locked-note {
   display: flex;
   align-items: center;
@@ -163,46 +193,4 @@ body[data-page="competences"] .field input {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--success, #1a7f4b);
-}
-
-/* ---------- Modal de confirmation du domaine ---------- */
-.domain-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(8, 20, 28, 0.55);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-}
-.domain-modal {
-  width: min(460px, 100%);
-  border-radius: 16px;
-  padding: 24px 22px 20px;
-  background: var(--card, #fff);
-  color: var(--text);
-  border: 1px solid rgba(15, 107, 123, 0.2);
-  box-shadow: 0 24px 60px rgba(4, 22, 30, 0.4);
-  animation: domainModalIn 0.16s ease-out;
-}
-[data-theme="dark"] .domain-modal {
-  background: #1b2438;
-  border-color: rgba(255, 255, 255, 0.12);
-}
-@keyframes domainModalIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.domain-modal h3 { margin: 0 0 12px; font-size: 18px; }
-.domain-modal p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
-.domain-modal-warning { color: var(--danger); font-weight: 600; }
-.domain-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 18px;
-  flex-wrap: wrap;
 }

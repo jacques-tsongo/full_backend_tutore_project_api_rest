@@ -2,6 +2,7 @@ const db = require('../config/database');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/user.model');
+const Company = require('../models/company.model');
 const domaine = require('../services/domain.service');
 
 /**
@@ -47,7 +48,14 @@ exports.get = asyncHandler(async (req, res) => {
 });
 
 exports.upsert = asyncHandler(async (req, res) => {
+  const [existing] = await db.execute(
+    'SELECT id_profil, id_domaine FROM profil_professionnel WHERE id_utilisateur = ?',
+    [req.user.id_utilisateur]
+  );
+  const currentProfile = existing[0] || null;
   const data = {};
+  let containsDomainSelection = false;
+
   for (const f of PROFILE_FIELDS) {
     if (req.body[f] === undefined) continue;
     let value = clean(req.body[f]);
@@ -59,16 +67,27 @@ exports.upsert = asyncHandler(async (req, res) => {
       return fail(res, 'État civil invalide.', ['etat_civil'], 422);
     }
     if (f === 'id_domaine') {
+      containsDomainSelection = true;
       const selectedDomain = await domaine.findById(value);
       if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine professionnel valide.', ['id_domaine'], 422);
+
       // VERROUILLAGE DÉFINITIF DU DOMAINE (règle serveur, non contournable) :
-      // une fois un domaine enregistré dans le profil, toute tentative de le
-      // remplacer — y compris via une requête API directe — est refusée.
-      // Seul un profil SANS domaine (ancien compte) peut en choisir un.
-      const currentDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
-      if (currentDomainId && currentDomainId !== selectedDomain.id_domaine) {
-        return fail(res, 'Votre domaine professionnel est définitif et ne peut plus être modifié.', ['id_domaine'], 403);
+      // dès qu'une valeur existe dans profil_professionnel.id_domaine, aucune
+      // requête (même avec le même id) ne la réécrit. Seul un profil sans
+      // domaine peut effectuer sa première sélection.
+      if (currentProfile?.id_domaine) {
+        return fail(res, 'Votre domaine professionnel a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
       }
+
+      // Cohérence recruteur : si l'utilisateur possède déjà une entreprise
+      // approuvée avec domaine, son domaine professionnel doit être identique.
+      if (req.user.role === 'recruteur') {
+        const company = await Company.findApprovedByOwner(req.user.id_utilisateur);
+        if (company?.id_domaine && Number(company.id_domaine) !== selectedDomain.id_domaine) {
+          return fail(res, 'Le domaine professionnel doit correspondre au domaine d’activité de votre entreprise.', ['id_domaine'], 403);
+        }
+      }
+
       value = selectedDomain.id_domaine;
     }
     data[f] = value;
@@ -77,12 +96,15 @@ exports.upsert = asyncHandler(async (req, res) => {
 
   const fields = Object.keys(data);
   const values = fields.map((f) => data[f]);
-  const [existing] = await db.execute('SELECT id_profil FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
-  if (existing[0]) {
-    await db.execute(
-      `UPDATE profil_professionnel SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id_utilisateur = ?`,
+  if (currentProfile) {
+    const where = containsDomainSelection ? 'id_utilisateur = ? AND id_domaine IS NULL' : 'id_utilisateur = ?';
+    const [result] = await db.execute(
+      `UPDATE profil_professionnel SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE ${where}`,
       [...values, req.user.id_utilisateur]
     );
+    if (containsDomainSelection && !result.affectedRows) {
+      return fail(res, 'Votre domaine professionnel a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
+    }
   } else {
     await db.execute(
       `INSERT INTO profil_professionnel (${fields.concat('id_utilisateur').join(', ')}) VALUES (${fields.map(() => '?').concat('?').join(', ')})`,

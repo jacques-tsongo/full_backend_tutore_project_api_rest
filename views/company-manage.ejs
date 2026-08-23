@@ -34,17 +34,22 @@
         </div>
         <div class="field">
           <label>Domaine d'activité</label>
-          <% /* Domaine d'entreprise DÉFINITIF après confirmation : le picker est
-                verrouillé dès qu'un domaine est enregistré (et le backend refuse
-                de toute façon tout changement — company.controller.updateOwn). */ %>
+          <% /* Domaine d'entreprise DÉFINITIF : le clic sélectionne et enregistre
+                directement le premier domaine d'une entreprise sans domaine ;
+                dès qu'un domaine est enregistré, le picker est verrouillé (et le
+                backend refuse toute nouvelle modification). */ %>
           <% const companyDomainLocked = !!company.id_domaine; %>
           <% if (companyDomainLocked) { %>
             <p class="domain-locked-note"><%- icon('circle-check') %> Domaine d'activité : <%= company.nom_domaine %> — ce choix est définitif.</p>
           <% } else { %>
             <p class="muted-note"><strong>Ce choix est définitif</strong> : le domaine détermine les compétences proposées pour vos offres et les candidats notifiés.</p>
           <% } %>
-          <input type="hidden" name="id_domaine" value="<%= company.id_domaine || '' %>" required>
-          <div class="domain-grid" data-domain-picker data-required="true" data-locked="<%= companyDomainLocked %>" data-confirm-title="Confirmer le domaine d'activité de l'entreprise" role="listbox" aria-label="Domaine d'activité de l'entreprise">
+          <% if (companyDomainLocked) { %>
+            <input type="hidden" data-domain-input value="<%= company.id_domaine || '' %>" disabled>
+          <% } else { %>
+            <input type="hidden" name="id_domaine" data-domain-input value="" required>
+          <% } %>
+          <div class="domain-grid" data-domain-picker data-required="true" data-locked="<%= companyDomainLocked %>" data-submit-on-select="true" role="listbox" aria-label="Domaine d'activité de l'entreprise">
             <% domains.forEach((d) => { const chosen = Number(company.id_domaine) === Number(d.id_domaine); %>
               <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option" <%= companyDomainLocked && !chosen ? 'disabled' : '' %>>
                 <%- icon('briefcase') %>

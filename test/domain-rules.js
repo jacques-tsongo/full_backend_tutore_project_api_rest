@@ -41,21 +41,21 @@ const run = async () => {
   const SANTE = domainByName['Santé'];
   if (!INFO || !SANTE) { console.error('Domaines Informatique/Santé requis.'); process.exit(1); }
 
-  /* -------- CAS 1-3 : inscription avec domaine (confirmation = étape frontend,
-     l'enregistrement ne se produit qu'à la soumission du formulaire) -------- */
-  // CAS 2 (annulation) : tant que le formulaire n'est pas soumis avec un
-  // id_domaine, rien n'est enregistré → une inscription SANS domaine échoue.
+  /* -------- CAS 1-3 : inscription avec domaine (sélection directe côté
+     frontend, puis persistance à la soumission du formulaire) -------- */
+  // CAS 2 : tant que le formulaire n'est pas soumis avec un id_domaine,
+  // rien n'est enregistré → une inscription SANS domaine échoue.
   const noDomain = await call('POST', '/auth/register', {
     body: { nom: 'Sans', prenom: 'Domaine', email: `nodomain.${stamp}@test.local`, mot_de_passe: 'Secret123!' }
   });
-  step('CAS 2 — sans confirmation (pas d\'id_domaine soumis), rien n\'est enregistré', noDomain.status === 422, `status=${noDomain.status}`);
+  step('CAS 2 — sans id_domaine soumis, rien n\'est enregistré', noDomain.status === 422, `status=${noDomain.status}`);
 
-  // CAS 1/3 : l'utilisateur confirme Informatique → domaine enregistré.
+  // CAS 1/3 : l'utilisateur sélectionne Informatique → domaine enregistré.
   const cand1 = await call('POST', '/auth/register', {
     body: { nom: 'Info', prenom: 'Cand', email: `info.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: INFO }
   });
   const tokInfo = cand1.json?.data?.token;
-  step('CAS 3 — confirmation Informatique → domaine enregistré', cand1.status === 201 && !!tokInfo, `status=${cand1.status}`);
+  step('CAS 3 — sélection Informatique → domaine enregistré', cand1.status === 201 && !!tokInfo, `status=${cand1.status}`);
   const prof1 = await call('GET', '/profil', { token: tokInfo });
   step('CAS 3bis — le profil porte bien id_domaine Informatique', Number(prof1.json?.data?.profile?.id_domaine) === INFO);
 

@@ -28,6 +28,10 @@ exports.createRecruiter = asyncHandler(async (req, res) => {
   if (missing.length) return fail(res, 'Informations entreprise incomplètes.', missing, 422);
   const selectedDomain = await domaine.findById(payload.id_domaine);
   if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine d’activité valide.', ['id_domaine'], 422);
+  const userDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
+  if (userDomainId && userDomainId !== selectedDomain.id_domaine) {
+    return fail(res, 'Le domaine d’activité de l’entreprise doit correspondre à votre domaine professionnel déjà choisi.', ['id_domaine'], 403);
+  }
   payload.id_domaine = selectedDomain.id_domaine;
   if (!payload.documents_justificatifs) return fail(res, 'Document justificatif PDF requis.', ['documents'], 422);
 
@@ -68,27 +72,43 @@ exports.updateOwn = asyncHandler(async (req, res) => {
 
   const payload = Company.normalizePayload(req.body, req.files || {});
   const data = {};
+  let assignedDomainId = null;
   for (const field of Company.EDITABLE_FIELDS) if (payload[field] !== undefined) data[field] = payload[field];
   if (data.id_domaine !== undefined) {
     const selectedDomain = await domaine.findById(data.id_domaine);
     if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine d’activité valide.', ['id_domaine'], 422);
     // VERROUILLAGE DÉFINITIF DU DOMAINE D'ENTREPRISE (règle serveur) :
-    // une fois le domaine d'activité confirmé, il ne peut plus être remplacé,
-    // ni par le recruteur ni via une requête API directe (l'administrateur
-    // n'a pas non plus de procédure de changement arbitraire — pas de logique
-    // métier de « changement de domaine » à ce stade du projet).
-    if (company.id_domaine && Number(company.id_domaine) !== selectedDomain.id_domaine) {
-      return fail(res, 'Le domaine d’activité de l’entreprise est définitif et ne peut plus être modifié.', ['id_domaine'], 403);
+    // dès qu'une valeur existe dans entreprise.id_domaine, aucune requête ne la
+    // réécrit. Seules les anciennes entreprises sans domaine peuvent faire une
+    // première sélection.
+    if (company.id_domaine) {
+      return fail(res, 'Le domaine d’activité de l’entreprise a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
     }
-    data.id_domaine = selectedDomain.id_domaine;
+    const ownerDomainId = company.id_utilisateur ? await domaine.getCandidateDomainId(company.id_utilisateur) : null;
+    if (ownerDomainId && ownerDomainId !== selectedDomain.id_domaine) {
+      return fail(res, 'Le domaine d’activité de l’entreprise doit correspondre au domaine professionnel déjà choisi par son propriétaire.', ['id_domaine'], 403);
+    }
+    assignedDomainId = selectedDomain.id_domaine;
+    delete data.id_domaine;
+  }
+
+  if (assignedDomainId !== null) {
+    const [domainUpdate] = await db.execute(
+      'UPDATE entreprise SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL',
+      [assignedDomainId, req.params.id]
+    );
+    if (!domainUpdate.affectedRows) {
+      return fail(res, 'Le domaine d’activité de l’entreprise a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
+    }
   }
 
   const updated = await Company.updateOwn(req.params.id, data);
   // Première définition du domaine (ancienne entreprise sans domaine) : les
   // offres déjà publiées sans domaine sont alignées sur celui de l'entreprise
   // (source métier unique : entreprise.id_domaine).
-  if (data.id_domaine !== undefined) {
-    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL', [data.id_domaine, req.params.id]);
+  if (assignedDomainId !== null) {
+    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL', [assignedDomainId, req.params.id]);
+    if (company.id_utilisateur) await domaine.assignUserDomainIfMissing(company.id_utilisateur, assignedDomainId);
   }
   success(res, 'Entreprise mise à jour.', { company: updated });
 });
@@ -107,8 +127,18 @@ exports.validate = asyncHandler(async (req, res) => {
     return fail(res, 'Cette entreprise a déjà été approuvée.', [], 409);
   }
 
+  if (status === 'approved' && company.id_utilisateur && company.id_domaine) {
+    const ownerDomainId = await domaine.getCandidateDomainId(company.id_utilisateur);
+    if (ownerDomainId && ownerDomainId !== Number(company.id_domaine)) {
+      return fail(res, 'Approbation refusée : le domaine de l’entreprise ne correspond pas au domaine professionnel déjà choisi par son propriétaire.', ['id_domaine'], 403);
+    }
+  }
+
   if (status === 'approved') {
     const approved = await Company.approve(req.params.id, req.user.id_utilisateur);
+    if (approved?.id_utilisateur && approved?.id_domaine) {
+      await domaine.assignUserDomainIfMissing(approved.id_utilisateur, approved.id_domaine);
+    }
     await notify.create(approved.id_utilisateur, `Votre entreprise « ${approved.nom_entreprise} » a été approuvée. Vous êtes maintenant recruteur.`);
   } else if (status === 'rejected') {
     await Company.reject(req.params.id, req.user.id_utilisateur);

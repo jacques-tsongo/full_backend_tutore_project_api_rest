@@ -1,134 +1,92 @@
 // Sélecteur de domaine professionnel (sélection unique et DÉFINITIVE).
 //
 // Règles d'interface :
-//  - un clic sur un domaine ouvre une MODAL de confirmation : le domaine
-//    n'est jamais considéré comme choisi sur un simple clic ;
-//  - « Retour » annule : aucune valeur n'est enregistrée ;
-//  - « Confirmer » valide le choix : le champ caché `id_domaine` est rempli,
-//    les autres domaines sont désactivés et, si le picker porte
-//    `data-submit-on-confirm`, le formulaire est envoyé immédiatement ;
-//  - un picker `data-locked="true"` est en lecture seule (domaine déjà
-//    confirmé) : aucun clic n'est pris en compte.
+//  - aucun écran de confirmation n'est affiché ;
+//  - le premier clic sur un domaine remplit immédiatement `id_domaine`, marque
+//    la tuile comme choisie et verrouille toutes les autres tuiles ;
+//  - un picker `data-submit-on-select="true"` envoie le formulaire dès le clic
+//    pour persister le domaine sans étape intermédiaire ;
+//  - un picker `data-locked="true"` est en lecture seule (domaine déjà choisi).
 //
-// SÉCURITÉ : ce verrouillage visuel n'est qu'un confort — le backend
-// revérifie systématiquement (profil : refus de modification si un domaine
-// existe ; entreprise : idem). Modifier le HTML ne contourne rien.
+// SÉCURITÉ : ce verrouillage visuel n'est qu'un confort — le backend revérifie
+// systématiquement que le domaine n'a jamais été défini avant de l'enregistrer.
 (function () {
   const pickers = document.querySelectorAll('[data-domain-picker]');
   if (!pickers.length) return;
 
-  /* ---------- Modal de confirmation (créée une seule fois) ---------- */
-  let overlay = null;
-  const buildModal = () => {
-    if (overlay) return overlay;
-    overlay = document.createElement('div');
-    overlay.className = 'domain-modal-overlay';
-    overlay.style.display = 'none';
-    overlay.innerHTML = [
-      '<div class="domain-modal" role="dialog" aria-modal="true" aria-labelledby="domain-modal-title">',
-      '  <h3 id="domain-modal-title">Confirmer votre domaine professionnel</h3>',
-      '  <p class="domain-modal-selected">Vous avez sélectionné : <strong data-modal-domain></strong>.</p>',
-      '  <p class="domain-modal-warning">Ce choix sera <strong>définitif</strong>. Après confirmation, vous ne pourrez plus sélectionner un autre domaine.</p>',
-      '  <p class="domain-modal-question">Êtes-vous sûr de vouloir continuer ?</p>',
-      '  <div class="domain-modal-actions">',
-      '    <button type="button" class="btn" data-modal-cancel>Retour</button>',
-      '    <button type="button" class="btn primary" data-modal-confirm>Confirmer mon domaine</button>',
-      '  </div>',
-      '</div>'
-    ].join('');
-    document.body.appendChild(overlay);
-    return overlay;
-  };
+  const getInput = (form) => form
+    ? form.querySelector('input[name="id_domaine"], input[data-domain-input]')
+    : null;
 
-  let pendingConfirm = null;
-  let selectedTile = null;
-  const closeModal = () => {
-    if (overlay) {
-      overlay.style.display = 'none';
+  const getDomainName = (tile) => (tile.querySelector('span')?.textContent || tile.textContent || '').trim();
+
+  const setTileSelected = (tile, selected) => {
+    tile.classList.toggle('chosen', selected);
+    tile.setAttribute('aria-pressed', String(selected));
+    if (selected) {
+      tile.classList.remove('domain-disabled');
+      tile.removeAttribute('aria-disabled');
+      tile.setAttribute('aria-current', 'true');
+      tile.title = `${getDomainName(tile)} — domaine sélectionné`;
+    } else {
+      tile.removeAttribute('aria-current');
+      tile.title = `${getDomainName(tile)} — non sélectionnable`;
     }
-    pendingConfirm = null;
-    selectedTile = null;
-  };
-  const openModal = (domainName, titleText, tile, onConfirm) => {
-    const node = buildModal();
-    node.querySelector('[data-modal-domain]').textContent = domainName;
-    node.querySelector('#domain-modal-title').textContent = titleText;
-    selectedTile = tile;
-    pendingConfirm = onConfirm;
-    node.style.display = 'flex';
-    node.querySelector('[data-modal-confirm]').focus();
   };
 
-  document.addEventListener('click', (event) => {
-    if (!overlay || overlay.style.display === 'none') return;
-    if (event.target.closest('[data-modal-cancel]')) { closeModal(); return; }
-    if (event.target.closest('[data-modal-confirm]')) {
-      const tile = selectedTile;
-      const action = pendingConfirm;
-      closeModal();
-      if (action) action(tile);
-      return;
-    }
-    // Clic sur le fond sombre = annulation.
-    if (event.target === overlay || event.target.closest('.domain-modal') !== overlay.querySelector('.domain-modal')) closeModal();
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && overlay && overlay.style.display !== 'none') closeModal();
-  });
+  const lockPicker = (picker, selectedTile) => {
+    picker.dataset.locked = 'true';
+    picker.querySelectorAll('[data-domain-id]').forEach((node) => {
+      const selected = node === selectedTile;
+      setTileSelected(node, selected);
+      if (!selected) {
+        node.disabled = true;
+        node.classList.add('domain-disabled');
+        node.setAttribute('aria-disabled', 'true');
+      }
+    });
+  };
 
-  /* ------------------------- Pickers ------------------------- */
+  const findSelectedTile = (picker, input) => {
+    const selectedId = input?.value ? String(input.value) : '';
+    const byValue = selectedId
+      ? Array.from(picker.querySelectorAll('[data-domain-id]')).find((tile) => String(tile.dataset.domainId) === selectedId)
+      : null;
+    return byValue || picker.querySelector('[data-domain-id].chosen');
+  };
+
   pickers.forEach((picker) => {
     const form = picker.closest('form');
-    const input = form ? form.querySelector('input[name="id_domaine"]') : null;
+    const input = getInput(form);
     const error = form ? form.querySelector('[data-domain-error]') : null;
     const required = picker.dataset.required !== 'false';
-    const locked = picker.dataset.locked === 'true';
-    const submitOnConfirm = picker.dataset.submitOnConfirm === 'true';
-    const modalTitle = picker.dataset.confirmTitle || 'Confirmer votre domaine professionnel';
+    const submitOnSelect = picker.dataset.submitOnSelect === 'true';
     if (!form || !input) return;
 
-    // Verrouille visuellement les tuiles non choisies d'un picker confirmé.
-    const lockTiles = () => {
-      picker.dataset.locked = 'true';
-      picker.querySelectorAll('[data-domain-id]').forEach((node) => {
-        if (!node.classList.contains('chosen')) {
-          node.disabled = true;
-          node.classList.add('domain-disabled');
-          node.setAttribute('aria-disabled', 'true');
-        }
-      });
-    };
+    const initialSelected = findSelectedTile(picker, input);
+    if (initialSelected) {
+      input.value = initialSelected.dataset.domainId;
+      setTileSelected(initialSelected, true);
+    }
+    if (picker.dataset.locked === 'true' && initialSelected) lockPicker(picker, initialSelected);
 
     const applyChoice = (tile) => {
-      if (!tile) return;
-      picker.querySelectorAll('[data-domain-id]').forEach((node) => {
-        const active = node === tile;
-        node.classList.toggle('chosen', active);
-        node.setAttribute('aria-pressed', String(active));
-      });
+      if (!tile || picker.dataset.locked === 'true' || tile.disabled) return;
+
+      picker.querySelectorAll('[data-domain-id]').forEach((node) => setTileSelected(node, node === tile));
       input.value = tile.dataset.domainId;
-      if (error) error.style.display = 'none';
-      lockTiles();
-      if (submitOnConfirm) {
+      if (error) error.hidden = true;
+      lockPicker(picker, tile);
+
+      if (submitOnSelect) {
         if (typeof form.requestSubmit === 'function') form.requestSubmit();
         else form.submit();
       }
     };
 
-    if (locked) { lockTiles(); }
-
-    const onTileActivate = (tile) => {
-      // Domaine déjà confirmé (ou choix déjà validé dans ce formulaire) :
-      // plus aucune sélection possible.
-      if (picker.dataset.locked === 'true' || tile.disabled) return;
-      if (tile.classList.contains('chosen')) return;
-      const name = (tile.querySelector('span')?.textContent || tile.textContent).trim();
-      openModal(name, modalTitle, tile, (t) => applyChoice(t));
-    };
-
     picker.addEventListener('click', (event) => {
       const tile = event.target.closest('[data-domain-id]');
-      if (tile) onTileActivate(tile);
+      if (tile) applyChoice(tile);
     });
 
     picker.addEventListener('keydown', (event) => {
@@ -136,14 +94,14 @@
       const tile = event.target.closest('[data-domain-id]');
       if (!tile) return;
       event.preventDefault();
-      onTileActivate(tile);
+      applyChoice(tile);
     });
 
     form.addEventListener('submit', (event) => {
       if (!required || input.value) return;
       event.preventDefault();
-      if (error) error.style.display = 'block';
-      const first = picker.querySelector('[data-domain-id]');
+      if (error) error.hidden = false;
+      const first = picker.querySelector('[data-domain-id]:not(:disabled)');
       if (first) first.focus();
     });
   });

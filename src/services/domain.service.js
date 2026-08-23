@@ -30,6 +30,21 @@ exports.getCandidateDomainId = async (userId, connection = db) => {
   return rows[0]?.id_domaine ? Number(rows[0].id_domaine) : null;
 };
 
+/**
+ * Renseigne profil_professionnel.id_domaine uniquement si l'utilisateur n'a
+ * pas encore de domaine. Utilisé pour garder un recruteur legacy cohérent avec
+ * le domaine de son entreprise sans jamais écraser un choix existant.
+ */
+exports.assignUserDomainIfMissing = async (userId, domainId, connection = db) => {
+  const id = toPositiveInt(domainId);
+  if (!userId || !id) return;
+  await connection.execute(
+    `INSERT INTO profil_professionnel (id_utilisateur, id_domaine) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE id_domaine = COALESCE(id_domaine, VALUES(id_domaine))`,
+    [userId, id]
+  );
+};
+
 exports.getOfferDomainId = async (offerId, connection = db) => {
   const [rows] = await connection.execute(
     `SELECT COALESCE(o.id_domaine, e.id_domaine) AS id_domaine
