@@ -2,6 +2,7 @@ const db = require('../config/database');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/user.model');
+const domaine = require('../services/domain.service');
 
 /**
  * Champs personnalisables du profil professionnel (informations du CV
@@ -20,7 +21,8 @@ const PROFILE_FIELDS = [
   'territoire',
   'province',
   'nationalite',
-  'etat_civil'
+  'etat_civil',
+  'id_domaine'
 ];
 
 // Valeurs contrôlées (ENUM en base) : toute valeur hors liste est rejetée.
@@ -34,7 +36,13 @@ const LANGUE_NIVEAUX = ['Débutant', 'Élémentaire', 'Intermédiaire', 'Courant
 const clean = (v) => (typeof v === 'string' && v.trim() === '' ? null : v);
 
 exports.get = asyncHandler(async (req, res) => {
-  const [rows] = await db.execute('SELECT * FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
+  const [rows] = await db.execute(
+    `SELECT p.*, d.nom_domaine
+     FROM profil_professionnel p
+     LEFT JOIN domaine d ON d.id_domaine = p.id_domaine
+     WHERE p.id_utilisateur = ?`,
+    [req.user.id_utilisateur]
+  );
   success(res, 'Profil professionnel.', { profile: rows[0] || null });
 });
 
@@ -42,13 +50,18 @@ exports.upsert = asyncHandler(async (req, res) => {
   const data = {};
   for (const f of PROFILE_FIELDS) {
     if (req.body[f] === undefined) continue;
-    const value = clean(req.body[f]);
+    let value = clean(req.body[f]);
     // Contrôle des valeurs énumérées (cohérence avec les ENUM de la base).
     if (f === 'sexe' && value !== null && !SEXE_VALUES.includes(value)) {
       return fail(res, 'Sexe invalide.', ['sexe'], 422);
     }
     if (f === 'etat_civil' && value !== null && !ETAT_CIVIL_VALUES.includes(value)) {
       return fail(res, 'État civil invalide.', ['etat_civil'], 422);
+    }
+    if (f === 'id_domaine') {
+      const selectedDomain = await domaine.findById(value);
+      if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine professionnel valide.', ['id_domaine'], 422);
+      value = selectedDomain.id_domaine;
     }
     data[f] = value;
   }

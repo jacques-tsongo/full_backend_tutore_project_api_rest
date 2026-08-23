@@ -63,7 +63,10 @@ const crud = (path, name, roles = ['administrateur'], options = {}) => {
  *     responses:
  *       200: { description: Compétence supprimée }
  */
-crud('/competences', 'competences', ['administrateur']); 
+crud('/competences', 'competences', ['administrateur']);
+// Catalogue des domaines professionnels : lecture pour les utilisateurs
+// connectés, gestion réservée à l'administrateur.
+crud('/domaines', 'domaines', ['administrateur']);
 
 /**
  * @swagger

@@ -1,8 +1,10 @@
 const db = require('../config/database');
 
 const selectCompany = `
-  SELECT e.*, u.nom, u.prenom, u.email AS email_utilisateur, u.role
+  SELECT e.*, d.nom_domaine,
+         u.nom, u.prenom, u.email AS email_utilisateur, u.role
   FROM entreprise e
+  LEFT JOIN domaine d ON d.id_domaine = e.id_domaine
   LEFT JOIN utilisateur u ON u.id_utilisateur = e.id_utilisateur
 `;
 
@@ -29,6 +31,7 @@ const normalizePayload = (body, files = {}) => {
 
   return {
     nom_entreprise: body.nom_entreprise || body.company_name || body.name,
+    id_domaine: body.id_domaine || body.domain_id || body.domaine,
     secteur_activite: body.secteur_activite || body.business_sector || body.sector,
     adresse: body.adresse || body.address,
     pays: body.pays || body.country,
@@ -59,6 +62,7 @@ exports.hasOpenRequest = async (userId) => {
 exports.createPending = async (userId, data) => {
   const fields = [
     'nom_entreprise',
+    'id_domaine',
     'secteur_activite',
     'adresse',
     'pays',
@@ -79,6 +83,7 @@ exports.createPending = async (userId, data) => {
   ];
   const values = [
     data.nom_entreprise,
+    data.id_domaine,
     data.secteur_activite,
     data.adresse,
     data.pays,
@@ -130,6 +135,7 @@ exports.findById = async (id) => {
  */
 const EDITABLE_FIELDS = [
   'nom_entreprise',
+  'id_domaine',
   'secteur_activite',
   'adresse',
   'ville',

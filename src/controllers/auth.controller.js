@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const db = require('../config/database');
+const domaine = require('../services/domain.service');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { COOKIE_NAME } = require('../middlewares/auth.middleware');
@@ -23,14 +25,41 @@ const persistSession = (res, token) => res.cookie(COOKIE_NAME, token, cookieOpti
 
 exports.register = asyncHandler(async (req, res) => {
   const { nom, prenom, email, mot_de_passe, telephone } = req.body;
+  if (!nom || !prenom || !email || !mot_de_passe || String(mot_de_passe).length < 8) {
+    return fail(res, 'Informations d’inscription invalides.', [], 422);
+  }
+  const selectedDomain = await domaine.findById(req.body.id_domaine);
+  if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine professionnel valide.', ['id_domaine'], 422);
   if (await User.findByEmail(email)) return fail(res, 'Cette adresse e-mail est déjà utilisée.', [], 409);
-  const user = await User.create({ nom, prenom, email, telephone, role: 'candidat', password: await bcrypt.hash(mot_de_passe, 12) });
-  // Valeurs par défaut d'apparence (uniquement à l'inscription, jamais en
-  // écrasement) : avatar et photo de couverture standards. Les comptes déjà
-  // existants conservent leurs données (NULL → affichage des défauts côté vue).
+
+  // Inscription + profil professionnel dans une transaction : le domaine est
+  // obligatoire et rattaché à profil_professionnel, jamais stocké dans une
+  // structure parallèle. Aucun profil incomplet n'est créé si une étape échoue.
   const DEFAULT_AVATAR = 'uploads/photos/default-avatar.png';
   const DEFAULT_COVER = 'uploads/covers/default-cover.png';
-  const fresh = await User.update(user.id_utilisateur, { photo: DEFAULT_AVATAR, photo_couverture: DEFAULT_COVER });
+  const connection = await db.getConnection();
+  let userId;
+  try {
+    await connection.beginTransaction();
+    const [created] = await connection.execute(
+      `INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role, photo, photo_couverture)
+       VALUES (?, ?, ?, ?, ?, 'candidat', ?, ?)`,
+      [nom, prenom, email, await bcrypt.hash(mot_de_passe, 12), telephone || null, DEFAULT_AVATAR, DEFAULT_COVER]
+    );
+    userId = created.insertId;
+    await connection.execute(
+      'INSERT INTO profil_professionnel (id_utilisateur, id_domaine) VALUES (?, ?)',
+      [userId, selectedDomain.id_domaine]
+    );
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  const fresh = await User.findById(userId);
   const token = tokenFor(fresh);
   persistSession(res, token);
   return success(res, 'Compte créé avec succès.', { user: fresh, token }, 201);

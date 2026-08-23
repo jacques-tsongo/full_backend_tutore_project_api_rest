@@ -6,6 +6,7 @@ const notify = require('../services/notification.service');
 const matching = require('../services/matching.service');
 const socket = require('../socket');
 const Company = require('../models/company.model');
+const domaine = require('../services/domain.service');
 
 const companyFor = (id) => Company.findApprovedByOwner(id);
 
@@ -26,10 +27,13 @@ const dateOnly = (value) => {
 };
 
 const offerSelect = `
-  SELECT o.*, e.nom_entreprise, e.logo AS logo_entreprise, e.ville AS ville_entreprise,
+  SELECT o.*, COALESCE(o.id_domaine, e.id_domaine) AS id_domaine_effectif,
+         d.nom_domaine,
+         e.nom_entreprise, e.logo AS logo_entreprise, e.ville AS ville_entreprise,
          e.pays AS pays_entreprise, e.id_utilisateur AS id_recruteur
   FROM offre_emploi o
   JOIN entreprise e ON e.id_entreprise = o.id_entreprise
+  LEFT JOIN domaine d ON d.id_domaine = COALESCE(o.id_domaine, e.id_domaine)
 `;
 
 /** Récupère une offre complète depuis la base (source de vérité) pour la diffuser. */
@@ -45,7 +49,21 @@ const offerPayload = async (idOffre) => {
  */
 const broadcastOffer = async (event, rows) => {
   const visiblePourCandidat = rows && rows.statut_offre === 'Ouverte' && String(rows.date_expiration).slice(0, 10) >= today() && rows.date_publication;
-  if (visiblePourCandidat) socket.emitToRole('candidat', event, { offer: rows });
+  // Les offres ne sont jamais diffusées globalement à tous les candidats :
+  // seuls ceux du même domaine et compatibles reçoivent l'événement temps réel.
+  if (visiblePourCandidat && rows.id_domaine_effectif) {
+    const [candidates] = await db.execute(
+      `SELECT u.id_utilisateur
+       FROM utilisateur u
+       JOIN profil_professionnel p ON p.id_utilisateur = u.id_utilisateur
+       WHERE u.role='candidat' AND u.statut_compte='actif' AND p.id_domaine = ?`,
+      [rows.id_domaine_effectif]
+    );
+    for (const c of candidates) {
+      const evaluation = await matching.evaluate(c.id_utilisateur, rows.id_offre);
+      if (matching.canAccess(evaluation)) socket.emitToUser(c.id_utilisateur, event, { offer: rows });
+    }
+  }
   socket.emitToRole('recruteur', event, { offer: rows });
   socket.emitToRole('administrateur', event, { offer: rows });
 };
@@ -60,8 +78,14 @@ exports.list = asyncHandler(async (req, res) => {
   // seuil (score >= 10 %) est appliquée APRÈS la requête (filtrage en mémoire
   // ci-dessous), à partir de la formule unique du service de matching.
   if (isCandidat) {
+    const candidateDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
+    if (!candidateDomainId) {
+      return success(res, 'Aucun domaine professionnel n’est associé à votre profil.', listResult([], 0, page, limit));
+    }
     where.push("o.statut_offre = 'Ouverte'");
     where.push('o.date_expiration >= CURDATE()');
+    where.push('COALESCE(o.id_domaine, e.id_domaine) = ?');
+    values.push(candidateDomainId);
   }
   if (req.query.statut) {
     if (!['Ouverte', 'Fermée', 'Suspendue'].includes(req.query.statut)) {
@@ -142,16 +166,18 @@ exports.get = asyncHandler(async (req, res) => {
   if (!rows[0]) return fail(res, 'Offre introuvable.', [], 404);
   const offer = rows[0];
   if (req.user.role === 'candidat') {
+    const domainAccess = await domaine.ensureCandidateCanAccessOffer(req.user.id_utilisateur, req.params.id);
+    if (!domainAccess.ok) {
+      return fail(res, 'Accès refusé : cette offre appartient à un autre domaine professionnel.', [], 403);
+    }
     const [app] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, req.params.id]);
     const alreadyApplied = !!app[0];
     // Un candidat peut consulter une offre fermée seulement s'il y a déjà candidaté.
     if ((offer.statut_offre !== 'Ouverte' || dateOnly(offer.date_expiration) < today()) && !alreadyApplied) {
       return fail(res, 'Offre introuvable.', [], 404);
     }
-    // Sécurité : même en accédant directement à /offres/:id, un candidat dont
-    // le score de compatibilité est sous le seuil (< 10 %) se voit refuser
-    // l'accès. Le filtrage n'est PAS limité au frontend : la règle est
-    // appliquée ici, côté serveur (source de vérité = matching.canAccess).
+    // Sécurité : même en accédant directement à /offres/:id, le domaine puis le
+    // score de compatibilité sont vérifiés côté serveur, avant tout affichage.
     if (!alreadyApplied) {
       const evaluation = await matching.evaluate(req.user.id_utilisateur, req.params.id);
       if (!matching.canAccess(evaluation)) {
@@ -172,6 +198,7 @@ exports.get = asyncHandler(async (req, res) => {
 exports.create = asyncHandler(async (req, res) => {
   const company = await companyFor(req.user.id_utilisateur);
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
+  if (!company.id_domaine) return fail(res, 'Votre entreprise doit avoir un domaine d’activité avant de publier une offre.', ['id_domaine'], 422);
 
   const date = normalizeDate(req.body.date_expiration);
   if (!date || date < today()) {
@@ -183,8 +210,8 @@ exports.create = asyncHandler(async (req, res) => {
   values[f.indexOf('date_expiration')] = date;
 
   const [r] = await db.execute(
-    `INSERT INTO offre_emploi (${f.concat('id_entreprise').join(',')}) VALUES (${f.map(() => '?').concat('?').join(',')})`,
-    [...values, company.id_entreprise]
+    `INSERT INTO offre_emploi (${f.concat('id_entreprise', 'id_domaine').join(',')}) VALUES (${f.map(() => '?').concat('?', '?').join(',')})`,
+    [...values, company.id_entreprise, company.id_domaine]
   );
 
   // Compétences requises sélectionnées à la création : on réutilise la table
@@ -204,10 +231,16 @@ exports.create = asyncHandler(async (req, res) => {
     );
   }
 
-  // Notifications : uniquement les candidats dont le score atteint le seuil
-  // (>= 10 %). Le filtrage est effectué AVANT la création des notifications —
-  // on ne notifie jamais tous les candidats pour filtrer ensuite.
-  const [candidates] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role='candidat' AND statut_compte='actif'");
+  // Notifications : candidats du même domaine professionnel ET dont le score
+  // atteint le seuil. Le filtrage est effectué AVANT toute création de
+  // notification ; les autres domaines ne reçoivent absolument rien.
+  const [candidates] = await db.execute(
+    `SELECT u.id_utilisateur
+     FROM utilisateur u
+     JOIN profil_professionnel p ON p.id_utilisateur = u.id_utilisateur
+     WHERE u.role='candidat' AND u.statut_compte='actif' AND p.id_domaine = ?`,
+    [company.id_domaine]
+  );
   const recipients = [];
   for (const c of candidates) {
     const evaluation = await matching.evaluate(c.id_utilisateur, r.insertId);

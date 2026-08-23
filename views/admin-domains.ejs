@@ -1,0 +1,65 @@
+<%- include('partials/head', { title: 'Domaines', page: 'admin-domains' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'admin-domains' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Domaines', subtitle: 'Catalogue des grands domaines professionnels.' }) %>
+    <%- include('partials/flash') %>
+
+    <section class="card" style="margin-bottom:16px">
+      <div class="page-header" style="margin-bottom:12px">
+        <div>
+          <h2 style="margin:0">Nouveau domaine</h2>
+          <p class="muted-note">Les domaines servent au périmètre métier des profils, entreprises, offres et notifications.</p>
+        </div>
+      </div>
+      <form method="post" action="/admin/domaines" class="form-inline">
+        <div class="field">
+          <label for="nom_domaine">Nom</label>
+          <input id="nom_domaine" name="nom_domaine" required placeholder="Ex. Informatique">
+        </div>
+        <button class="btn primary" type="submit"><%- icon('plus') %> Créer</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="page-header" style="margin-bottom:12px">
+        <div>
+          <h2 style="margin:0">Catalogue (<%= items.length %>)</h2>
+          <p class="muted-note">La suppression est refusée par la base si un profil, une entreprise ou une offre utilise déjà ce domaine.</p>
+        </div>
+      </div>
+      <% if (!items.length) { %>
+        <div class="empty-state">
+          <%- icon('briefcase') %>
+          <p>Aucun domaine pour le moment. Ajoutez les domaines réels de la plateforme ci-dessus.</p>
+        </div>
+      <% } else { %>
+        <div class="table-wrap table-scroll">
+          <table>
+            <thead><tr><th>Domaine</th><th style="width:260px">Actions</th></tr></thead>
+            <tbody>
+              <% items.forEach((d) => { %>
+                <tr>
+                  <td><strong><%= d.nom_domaine %></strong></td>
+                  <td>
+                    <form method="post" action="/admin/domaines/<%= d.id_domaine %>/maj" class="form-inline" style="gap:8px;margin-bottom:8px">
+                      <div class="field">
+                        <label class="sr-only" for="domain-<%= d.id_domaine %>">Nom du domaine</label>
+                        <input id="domain-<%= d.id_domaine %>" name="nom_domaine" value="<%= d.nom_domaine %>" required>
+                      </div>
+                      <button class="btn" type="submit"><%- icon('check') %> Modifier</button>
+                    </form>
+                    <form method="post" action="/admin/domaines/<%= d.id_domaine %>/supprimer" class="inline-form" data-confirm="Supprimer le domaine « <%= d.nom_domaine %> » ?">
+                      <button class="btn danger" type="submit" aria-label="Supprimer <%= d.nom_domaine %>"><%- icon('trash-2') %> Supprimer</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

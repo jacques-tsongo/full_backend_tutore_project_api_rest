@@ -5,6 +5,7 @@ const matching = require('../services/matching.service');
 const notify = require('../services/notification.service');
 const socket = require('../socket');
 const Company = require('../models/company.model');
+const domaine = require('../services/domain.service');
 
 const recruiterCompany = (userId) => Company.findApprovedByOwner(userId);
 
@@ -31,6 +32,10 @@ exports.apply = asyncHandler(async (req, res) => {
     [id]
   );
   if (!offer[0]) return fail(res, 'Offre indisponible.', [], 404);
+  const domainAccess = await domaine.ensureCandidateCanAccessOffer(req.user.id_utilisateur, id);
+  if (!domainAccess.ok) {
+    return fail(res, 'Candidature refusée : cette offre appartient à un autre domaine professionnel.', [], 403);
+  }
   // Règle métier : une seule candidature par offre (la contrainte uq_candidature
   // reste le garde-fou d'intégrité ; ici un message métier explicite).
   const [existing] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, id]);
@@ -304,5 +309,7 @@ exports.matchOffer = asyncHandler(async (req, res) => {
     [req.params.id]
   );
   if (!offer[0]) return fail(res, 'Offre indisponible (expirée ou fermée).', [], 404);
+  const domainAccess = await domaine.ensureCandidateCanAccessOffer(req.user.id_utilisateur, req.params.id);
+  if (!domainAccess.ok) return fail(res, 'Accès refusé : cette offre appartient à un autre domaine professionnel.', [], 403);
   success(res, 'Score de compatibilité calculé.', { matching: await matching.calculate(req.user.id_utilisateur, req.params.id) });
 });

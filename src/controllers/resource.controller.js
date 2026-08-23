@@ -48,6 +48,7 @@ exports.create = (name) => asyncHandler(async (req, res) => {
     // candidat → validation administrateur ». Aucune création directe — même
     // par un administrateur — n'est autorisée (garde-fou en plus du routage).
     if (name === 'entreprises') return fail(res, 'La création d’entreprise passe obligatoirement par la demande candidat (workflow de validation).', [], 403);
+    if (name === 'domaines' && !String(req.body.nom_domaine || '').trim()) return fail(res, 'Nom de domaine requis.', ['nom_domaine'], 422);
     const item = await Resource.create(name, req.body, ownerFor(name, req.user) || {});
     if (name === 'competences') {
       socket.emitAll('nouvelle_competence', { competence: item, id_competence: item.id_competence });
@@ -56,6 +57,9 @@ exports.create = (name) => asyncHandler(async (req, res) => {
 exports.update = (name) => asyncHandler(async (req, res) => { 
     const row = await owns(name, req.params.id, req.user); 
     if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
+    if (name === 'domaines' && req.body.nom_domaine !== undefined && !String(req.body.nom_domaine || '').trim()) {
+      return fail(res, 'Nom de domaine requis.', ['nom_domaine'], 422);
+    }
     const item = await Resource.update(name, req.params.id, req.body);
     if (name === 'competences') {
       socket.emitAll('competence_modifiee', { competence: item, id_competence: Number(req.params.id) });
@@ -65,7 +69,14 @@ exports.remove = (name) => asyncHandler(async (req, res) => {
     const row = await owns(name, req.params.id, req.user); 
     if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
     const d = Resource.schema[name]; 
-    await db.execute(`DELETE FROM ${d.table} WHERE ${d.id} = ?`, [req.params.id]); 
+    try {
+      await db.execute(`DELETE FROM ${d.table} WHERE ${d.id} = ?`, [req.params.id]);
+    } catch (error) {
+      if (name === 'domaines' && error.code === 'ER_ROW_IS_REFERENCED_2') {
+        return fail(res, 'Ce domaine est utilisé par un profil, une entreprise ou une offre et ne peut pas être supprimé.', [], 409);
+      }
+      throw error;
+    }
     if (name === 'competences') {
       socket.emitAll('competence_supprimee', { id_competence: Number(req.params.id) });
     }

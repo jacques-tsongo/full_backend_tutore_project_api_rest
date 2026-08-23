@@ -19,6 +19,7 @@
             <div>
               <h2 class="form-title" style="margin:0"><%= company.nom_entreprise %></h2>
               <span class="badge <%= statusClass(company.status) %>"><%= company.statut_validation %></span>
+              <% if (company.nom_domaine) { %><span class="badge info"><%- icon('briefcase') %> <%= company.nom_domaine %></span><% } %>
             </div>
           </div>
           <a class="btn" href="/entreprises/<%= company.id_entreprise %>"><%- icon('eye') %> Voir la fiche publique</a>
@@ -30,6 +31,20 @@
         <div class="grid two">
           <div class="field"><label for="nom_entreprise">Nom de l'entreprise</label><input id="nom_entreprise" name="nom_entreprise" value="<%= company.nom_entreprise || '' %>" required></div>
           <div class="field"><label for="secteur_activite">Secteur d'activité</label><input id="secteur_activite" name="secteur_activite" value="<%= company.secteur_activite || '' %>"></div>
+        </div>
+        <div class="field">
+          <label>Domaine d'activité</label>
+          <input type="hidden" name="id_domaine" value="<%= company.id_domaine || '' %>" required>
+          <div class="domain-grid" data-domain-picker data-required="true" role="listbox" aria-label="Domaine d'activité de l'entreprise">
+            <% domains.forEach((d) => { const chosen = Number(company.id_domaine) === Number(d.id_domaine); %>
+              <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option">
+                <%- icon('briefcase') %>
+                <span><%= d.nom_domaine %></span>
+              </button>
+            <% }) %>
+          </div>
+          <p class="field-error" data-domain-error hidden>Veuillez sélectionner le domaine d'activité de l'entreprise.</p>
+          <small class="muted-note">Les offres de cette entreprise utilisent automatiquement ce domaine.</small>
         </div>
         <div class="field"><label for="adresse">Adresse</label><input id="adresse" name="adresse" value="<%= company.adresse || '' %>"></div>
         <div class="grid two">
@@ -64,4 +79,5 @@
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <script src="/vendor/leaflet/leaflet.js" defer></script>
 <script src="/js/maps.js" defer></script>
+<script src="/js/pages/domain-picker.js" defer></script>
 <%- include('partials/foot') %>

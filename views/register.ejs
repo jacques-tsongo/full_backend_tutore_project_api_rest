@@ -17,9 +17,28 @@
       <div class="field"><label for="reg-email">Email</label><input id="reg-email" name="email" type="email" autocomplete="email" required></div>
       <div class="field"><label for="telephone">Téléphone</label><input id="telephone" name="telephone" autocomplete="tel"></div>
       <div class="field"><label for="reg-password">Mot de passe</label><input id="reg-password" name="mot_de_passe" type="password" minlength="8" autocomplete="new-password" required><small class="muted-note">8 caractères minimum.</small></div>
-      <button class="btn primary full" type="submit"><%- icon('user-plus') %> Créer mon compte</button>
+
+      <div class="field">
+        <label>Quel est votre domaine professionnel ?</label>
+        <input type="hidden" name="id_domaine" required>
+        <% if (!domains || !domains.length) { %>
+          <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible. Un administrateur doit alimenter le catalogue avant les nouvelles inscriptions.</span></div>
+        <% } else { %>
+          <div class="domain-grid" data-domain-picker data-required="true" role="listbox" aria-label="Domaines professionnels">
+            <% domains.forEach((d) => { %>
+              <button type="button" class="skill-tile domain-tile" data-domain-id="<%= d.id_domaine %>" aria-pressed="false" role="option">
+                <%- icon('briefcase') %>
+                <span><%= d.nom_domaine %></span>
+              </button>
+            <% }) %>
+          </div>
+          <p class="field-error" data-domain-error hidden>Veuillez sélectionner un domaine professionnel.</p>
+        <% } %>
+      </div>
+      <button class="btn primary full" type="submit" <%= !domains || !domains.length ? 'disabled' : '' %>><%- icon('user-plus') %> Créer mon compte</button>
     </form>
     <p class="auth-footer">Déjà un compte ? <a href="/login">Se connecter</a></p>
   </section>
 </main>
+<script src="/js/pages/domain-picker.js" defer></script>
 <%- include('partials/foot') %>
