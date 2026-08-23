@@ -1,10 +1,13 @@
+const db = require('../config/database');
 const Company = require('../models/company.model');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const notify = require('../services/notification.service');
+const domaine = require('../services/domain.service');
 
 const requiredCompanyFields = [
   'nom_entreprise',
+  'id_domaine',
   'secteur_activite',
   'adresse',
   'pays',
@@ -23,6 +26,9 @@ exports.createRecruiter = asyncHandler(async (req, res) => {
   const payload = Company.normalizePayload(req.body, req.files);
   const missing = requiredCompanyFields.filter((field) => !payload[field]);
   if (missing.length) return fail(res, 'Informations entreprise incomplètes.', missing, 422);
+  const selectedDomain = await domaine.findById(payload.id_domaine);
+  if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine d’activité valide.', ['id_domaine'], 422);
+  payload.id_domaine = selectedDomain.id_domaine;
   if (!payload.documents_justificatifs) return fail(res, 'Document justificatif PDF requis.', ['documents'], 422);
 
   const company = await Company.createPending(req.user.id_utilisateur, payload);
@@ -63,8 +69,19 @@ exports.updateOwn = asyncHandler(async (req, res) => {
   const payload = Company.normalizePayload(req.body, req.files || {});
   const data = {};
   for (const field of Company.EDITABLE_FIELDS) if (payload[field] !== undefined) data[field] = payload[field];
+  if (data.id_domaine !== undefined) {
+    const selectedDomain = await domaine.findById(data.id_domaine);
+    if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine d’activité valide.', ['id_domaine'], 422);
+    data.id_domaine = selectedDomain.id_domaine;
+  }
 
   const updated = await Company.updateOwn(req.params.id, data);
+  // Si le domaine d'activité change, les offres déjà publiées par cette
+  // entreprise gardent une source cohérente : leur domaine dénormalisé est
+  // réaligné sur celui de l'entreprise (pas de choix manuel par offre).
+  if (data.id_domaine !== undefined) {
+    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ?', [data.id_domaine, req.params.id]);
+  }
   success(res, 'Entreprise mise à jour.', { company: updated });
 });
 exports.validate = asyncHandler(async (req, res) => {

@@ -47,6 +47,7 @@ exports.passwordChange = [
 // Le statut de validation n'est JAMAIS modifiable ici (workflow admin uniquement).
 exports.companyUpdate = [
   body('nom_entreprise').optional().trim().notEmpty(),
+  body('id_domaine').optional().isInt({ min: 1 }).withMessage('Domaine d’activité invalide.'),
   body('secteur_activite').optional().trim().notEmpty(),
   body('adresse').optional().trim().notEmpty(),
   body('ville').optional().trim().notEmpty(),

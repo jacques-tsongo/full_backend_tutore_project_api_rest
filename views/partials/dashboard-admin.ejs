@@ -19,6 +19,7 @@
               Demandeur : <%= c.prenom %> <%= c.nom %> (<%= c.email_utilisateur %>)<br>
               <%= [c.ville, c.pays].filter(Boolean).join(', ') %> · <%= c.email || '-' %> · RCCM : <%= c.numero_rccm || '-' %>
               <% if (c.secteur_activite) { %> · Secteur : <%= c.secteur_activite %><% } %>
+              <% if (c.nom_domaine) { %> · Domaine : <%= c.nom_domaine %><% } %>
             </p>
             <% if (c.description) { %><p class="muted-note"><%= c.description.slice(0, 220) %><%= c.description.length > 220 ? '…' : '' %></p><% } %>
             <% if (c.latitude && c.longitude) { %>

@@ -43,6 +43,7 @@
               <strong class="offer-title"><a href="/offres/<%= job.id_offre %>"><%= job.titre_offre %></a></strong>
               <p class="muted-note">
                 <%- icon('building-2') %> <%= job.nom_entreprise || '—' %> ·
+                <% if (job.nom_domaine) { %><%- icon('briefcase') %> <%= job.nom_domaine %> ·<% } %>
                 <%- icon('map-pin') %> <%= job.localisation %> ·
                 <%- icon('calendar') %> expire le <%= formatDate(job.date_expiration) %>
                 <% if (job.salaire) { %> · <%- icon('coins') %> <%= job.salaire %> $<% } %>

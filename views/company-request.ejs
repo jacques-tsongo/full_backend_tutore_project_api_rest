@@ -27,6 +27,23 @@
           <div class="field"><label for="nom_entreprise">Nom de l'entreprise</label><input id="nom_entreprise" name="nom_entreprise" required></div>
           <div class="field"><label for="secteur_activite">Secteur d'activité</label><input id="secteur_activite" name="secteur_activite" required></div>
         </div>
+        <div class="field">
+          <label>Domaine d'activité</label>
+          <input type="hidden" name="id_domaine" required>
+          <% if (!domains || !domains.length) { %>
+            <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible. Contactez un administrateur avant de soumettre une entreprise.</span></div>
+          <% } else { %>
+            <div class="domain-grid" data-domain-picker data-required="true" role="listbox" aria-label="Domaine d'activité de l'entreprise">
+              <% domains.forEach((d) => { %>
+                <button type="button" class="skill-tile domain-tile" data-domain-id="<%= d.id_domaine %>" aria-pressed="false" role="option">
+                  <%- icon('briefcase') %>
+                  <span><%= d.nom_domaine %></span>
+                </button>
+              <% }) %>
+            </div>
+            <p class="field-error" data-domain-error hidden>Veuillez sélectionner le domaine d'activité de l'entreprise.</p>
+          <% } %>
+        </div>
         <div class="grid two">
           <div class="field"><label for="ville">Ville</label><input id="ville" name="ville" required></div>
           <div class="field"><label for="pays">Pays</label><input id="pays" name="pays" required></div>
@@ -57,7 +74,7 @@
           <p class="muted-note" data-map-coords>Cliquez sur la carte pour positionner le siège de l'entreprise (ou utilisez « Me localiser »).</p>
         </div>
         <div class="alert alert-info"><%- icon('info') %><span>La soumission ne change pas votre rôle immédiatement : un administrateur doit approuver le dossier avant que vous ne deveniez recruteur.</span></div>
-        <button class="btn primary" type="submit"><%- icon('send') %> Soumettre pour validation</button>
+        <button class="btn primary" type="submit" <%= !domains || !domains.length ? 'disabled' : '' %>><%- icon('send') %> Soumettre pour validation</button>
       </form>
     <% } %>
   </main>
@@ -65,4 +82,5 @@
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <script src="/vendor/leaflet/leaflet.js" defer></script>
 <script src="/js/maps.js" defer></script>
+<script src="/js/pages/domain-picker.js" defer></script>
 <%- include('partials/foot') %>

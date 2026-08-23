@@ -11,6 +11,10 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
 <% } else { %>
 <section class="card" style="margin-top:18px" id="nouvelle-offre">
   <h2>Nouvelle offre</h2>
+  <p class="muted-note"><%- icon('briefcase') %> Domaine automatique : <strong><%= extra.company.nom_domaine || 'à définir sur votre entreprise' %></strong>. Le recruteur ne choisit pas le domaine par offre.</p>
+  <% if (!extra.company.id_domaine) { %>
+    <div class="alert alert-danger"><%- icon('triangle-alert') %><span>Définissez d’abord le domaine d’activité de votre entreprise dans « Mon entreprise » avant de publier une offre.</span></div>
+  <% } %>
   <form method="post" action="/offres" class="form">
     <div class="grid two">
       <div class="field"><label for="titre_offre">Titre</label><input id="titre_offre" name="titre_offre" required></div>
@@ -36,7 +40,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
       </div>
       <small class="muted-note">Seuls les candidats dont le score de compatibilité atteint le seuil requis (10&nbsp;%) verront l'offre, recevront une notification et pourront postuler.</small>
     </div>
-    <button class="btn primary" type="submit"><%- icon('plus') %> Publier l'offre</button>
+    <button class="btn primary" type="submit" <%= !extra.company.id_domaine ? 'disabled' : '' %>><%- icon('plus') %> Publier l'offre</button>
   </form>
 </section>
 

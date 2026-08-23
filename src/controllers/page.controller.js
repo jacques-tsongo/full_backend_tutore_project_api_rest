@@ -36,10 +36,11 @@ exports.loginPage = (req, res) => {
   if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
   return res.render('login', { title: 'Connexion', user: null, query: req.query });
 };
-exports.registerPage = (req, res) => {
+exports.registerPage = asyncHandler(async (req, res) => {
   if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
-  return res.render('register', { title: 'Inscription', user: null });
-};
+  const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
+  return res.render('register', { title: 'Inscription', user: null, domains: domains || [] });
+});
 
 /* =========================== Tableau de bord ============================= */
 
@@ -56,6 +57,7 @@ exports.dashboard = asyncHandler(async (req, res) => {
       // Cartes statistiques cliquables → pages de gestion dédiées.
       { label: 'Utilisateurs', value: data.users.total || 0, hint: `${data.users.candidats || 0} candidats · ${data.users.recruteurs || 0} recruteurs`, icon: 'users', href: '/admin/utilisateurs' },
       { label: 'Compétences', value: data.skills?.total || 0, hint: 'Gérer les compétences', icon: 'award', href: '/admin/competences' },
+      { label: 'Domaines', value: data.domains?.total || 0, hint: 'Gérer les domaines', icon: 'briefcase', href: '/admin/domaines' },
       { label: 'Offres', value: data.offers.total || 0, hint: `${data.offers.ouvertes || 0} ouvertes`, icon: 'briefcase', href: '/offres' }
     ];
     view.extra = { pendingCompanies: pending.items || [] };
@@ -119,9 +121,16 @@ exports.skillsOnboarding = asyncHandler(async (req, res) => {
 });
 
 exports.profile = asyncHandler(async (req, res) => {
-  const [profile] = await db.execute('SELECT * FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
+  const [profile] = await db.execute(
+    `SELECT p.*, d.nom_domaine
+     FROM profil_professionnel p
+     LEFT JOIN domaine d ON d.id_domaine = p.id_domaine
+     WHERE p.id_utilisateur = ?`,
+    [req.user.id_utilisateur]
+  );
   const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
   const [catalog] = await db.execute('SELECT id_competence, nom_competence FROM competence ORDER BY nom_competence');
+  const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   const [experiences] = await db.execute('SELECT * FROM experience_professionnelle WHERE id_utilisateur = ? ORDER BY date_debut DESC', [req.user.id_utilisateur]);
   const [diplomes] = await db.execute('SELECT * FROM diplome WHERE id_utilisateur = ? ORDER BY date_debut DESC, annee_obtention DESC', [req.user.id_utilisateur]);
   // Langues du profil (relation N:N) via le même contrôleur que l'API.
@@ -132,6 +141,7 @@ exports.profile = asyncHandler(async (req, res) => {
     profile: profile[0] || null,
     mySkills: mine.items || [],
     catalog: catalog || [],
+    domains: domains || [],
     experiences: experiences || [],
     diplomes: diplomes || [],
     langues: languesData.items || []
@@ -267,18 +277,20 @@ exports.companyDetails = asyncHandler(async (req, res) => {
 /** Gestion de SON entreprise (recruteur : uniquement approuvée). */
 exports.myCompany = asyncHandler(async (req, res) => {
   const company = await Company.findApprovedByOwner(req.user.id_utilisateur);
+  const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   if (!company) {
-    return res.render('company-manage', { title: 'Mon entreprise', user: req.user, company: null });
+    return res.render('company-manage', { title: 'Mon entreprise', user: req.user, company: null, domains: domains || [] });
   }
-  return res.render('company-manage', { title: 'Mon entreprise', user: req.user, company });
+  return res.render('company-manage', { title: 'Mon entreprise', user: req.user, company, domains: domains || [] });
 });
 
 /** Demande de création d'entreprise (candidat) — consultable depuis les paramètres. */
 exports.companyRequest = asyncHandler(async (req, res) => {
   const companies = await Company.findByOwner(req.user.id_utilisateur);
+  const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   const current = companies[0] || null;
   const block = current && ['pending', 'approved'].includes(current.status);
-  res.render('company-request', { title: 'Demande recruteur', user: req.user, current, block });
+  res.render('company-request', { title: 'Demande recruteur', user: req.user, current, block, domains: domains || [] });
 });
 
 /* ============================= Paramètres ================================ */
@@ -322,6 +334,15 @@ exports.adminSkills = asyncHandler(async (req, res) => {
   const { data } = await collect(resourceController.list('competences'), req);
   res.render('admin-skills', {
     title: 'Compétences',
+    user: req.user,
+    items: data.items || []
+  });
+});
+
+exports.adminDomains = asyncHandler(async (req, res) => {
+  const { data } = await collect(resourceController.list('domaines'), req);
+  res.render('admin-domains', {
+    title: 'Domaines',
     user: req.user,
     items: data.items || []
   });

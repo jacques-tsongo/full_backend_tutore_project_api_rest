@@ -16,6 +16,7 @@
           <h2 class="job-title" data-field="titre"><%= item.titre_offre %></h2>
           <p class="muted-note" data-field="localisation">
             <%- icon('building-2') %> <strong><%= item.nom_entreprise || '—' %></strong> ·
+            <% if (item.nom_domaine) { %><%- icon('briefcase') %> <%= item.nom_domaine %> ·<% } %>
             <%- icon('map-pin') %> <%= item.localisation %>
             <% if (item.ville_entreprise || item.pays_entreprise) { %> (<%= [item.ville_entreprise, item.pays_entreprise].filter(Boolean).join(', ') %>)<% } %>
           </p>

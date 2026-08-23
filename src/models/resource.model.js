@@ -3,10 +3,11 @@ const { pagination, listResult } = require('../utils/query');
 
 const schema = {
   competences: { table: 'competence', id: 'id_competence', fields: ['nom_competence', 'description'], search: ['nom_competence'] },
+  domaines: { table: 'domaine', id: 'id_domaine', fields: ['nom_domaine'], search: ['nom_domaine'] },
   experiences: { table: 'experience_professionnelle', id: 'id_experience', fields: ['poste', 'entreprise', 'date_debut', 'date_fin', 'description'], owner: 'id_utilisateur', search: ['poste', 'entreprise'] },
   diplomes: { table: 'diplome', id: 'id_diplome', fields: ['intitule', 'etablissement', 'annee_obtention', 'date_debut', 'date_fin'], owner: 'id_utilisateur', search: ['intitule', 'etablissement'] },
-  entreprises: { table: 'entreprise', id: 'id_entreprise', fields: ['nom_entreprise', 'secteur_activite', 'adresse', 'pays', 'ville', 'email', 'telephone', 'site_web', 'description', 'logo', 'numero_rccm', 'numero_fiscal', 'documents_justificatifs', 'status'], search: ['nom_entreprise'] },
-  offres: { table: 'offre_emploi', id: 'id_offre', fields: ['titre_offre', 'description_offre', 'salaire', 'localisation', 'date_expiration', 'statut_offre'], owner: 'id_entreprise', search: ['titre_offre', 'localisation'] }
+  entreprises: { table: 'entreprise', id: 'id_entreprise', fields: ['nom_entreprise', 'id_domaine', 'secteur_activite', 'adresse', 'pays', 'ville', 'email', 'telephone', 'site_web', 'description', 'logo', 'numero_rccm', 'numero_fiscal', 'documents_justificatifs', 'status'], search: ['nom_entreprise'] },
+  offres: { table: 'offre_emploi', id: 'id_offre', fields: ['titre_offre', 'description_offre', 'salaire', 'localisation', 'date_expiration', 'statut_offre', 'id_domaine'], owner: 'id_entreprise', search: ['titre_offre', 'localisation'] }
 };
 exports.schema = schema;
 exports.list = async (name, query, extra = {}) => {
@@ -19,10 +20,29 @@ exports.list = async (name, query, extra = {}) => {
   const order = def.fields.includes(query.sort) || query.sort === def.id ? query.sort : def.id;
   const direction = String(query.order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
   const [rows] = await db.execute(`SELECT * FROM ${def.table}${condition} ORDER BY ${order} ${direction} LIMIT ? OFFSET ?`, [...values, limit, offset]);
+  if (name === 'entreprises' && rows.length) {
+    const ids = [...new Set(rows.map((r) => r.id_domaine).filter(Boolean))];
+    if (ids.length) {
+      const [domains] = await db.execute(
+        `SELECT id_domaine, nom_domaine FROM domaine WHERE id_domaine IN (${ids.map(() => '?').join(',')})`,
+        ids
+      );
+      const byId = new Map(domains.map((d) => [Number(d.id_domaine), d.nom_domaine]));
+      rows.forEach((r) => { r.nom_domaine = byId.get(Number(r.id_domaine)) || null; });
+    }
+  }
   const [[{ total }]] = await db.execute(`SELECT COUNT(*) total FROM ${def.table}${condition}`, values);
   return listResult(rows, total, page, limit);
 };
-exports.get = async (name, id) => { const d = schema[name]; return (await db.execute(`SELECT * FROM ${d.table} WHERE ${d.id} = ?`, [id]))[0][0]; };
+exports.get = async (name, id) => {
+  const d = schema[name];
+  const row = (await db.execute(`SELECT * FROM ${d.table} WHERE ${d.id} = ?`, [id]))[0][0];
+  if (name === 'entreprises' && row?.id_domaine) {
+    const [domains] = await db.execute('SELECT nom_domaine FROM domaine WHERE id_domaine = ?', [row.id_domaine]);
+    row.nom_domaine = domains[0]?.nom_domaine || null;
+  }
+  return row;
+};
 // Valeurs vides (« ») issues d'un formulaire → NULL : indispensable pour les
 // champs optionnels (date_fin, annee_obtention, description…) afin d'éviter
 // une erreur SQL « Incorrect date value » et de stocker des chaînes vides.

@@ -20,6 +20,7 @@
           <h2><%= user.prenom %> <%= user.nom %><% if (profile?.post_nom) { %> <span class="muted-note"><%= profile.post_nom %></span><% } %></h2>
           <% if (profile?.accroche) { %><p class="profile-accroche"><%= profile.accroche %></p><% } else { %><p class="profile-accroche muted-note">Ajoutez une accroche pour vous présenter en une phrase.</p><% } %>
           <span class="badge neutral"><%= user.role %></span>
+          <% if (profile?.nom_domaine) { %><span class="badge info"><%- icon('briefcase') %> <%= profile.nom_domaine %></span><% } %>
         </div>
       </div>
     </section>
@@ -40,6 +41,27 @@
             <textarea id="bio" name="bio" placeholder="Présentez votre parcours, vos motivations et vos points forts…"><%= profile?.bio || '' %></textarea>
           </div>
           <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer la présentation</button>
+        </form>
+
+        <% /* Domaine professionnel : sélection unique, distincte des compétences. */ %>
+        <form method="post" action="/profil" class="card form">
+          <h2 class="form-title"><%- icon('briefcase') %> Domaine professionnel</h2>
+          <p class="muted-note">Votre domaine limite les offres visibles et les notifications aux opportunités pertinentes.</p>
+          <input type="hidden" name="id_domaine" value="<%= profile?.id_domaine || '' %>" required>
+          <% if (!domains || !domains.length) { %>
+            <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible.</span></div>
+          <% } else { %>
+            <div class="domain-grid" data-domain-picker data-required="true" role="listbox" aria-label="Domaine professionnel">
+              <% domains.forEach((d) => { const chosen = Number(profile?.id_domaine) === Number(d.id_domaine); %>
+                <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option">
+                  <%- icon('briefcase') %>
+                  <span><%= d.nom_domaine %></span>
+                </button>
+              <% }) %>
+            </div>
+            <p class="field-error" data-domain-error hidden>Veuillez sélectionner un domaine professionnel.</p>
+          <% } %>
+          <button class="btn primary" type="submit" <%= !domains || !domains.length ? 'disabled' : '' %>><%- icon('check') %> Enregistrer le domaine</button>
         </form>
 
         <% /* 2. Informations personnelles (identité) */ %>
@@ -320,4 +342,5 @@
     </div>
   </main>
 </div>
+<script src="/js/pages/domain-picker.js" defer></script>
 <%- include('partials/foot') %>

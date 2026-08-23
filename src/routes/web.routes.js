@@ -88,7 +88,7 @@ router.get('/register', webOptionalAuth, page.registerPage);
 // Après la création du compte, le nouveau candidat est dirigé vers la page
 // « Ajouter vos compétences » (choix multiples → « Suivant » ou « Ignorer »)
 // avant d'atteindre son tableau de bord.
-router.post('/register', formPost(auth.register, { redirectTo: () => '/competences' }));
+router.post('/register', formPost(auth.register, { redirectTo: (req, payload) => (payload?.success === false ? '/register' : '/competences') }));
 
 // Déconnexion : invalide la session navigateur (cookie httpOnly supprimé).
 router.post('/logout', (req, res) => {
@@ -183,10 +183,14 @@ router.post('/parametres/mot-de-passe', authed, formPost(auth.changePassword, { 
 // tableaux, ils vivent ici (GET) ; les actions conservent leurs routes POST.
 router.get('/admin/utilisateurs', authed, webAuthorize('administrateur'), page.adminUsers);
 router.get('/admin/competences', authed, webAuthorize('administrateur'), page.adminSkills);
+router.get('/admin/domaines', authed, webAuthorize('administrateur'), page.adminDomains);
 router.post('/admin/companies/:id(\\d+)/approve', authed, webAuthorize('administrateur'), formPost(admin.approveCompany, { redirectTo: '/dashboard' }));
 router.post('/admin/companies/:id(\\d+)/reject', authed, webAuthorize('administrateur'), formPost(admin.rejectCompany, { redirectTo: '/dashboard' }));
 router.post('/admin/utilisateurs/:id(\\d+)/statut', authed, webAuthorize('administrateur'), formPost(admin.userStatus, { redirectTo: '/admin/utilisateurs' }));
 router.post('/admin/competences', authed, webAuthorize('administrateur'), formPost(resource.create('competences'), { redirectTo: '/admin/competences' }));
 router.post('/admin/competences/:id(\\d+)/supprimer', authed, webAuthorize('administrateur'), formPost(resource.remove('competences'), { redirectTo: '/admin/competences' }));
+router.post('/admin/domaines', authed, webAuthorize('administrateur'), formPost(resource.create('domaines'), { redirectTo: '/admin/domaines' }));
+router.post('/admin/domaines/:id(\\d+)/maj', authed, webAuthorize('administrateur'), formPost(resource.update('domaines'), { redirectTo: '/admin/domaines' }));
+router.post('/admin/domaines/:id(\\d+)/supprimer', authed, webAuthorize('administrateur'), formPost(resource.remove('domaines'), { redirectTo: '/admin/domaines' }));
 
 module.exports = router;

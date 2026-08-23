@@ -18,6 +18,7 @@
     if (user.role === 'administrateur') {
       items.push({ href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs', key: 'admin-users' });
       items.push({ href: '/admin/competences', icon: 'award', label: 'Compétences', key: 'admin-skills' });
+      items.push({ href: '/admin/domaines', icon: 'briefcase', label: 'Domaines', key: 'admin-domains' });
       items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises', count: typeof pendingCompanies !== 'undefined' ? pendingCompanies : 0 });
     }
     items.push({

@@ -23,14 +23,22 @@ CREATE TABLE utilisateur (
   INDEX idx_utilisateur_role_statut (role, statut_compte)
 ) ENGINE=InnoDB;
 
+CREATE TABLE domaine (
+  id_domaine INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nom_domaine VARCHAR(150) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
 CREATE TABLE profil_professionnel (
   id_profil INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_domaine INT UNSIGNED NULL,
   bio TEXT NULL,
   adresse VARCHAR(255) NULL,
   date_naissance DATE NULL,
   lieu_naissance VARCHAR(150) NULL,
   cv VARCHAR(255) NULL,
   id_utilisateur INT UNSIGNED NOT NULL UNIQUE,
+  INDEX idx_profil_domaine (id_domaine),
+  CONSTRAINT fk_profil_domaine FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine) ON DELETE RESTRICT,
   CONSTRAINT fk_profil_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -74,6 +82,7 @@ CREATE TABLE diplome (
 CREATE TABLE entreprise (
   id_entreprise INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_utilisateur INT UNSIGNED NULL,
+  id_domaine INT UNSIGNED NULL,
   nom_entreprise VARCHAR(150) NOT NULL,
   secteur_activite VARCHAR(150) NULL,
   adresse VARCHAR(255) NULL,
@@ -96,6 +105,8 @@ CREATE TABLE entreprise (
   INDEX idx_entreprise_owner_status (id_utilisateur, status),
   INDEX idx_entreprise_status (status),
   INDEX idx_entreprise_nom (nom_entreprise),
+  INDEX idx_entreprise_domaine (id_domaine),
+  CONSTRAINT fk_entreprise_domaine FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine) ON DELETE RESTRICT,
   CONSTRAINT fk_entreprise_owner FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE SET NULL,
   CONSTRAINT fk_entreprise_approved_by FOREIGN KEY (approved_by) REFERENCES utilisateur(id_utilisateur) ON DELETE SET NULL
 ) ENGINE=InnoDB;
@@ -110,7 +121,10 @@ CREATE TABLE offre_emploi (
   date_expiration DATE NOT NULL,
   statut_offre ENUM('Ouverte','Fermée','Suspendue') NOT NULL DEFAULT 'Ouverte',
   id_entreprise INT UNSIGNED NOT NULL,
+  id_domaine INT UNSIGNED NULL,
   CONSTRAINT fk_offre_entreprise FOREIGN KEY (id_entreprise) REFERENCES entreprise(id_entreprise) ON DELETE RESTRICT,
+  CONSTRAINT fk_offre_domaine FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine) ON DELETE RESTRICT,
+  INDEX idx_offre_domaine (id_domaine, statut_offre, date_expiration),
   INDEX idx_offre_recherche (statut_offre, localisation, date_expiration),
   INDEX idx_offre_entreprise (id_entreprise)
 ) ENGINE=InnoDB;
