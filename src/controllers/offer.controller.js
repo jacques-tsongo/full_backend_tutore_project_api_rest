@@ -205,20 +205,31 @@ exports.create = asyncHandler(async (req, res) => {
     return fail(res, 'La date d\'expiration doit être dans le futur.', ['date_expiration'], 422);
   }
 
-  const f = [...OFFER_FIELDS];
-  const values = f.map((x) => req.body[x] ?? (x === 'statut_offre' ? 'Ouverte' : null));
-  values[f.indexOf('date_expiration')] = date;
-
-  const [r] = await db.execute(
-    `INSERT INTO offre_emploi (${f.concat('id_entreprise', 'id_domaine').join(',')}) VALUES (${f.map(() => '?').concat('?', '?').join(',')})`,
-    [...values, company.id_entreprise, company.id_domaine]
-  );
-
   // Compétences requises sélectionnées à la création : on réutilise la table
   // `offre_competence` existante (aucune nouvelle table). Niveau par défaut
   // « Débutant » ; le recruteur peut l'affiner ensuite depuis son tableau de
   // bord (même mécanisme que pour le profil candidat).
   const competences = Array.isArray(req.body.competences) ? req.body.competences : [];
+  // Cohérence DOMAINE → COMPÉTENCE (contrôle serveur, AVANT insertion) : une
+  // offre ne peut exiger que des compétences du domaine de l'entreprise, même
+  // si la requête HTTP est forgée manuellement avec des ids d'un autre domaine.
+  const offerSkillIds = competences.map((item) => Number(item?.id_competence ?? item)).filter((id) => Number.isInteger(id) && id > 0);
+  const offerDomainCheck = await domaine.checkSkillsAgainstDomain(offerSkillIds, company.id_domaine);
+  if (!offerDomainCheck.ok) {
+    return fail(res, 'Certaines compétences sélectionnées n’appartiennent pas au domaine de votre entreprise.', offerDomainCheck.invalid.map((c) => c.nom_competence), 403);
+  }
+
+  const f = [...OFFER_FIELDS];
+  const values = f.map((x) => req.body[x] ?? (x === 'statut_offre' ? 'Ouverte' : null));
+  values[f.indexOf('date_expiration')] = date;
+
+  // Règle métier : l'offre hérite TOUJOURS du domaine de l'entreprise
+  // (offre.id_domaine = entreprise.id_domaine) — jamais d'un choix libre.
+  const [r] = await db.execute(
+    `INSERT INTO offre_emploi (${f.concat('id_entreprise', 'id_domaine').join(',')}) VALUES (${f.map(() => '?').concat('?', '?').join(',')})`,
+    [...values, company.id_entreprise, company.id_domaine]
+  );
+
   for (const item of competences) {
     const idc = Number(item?.id_competence ?? item);
     if (!Number.isInteger(idc) || idc < 1) continue;

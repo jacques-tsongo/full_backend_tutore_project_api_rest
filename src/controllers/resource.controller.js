@@ -3,6 +3,8 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const db = require('../config/database');
 const socket = require('../socket');
+const domaine = require('../services/domain.service');
+const Company = require('../models/company.model');
 
 /**
  * Diffusion temps réel du CATALOGUE de compétences (table `competence`) :
@@ -34,6 +36,18 @@ const visibleCompany = (row, user) => {
 exports.list = (name) => asyncHandler(async (req, res) => {
   const extra = ownerFor(name, req.user) || {};
   if (name === 'entreprises' && req.user.role !== 'administrateur') extra.companyVisibility = 'approved';
+  // Filtrage DOMAINE → COMPÉTENCE appliqué côté serveur aussi sur l'API :
+  // un candidat ne reçoit que les compétences de SON domaine ; un recruteur,
+  // celles du domaine de SON entreprise. L'administrateur voit tout le
+  // catalogue (gestion). Sans domaine défini → liste vide (le choix du
+  // domaine est le préalable).
+  if (name === 'competences' && req.user.role !== 'administrateur') {
+    const domainId = req.user.role === 'candidat'
+      ? await domaine.getCandidateDomainId(req.user.id_utilisateur)
+      : (await Company.findApprovedByOwner(req.user.id_utilisateur))?.id_domaine || null;
+    if (!domainId) return success(res, 'Aucun domaine professionnel défini : aucune compétence proposée.', { items: [], pagination: { page: 1, limit: 0, total: 0, pages: 0 } });
+    req.query.id_domaine = String(domainId);
+  }
   const result = await Resource.list(name, req.query, extra);
   if (name === 'entreprises') result.items = result.items.map((row) => visibleCompany(row, req.user));
   success(res, 'Liste récupérée.', result);
@@ -49,6 +63,14 @@ exports.create = (name) => asyncHandler(async (req, res) => {
     // par un administrateur — n'est autorisée (garde-fou en plus du routage).
     if (name === 'entreprises') return fail(res, 'La création d’entreprise passe obligatoirement par la demande candidat (workflow de validation).', [], 403);
     if (name === 'domaines' && !String(req.body.nom_domaine || '').trim()) return fail(res, 'Nom de domaine requis.', ['nom_domaine'], 422);
+    // Toute NOUVELLE compétence doit être rattachée à un domaine existant
+    // (relation DOMAINE 1,N COMPETENCE). Les compétences historiques sans
+    // domaine restent en base mais aucune création sans domaine n'est admise.
+    if (name === 'competences') {
+      const parentDomain = await domaine.findById(req.body.id_domaine);
+      if (!parentDomain) return fail(res, 'Chaque compétence doit être rattachée à un domaine professionnel valide.', ['id_domaine'], 422);
+      req.body.id_domaine = parentDomain.id_domaine;
+    }
     const item = await Resource.create(name, req.body, ownerFor(name, req.user) || {});
     if (name === 'competences') {
       socket.emitAll('nouvelle_competence', { competence: item, id_competence: item.id_competence });
@@ -59,6 +81,13 @@ exports.update = (name) => asyncHandler(async (req, res) => {
     if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
     if (name === 'domaines' && req.body.nom_domaine !== undefined && !String(req.body.nom_domaine || '').trim()) {
       return fail(res, 'Nom de domaine requis.', ['nom_domaine'], 422);
+    }
+    // Reclassement d'une compétence : le domaine cible doit exister. C'est le
+    // SEUL moyen de classer les compétences historiques sans domaine (admin).
+    if (name === 'competences' && req.body.id_domaine !== undefined) {
+      const parentDomain = await domaine.findById(req.body.id_domaine);
+      if (!parentDomain) return fail(res, 'Domaine professionnel invalide.', ['id_domaine'], 422);
+      req.body.id_domaine = parentDomain.id_domaine;
     }
     const item = await Resource.update(name, req.params.id, req.body);
     if (name === 'competences') {
@@ -86,6 +115,13 @@ exports.mySkills = asyncHandler(async (req, res) => {
     const [rows] = await db.execute('SELECT c.*, uc.niveau_competence FROM utilisateur_competence uc JOIN competence c ON c.id_competence = uc.id_competence WHERE uc.id_utilisateur = ?', [req.user.id_utilisateur]); 
     success(res, 'Compétences du candidat.', { items: rows }); });
 exports.addSkill = asyncHandler(async (req, res) => { 
+    // Cohérence DOMAINE → COMPÉTENCE (contrôle serveur, non contournable) :
+    // un candidat ne peut associer à son profil que des compétences de SON
+    // domaine professionnel, même via une requête API directe.
+    const candidateDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
+    if (!candidateDomainId) return fail(res, 'Choisissez d’abord votre domaine professionnel dans votre profil.', ['id_domaine'], 422);
+    const domainCheck = await domaine.checkSkillsAgainstDomain([req.body.id_competence], candidateDomainId);
+    if (!domainCheck.ok) return fail(res, 'Cette compétence appartient à un autre domaine professionnel.', ['id_competence'], 403);
     await db.execute('INSERT INTO utilisateur_competence (id_utilisateur, id_competence, niveau_competence) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE niveau_competence = VALUES(niveau_competence)', [req.user.id_utilisateur, req.body.id_competence, req.body.niveau_competence]); 
     success(res, 'Compétence associée.'); });
 
@@ -129,6 +165,16 @@ exports.addSkills = asyncHandler(async (req, res) => {
   const knownIds = new Set(known.map((k) => Number(k.id_competence)));
   const valid = unique.filter((id) => knownIds.has(id));
   if (!valid.length) return fail(res, 'Les compétences sélectionnées sont introuvables.', [], 422);
+
+  // Même règle de domaine qu'à l'unité : les compétences d'un autre domaine
+  // que celui du candidat sont refusées (vérifié côté serveur).
+  const candidateDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
+  if (candidateDomainId) {
+    const domainCheck = await domaine.checkSkillsAgainstDomain(valid, candidateDomainId);
+    if (!domainCheck.ok) {
+      return fail(res, 'Certaines compétences sélectionnées appartiennent à un autre domaine professionnel.', domainCheck.invalid.map((c) => c.nom_competence), 403);
+    }
+  }
 
   // Enregistrement en une seule requête (multi-lignes), sans écraser un
   // niveau déjà choisi par l'utilisateur : ON DUPLICATE KEY UPDATE met à jour

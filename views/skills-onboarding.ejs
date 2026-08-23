@@ -17,12 +17,21 @@
     <%- include('partials/flash') %>
 
     <form method="post" action="/competences" class="form" id="skills-onboarding-form">
-      <% if (!catalog.length) { %>
+      <% /* Catalogue limité au DOMAINE de l'utilisateur (filtrage serveur). */ %>
+      <% if (typeof hasDomain !== 'undefined' && !hasDomain) { %>
         <div class="alert alert-info">
           <%- icon('info') %>
-          <span>Aucune compétence n'est encore disponible sur la plateforme. Vous pourrez en ajouter dès que le catalogue sera alimenté.</span>
+          <span>Choisissez d'abord votre domaine professionnel depuis <a href="/profil">votre profil</a> : seules les compétences de votre domaine vous seront proposées.</span>
+        </div>
+      <% } else if (!catalog.length) { %>
+        <div class="alert alert-info">
+          <%- icon('info') %>
+          <span>Aucune compétence n'est encore disponible pour votre domaine<%= typeof domainName !== 'undefined' && domainName ? ` « ${domainName} »` : '' %>. Vous pourrez en ajouter dès que le catalogue sera alimenté.</span>
         </div>
       <% } else { %>
+        <% if (typeof domainName !== 'undefined' && domainName) { %>
+          <p class="muted-note"><%- icon('briefcase') %> Compétences du domaine <strong><%= domainName %></strong>.</p>
+        <% } %>
         <div class="skills-picker">
           <div>
             <label>Compétences disponibles</label>

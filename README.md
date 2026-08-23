@@ -103,6 +103,8 @@ mysql -u root -p < database/migrations/20260809_message_read_tracking.sql
 mysql -u root -p < database/migrations/20260817_entreprise_geolocalisation.sql
 mysql -u root -p < database/migrations/20260820_photo_couverture.sql
 mysql -u root -p < database/migrations/20260821_profile_fields.sql
+mysql -u root -p < database/migrations/20260823_add_domain.sql
+mysql -u root -p < database/migrations/20260823_competence_domaine.sql
 ```
 
 - `20260809` : `message.lu` + `message.date_lecture` + index (compteurs non lus).
@@ -112,6 +114,27 @@ mysql -u root -p < database/migrations/20260821_profile_fields.sql
   `province`, `nationalite`, `etat_civil`, `accroche`), période de formation
   (`diplome.date_debut` / `date_fin`, `annee_obtention` optionnel) et tables
   relationnelles `langue` + `utilisateur_langue`.
+- `20260823_add_domain` : table `domaine` + `id_domaine` sur
+  `profil_professionnel`, `entreprise` et `offre_emploi`.
+- `20260823_competence_domaine` : `competence.id_domaine` (relation
+  DOMAINE 1,N → COMPÉTENCE). Colonne **nullable** : les compétences
+  historiques restent intactes ; elles ne sont plus proposées à la sélection
+  tant que l'administrateur ne les a pas classées depuis la page
+  « Compétences » (aucune attribution automatique de domaine).
+
+## Domaines professionnels (règles métier)
+
+- Le domaine est choisi **une seule fois** (candidat au moment de
+  l'inscription ou du profil ; entreprise lors de la demande recruteur ou de
+  la première configuration). Après confirmation (modal dédiée), le choix est
+  **définitif** : le backend refuse toute modification (403), même via l'API.
+- Les compétences proposées (profil candidat, onboarding, création d'offre)
+  sont **filtrées par domaine** côté serveur.
+- L'offre hérite automatiquement du domaine de son entreprise ; le candidat
+  ne voit / ne reçoit / ne postule qu'aux offres de **son** domaine (liste,
+  accès direct `/offres/:id`, candidature et notifications vérifiés côté
+  backend).
+- Tests dédiés : `node test/domain-rules.js` (14 cas du cahier des charges).
 
 ## Règle de visibilité des offres (matching)
 

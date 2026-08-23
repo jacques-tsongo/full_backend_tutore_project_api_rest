@@ -14,6 +14,13 @@ exports.setSkills = asyncHandler(async (req, res) => {
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
   const [offer] = await db.execute('SELECT id_offre FROM offre_emploi WHERE id_offre=? AND id_entreprise=?', [req.params.id, company.id_entreprise]);
   if (!offer[0]) return fail(res, 'Offre introuvable.', [], 404);
+  // Cohérence DOMAINE → COMPÉTENCE (contrôle serveur) : les compétences
+  // requises d'une offre doivent appartenir au domaine de l'entreprise.
+  const skillIds = (req.body.competences || []).map((s) => s.id_competence);
+  const domainCheck = await domaine.checkSkillsAgainstDomain(skillIds, company.id_domaine);
+  if (!domainCheck.ok) {
+    return fail(res, 'Certaines compétences n’appartiennent pas au domaine de votre entreprise.', domainCheck.invalid.map((c) => c.nom_competence), 403);
+  }
   await db.execute('DELETE FROM offre_competence WHERE id_offre = ?', [req.params.id]);
   for (const skill of req.body.competences || []) {
     await db.execute('INSERT INTO offre_competence (id_offre, id_competence, niveau_requis) VALUES (?, ?, ?)', [req.params.id, skill.id_competence, skill.niveau_requis]);

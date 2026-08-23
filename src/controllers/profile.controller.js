@@ -61,6 +61,14 @@ exports.upsert = asyncHandler(async (req, res) => {
     if (f === 'id_domaine') {
       const selectedDomain = await domaine.findById(value);
       if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine professionnel valide.', ['id_domaine'], 422);
+      // VERROUILLAGE DÉFINITIF DU DOMAINE (règle serveur, non contournable) :
+      // une fois un domaine enregistré dans le profil, toute tentative de le
+      // remplacer — y compris via une requête API directe — est refusée.
+      // Seul un profil SANS domaine (ancien compte) peut en choisir un.
+      const currentDomainId = await domaine.getCandidateDomainId(req.user.id_utilisateur);
+      if (currentDomainId && currentDomainId !== selectedDomain.id_domaine) {
+        return fail(res, 'Votre domaine professionnel est définitif et ne peut plus être modifié.', ['id_domaine'], 403);
+      }
       value = selectedDomain.id_domaine;
     }
     data[f] = value;

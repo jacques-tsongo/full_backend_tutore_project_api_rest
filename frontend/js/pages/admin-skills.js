@@ -17,6 +17,7 @@
   const rowHtml = (c) => `
     <tr data-id="${Number(c.id_competence)}">
       <td><strong>${esc(c.nom_competence)}</strong></td>
+      <td>${c.id_domaine ? `<span class="badge info">${esc(c.nom_domaine || c.id_domaine)}</span>` : '—'}</td>
       <td>${esc(c.description || '—')}</td>
       <td>
         <form method="post" action="/admin/competences/${Number(c.id_competence)}/supprimer" class="inline-form">
@@ -38,9 +39,9 @@
     if (!competence) return;
     const row = findRow(competence.id_competence);
     if (row) {
-      row.querySelector('td strong').textContent = competence.nom_competence;
-      row.querySelectorAll('td')[1].textContent = competence.description || '—';
-      row.querySelector('td:last-child button').setAttribute('aria-label', `Supprimer ${competence.nom_competence}`);
+      // Ré-affiche la ligne complète (nom, domaine, description) : plus simple
+      // et sûr que de patcher cellule par cellule depuis l'ajout du domaine.
+      row.outerHTML = rowHtml(competence);
     }
   });
 

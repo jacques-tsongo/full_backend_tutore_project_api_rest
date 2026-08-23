@@ -189,6 +189,9 @@ router.post('/admin/companies/:id(\\d+)/reject', authed, webAuthorize('administr
 router.post('/admin/utilisateurs/:id(\\d+)/statut', authed, webAuthorize('administrateur'), formPost(admin.userStatus, { redirectTo: '/admin/utilisateurs' }));
 router.post('/admin/competences', authed, webAuthorize('administrateur'), formPost(resource.create('competences'), { redirectTo: '/admin/competences' }));
 router.post('/admin/competences/:id(\\d+)/supprimer', authed, webAuthorize('administrateur'), formPost(resource.remove('competences'), { redirectTo: '/admin/competences' }));
+// Classement d'une compétence historique dans un domaine (relation
+// DOMAINE → COMPÉTENCE) : réutilise la mise à jour générique du catalogue.
+router.post('/admin/competences/:id(\\d+)/domaine', authed, webAuthorize('administrateur'), formPost(resource.update('competences'), { redirectTo: '/admin/competences' }));
 router.post('/admin/domaines', authed, webAuthorize('administrateur'), formPost(resource.create('domaines'), { redirectTo: '/admin/domaines' }));
 router.post('/admin/domaines/:id(\\d+)/maj', authed, webAuthorize('administrateur'), formPost(resource.update('domaines'), { redirectTo: '/admin/domaines' }));
 router.post('/admin/domaines/:id(\\d+)/supprimer', authed, webAuthorize('administrateur'), formPost(resource.remove('domaines'), { redirectTo: '/admin/domaines' }));

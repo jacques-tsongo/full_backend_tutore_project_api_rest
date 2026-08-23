@@ -41,6 +41,43 @@ exports.getOfferDomainId = async (offerId, connection = db) => {
   return rows[0]?.id_domaine ? Number(rows[0].id_domaine) : null;
 };
 
+/**
+ * Catalogue des compétences d'UN domaine (relation DOMAINE 1,N COMPETENCE).
+ * Seules les compétences rattachées à ce domaine sont proposées : les
+ * compétences historiques non classées (id_domaine NULL) n'apparaissent pas
+ * dans les sélecteurs tant que l'administrateur ne les a pas classées.
+ */
+exports.listSkillsByDomain = async (domainId, connection = db) => {
+  const id = toPositiveInt(domainId);
+  if (!id) return [];
+  const [rows] = await connection.execute(
+    'SELECT id_competence, nom_competence, description FROM competence WHERE id_domaine = ? ORDER BY nom_competence',
+    [id]
+  );
+  return rows;
+};
+
+/**
+ * Vérifie qu'aucune des compétences fournies n'appartient à un AUTRE domaine
+ * que `domainId`. Règle appliquée côté serveur (profil candidat et offres) :
+ *  - compétence du même domaine  → acceptée ;
+ *  - compétence d'un autre domaine → refusée (retournée dans `invalid`) ;
+ *  - compétence historique sans domaine (NULL) → tolérée pour ne pas casser
+ *    les données existantes (elle n'est simplement plus proposée à la
+ *    sélection tant qu'elle n'est pas classée par l'administrateur).
+ */
+exports.checkSkillsAgainstDomain = async (skillIds, domainId, connection = db) => {
+  const ids = [...new Set((skillIds || []).map(toPositiveInt).filter(Boolean))];
+  if (!ids.length) return { ok: true, invalid: [] };
+  const [rows] = await connection.execute(
+    `SELECT id_competence, nom_competence, id_domaine FROM competence WHERE id_competence IN (${ids.map(() => '?').join(',')})`,
+    ids
+  );
+  const domain = toPositiveInt(domainId);
+  const invalid = rows.filter((r) => r.id_domaine !== null && Number(r.id_domaine) !== domain);
+  return { ok: invalid.length === 0, invalid };
+};
+
 exports.ensureCandidateCanAccessOffer = async (userId, offerId, connection = db) => {
   const [rows] = await connection.execute(
     `SELECT p.id_domaine AS candidat_id_domaine,

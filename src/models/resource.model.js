@@ -2,7 +2,9 @@ const db = require('../config/database');
 const { pagination, listResult } = require('../utils/query');
 
 const schema = {
-  competences: { table: 'competence', id: 'id_competence', fields: ['nom_competence', 'description'], search: ['nom_competence'] },
+  // `id_domaine` : chaque compétence appartient à un domaine professionnel
+  // (relation DOMAINE 1,N COMPETENCE) — obligatoire pour les nouvelles créations.
+  competences: { table: 'competence', id: 'id_competence', fields: ['nom_competence', 'description', 'id_domaine'], search: ['nom_competence'] },
   domaines: { table: 'domaine', id: 'id_domaine', fields: ['nom_domaine'], search: ['nom_domaine'] },
   experiences: { table: 'experience_professionnelle', id: 'id_experience', fields: ['poste', 'entreprise', 'date_debut', 'date_fin', 'description'], owner: 'id_utilisateur', search: ['poste', 'entreprise'] },
   diplomes: { table: 'diplome', id: 'id_diplome', fields: ['intitule', 'etablissement', 'annee_obtention', 'date_debut', 'date_fin'], owner: 'id_utilisateur', search: ['intitule', 'etablissement'] },
@@ -16,11 +18,14 @@ exports.list = async (name, query, extra = {}) => {
   if (extra.companyVisibility) { where.push('status = ?'); values.push(extra.companyVisibility); }
   if (query.q && def.search) { where.push(`(${def.search.map((f) => `${f} LIKE ?`).join(' OR ')})`); values.push(...def.search.map(() => `%${query.q}%`)); }
   if (query.statut && name === 'offres') { where.push('statut_offre = ?'); values.push(query.statut); }
+  // Filtrage du catalogue de compétences par domaine (?id_domaine=N) :
+  // utilisé par les sélecteurs candidat / recruteur (compétences du domaine).
+  if (query.id_domaine && name === 'competences') { where.push('id_domaine = ?'); values.push(Number(query.id_domaine)); }
   const condition = where.length ? ` WHERE ${where.join(' AND ')}` : '';
   const order = def.fields.includes(query.sort) || query.sort === def.id ? query.sort : def.id;
   const direction = String(query.order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
   const [rows] = await db.execute(`SELECT * FROM ${def.table}${condition} ORDER BY ${order} ${direction} LIMIT ? OFFSET ?`, [...values, limit, offset]);
-  if (name === 'entreprises' && rows.length) {
+  if ((name === 'entreprises' || name === 'competences') && rows.length) {
     const ids = [...new Set(rows.map((r) => r.id_domaine).filter(Boolean))];
     if (ids.length) {
       const [domains] = await db.execute(
@@ -37,7 +42,7 @@ exports.list = async (name, query, extra = {}) => {
 exports.get = async (name, id) => {
   const d = schema[name];
   const row = (await db.execute(`SELECT * FROM ${d.table} WHERE ${d.id} = ?`, [id]))[0][0];
-  if (name === 'entreprises' && row?.id_domaine) {
+  if ((name === 'entreprises' || name === 'competences') && row?.id_domaine) {
     const [domains] = await db.execute('SELECT nom_domaine FROM domaine WHERE id_domaine = ?', [row.id_domaine]);
     row.nom_domaine = domains[0]?.nom_domaine || null;
   }

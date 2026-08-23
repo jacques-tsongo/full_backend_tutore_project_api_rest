@@ -44,8 +44,14 @@ CREATE TABLE profil_professionnel (
 
 CREATE TABLE competence (
   id_competence INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  -- Relation DOMAINE (1,N) → COMPETENCE. NULLABLE pour préserver les
+  -- compétences historiques ; l'application exige un domaine pour toute
+  -- nouvelle compétence créée par l'administrateur.
+  id_domaine INT UNSIGNED NULL,
   nom_competence VARCHAR(100) NOT NULL UNIQUE,
-  description TEXT NULL
+  description TEXT NULL,
+  INDEX idx_competence_domaine (id_domaine),
+  CONSTRAINT fk_competence_domaine FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 CREATE TABLE utilisateur_competence (
