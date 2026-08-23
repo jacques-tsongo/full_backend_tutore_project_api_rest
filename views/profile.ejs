@@ -44,8 +44,9 @@
         </form>
 
         <% /* Domaine professionnel : sélection unique et DÉFINITIVE.
-              - Sans domaine : le clic ouvre une modal de confirmation, puis le
-                formulaire est envoyé automatiquement (data-submit-on-confirm).
+              - Sans domaine : le clic sélectionne immédiatement le domaine,
+                verrouille les autres tuiles et envoie le formulaire
+                automatiquement (data-submit-on-select).
               - Avec domaine : le picker est verrouillé (data-locked) — les
                 autres domaines sont désactivés et le backend refuse de toute
                 façon tout changement (contrôle serveur). */ %>
@@ -58,11 +59,15 @@
           <% } else { %>
             <p class="muted-note">Choisissez votre domaine professionnel principal. <strong>Ce choix est définitif</strong> : il détermine les compétences proposées, les offres visibles et vos notifications.</p>
           <% } %>
-          <input type="hidden" name="id_domaine" value="<%= profile?.id_domaine || '' %>" required>
+          <% if (domainLocked) { %>
+            <input type="hidden" data-domain-input value="<%= profile?.id_domaine || '' %>" disabled>
+          <% } else { %>
+            <input type="hidden" name="id_domaine" data-domain-input value="" required>
+          <% } %>
           <% if (!domains || !domains.length) { %>
             <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible.</span></div>
           <% } else { %>
-            <div class="domain-grid" data-domain-picker data-required="true" data-locked="<%= domainLocked %>" data-submit-on-confirm="true" role="listbox" aria-label="Domaine professionnel">
+            <div class="domain-grid" data-domain-picker data-required="true" data-locked="<%= domainLocked %>" data-submit-on-select="true" role="listbox" aria-label="Domaine professionnel">
               <% domains.forEach((d) => { const chosen = Number(profile?.id_domaine) === Number(d.id_domaine); %>
                 <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option" <%= domainLocked && !chosen ? 'disabled' : '' %>>
                   <%- icon('briefcase') %>

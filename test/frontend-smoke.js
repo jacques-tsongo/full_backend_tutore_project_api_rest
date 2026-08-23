@@ -90,8 +90,8 @@ const run = async () => {
   /* ---------- 2. Inscription & session ---------- */
   const candidate = browser();
   const email = `smoke.candidat.${freshId()}@example.com`;
-  // Domaine professionnel OBLIGATOIRE : la tuile confirmée alimente le champ
-  // caché id_domaine (voir domain-picker.js) — on reproduit la soumission.
+  // Domaine professionnel OBLIGATOIRE : la tuile sélectionnée alimente le
+  // champ caché id_domaine (voir domain-picker.js) — on reproduit la soumission.
   const domainInfo = await resolveDomainId('Informatique');
   const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000', id_domaine: String(domainInfo) } });
   step('POST /register → 302 /competences + cookie httpOnly', register.status === 302 && register.location.includes('/competences') && candidate.has('gc_token'));

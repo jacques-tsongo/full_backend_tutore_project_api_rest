@@ -20,7 +20,7 @@
 
       <div class="field">
         <label>Quel est votre domaine professionnel ?</label>
-        <input type="hidden" name="id_domaine" required>
+        <input type="hidden" name="id_domaine" data-domain-input required>
         <% if (!domains || !domains.length) { %>
           <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible. Un administrateur doit alimenter le catalogue avant les nouvelles inscriptions.</span></div>
         <% } else { %>
