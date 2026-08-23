@@ -5,7 +5,10 @@
   const items = [];
   if (user) {
     items.push({ href: '/dashboard', icon: 'layout-dashboard', label: 'Tableau de bord', key: 'dashboard' });
-    if (user.role === 'candidat' || user.role === 'recruteur') items.push({ href: '/profil', icon: 'user', label: 'Profil', key: 'profil' });
+    if (user.role === 'candidat' || user.role === 'recruteur') {
+      items.push({ href: '/profil', icon: 'user', label: 'Profil', key: 'profil' });
+      items.push({ href: '/suggestions', icon: 'message-square', label: 'Mes suggestions', key: 'suggestions' });
+    }
     items.push({ href: '/offres', icon: 'briefcase', label: 'Offres', key: 'offres' });
     if (user.role === 'candidat') {
       items.push({ href: '/candidatures', icon: 'file-text', label: 'Candidatures', key: 'candidatures' });
@@ -19,6 +22,7 @@
       items.push({ href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs', key: 'admin-users' });
       items.push({ href: '/admin/competences', icon: 'award', label: 'Compétences', key: 'admin-skills' });
       items.push({ href: '/admin/domaines', icon: 'briefcase', label: 'Domaines', key: 'admin-domains' });
+      items.push({ href: '/admin/suggestions', icon: 'message-square', label: 'Suggestions', key: 'admin-suggestions', count: typeof pendingSuggestions !== 'undefined' ? pendingSuggestions : 0 });
       items.push({ href: '/entreprises', icon: 'building-2', label: 'Entreprises', key: 'entreprises', count: typeof pendingCompanies !== 'undefined' ? pendingCompanies : 0 });
     }
     items.push({

@@ -1,0 +1,43 @@
+<%- include('partials/head', { title, page: 'suggestions' }) %>
+<% const statusLabel = { EN_ATTENTE: 'En attente', APPROUVEE: 'Approuvée', REFUSEE: 'Refusée' }; %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'suggestions' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Détail de la suggestion', subtitle: `Demande n°${item.id_demande}` }) %>
+    <%- include('partials/flash') %>
+
+    <div class="page-header">
+      <div>
+        <span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] || item.statut %></span>
+        <h2 class="suggestion-title"><%= item.nom_propose %></h2>
+      </div>
+      <a class="btn" href="/suggestions"><%- icon('chevron-left') %> Retour</a>
+    </div>
+
+    <section class="grid two suggestion-detail-grid">
+      <div class="card">
+        <h3>Demande</h3>
+        <dl class="detail-list">
+          <div><dt>Type</dt><dd><%= item.type_demande === 'DOMAINE' ? 'Suggestion de domaine' : 'Suggestion de compétence' %></dd></div>
+          <div><dt>Nom proposé</dt><dd><strong><%= item.nom_propose %></strong></dd></div>
+          <% if (item.type_demande === 'COMPETENCE') { %><div><dt>Domaine concerné</dt><dd><%= item.nom_domaine || '—' %></dd></div><% } %>
+          <div><dt>Envoyée le</dt><dd><%= formatDateTime(item.date_creation) %></dd></div>
+          <div><dt>Justification</dt><dd class="preserve-lines"><%= item.description || 'Aucune justification fournie.' %></dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Décision administrative</h3>
+        <% if (item.statut === 'EN_ATTENTE') { %>
+          <div class="empty-state compact"><%- icon('clock') %><p>Cette suggestion n’a pas encore été traitée.</p></div>
+        <% } else { %>
+          <dl class="detail-list">
+            <div><dt>Décision</dt><dd><span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] %></span></dd></div>
+            <div><dt>Traitée le</dt><dd><%= formatDateTime(item.date_traitement) %></dd></div>
+            <div><dt>Commentaire</dt><dd class="preserve-lines"><%= item.commentaire_admin || 'Aucun commentaire.' %></dd></div>
+          </dl>
+        <% } %>
+      </div>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

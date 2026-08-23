@@ -78,9 +78,9 @@ app.locals.formatDateTime = (value) => {
 app.locals.asset = (p) => (p ? (String(p).startsWith('/') ? p : `/${p}`) : null);
 app.locals.statusClass = (value = '') => {
   const v = String(value);
-  if (['approved', 'Validée', 'Acceptée', 'Ouverte', 'actif', 'Lue'].includes(v)) return 'success';
-  if (['rejected', 'Rejetée', 'Refusée', 'Suspendue', 'suspendu', 'Annulée'].includes(v)) return 'danger';
-  if (['pending', 'En attente', 'approved_but', 'inactif', 'Entretien'].includes(v)) return 'warning';
+  if (['approved', 'Validée', 'Acceptée', 'Ouverte', 'actif', 'Lue', 'APPROUVEE'].includes(v)) return 'success';
+  if (['rejected', 'Rejetée', 'Refusée', 'Suspendue', 'suspendu', 'Annulée', 'REFUSEE'].includes(v)) return 'danger';
+  if (['pending', 'En attente', 'approved_but', 'inactif', 'Entretien', 'EN_ATTENTE'].includes(v)) return 'warning';
   if (['Présélectionnée', 'Fermée'].includes(v)) return 'info';
   return 'neutral';
 };
@@ -132,6 +132,7 @@ app.use('/api', require('./routes/resource.routes'));
 app.use('/api', require('./routes/jobs.routes')); 
 app.use('/api/messages', require('./routes/message.routes')); 
 app.use('/api/notifications', require('./routes/notification.routes')); 
+app.use('/api/suggestions', require('./routes/suggestion.routes'));
 app.use('/api/admin', require('./routes/admin.routes')); 
 
 /* --------------------------- Pages EJS ----------------------------------- */

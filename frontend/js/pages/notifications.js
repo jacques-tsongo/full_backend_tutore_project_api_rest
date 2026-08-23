@@ -13,10 +13,16 @@
 
   const notificationItem = (n) => `
     <div class="list-item notification-item ${n.statut_notification === 'Non lue' ? 'unread' : ''}" data-id="${Number(n.id_notification)}">
-      <div>
-        <strong>${esc(n.contenu_notification)}</strong>
-        <p>${shortDate(n.date_notification)} <span class="badge ${n.statut_notification === 'Non lue' ? 'warning' : 'neutral'}">${esc(n.statut_notification)}</span></p>
-      </div>
+      ${n.type_reference === 'DEMANDE_SUGGESTION' && n.id_reference
+        ? `<a class="notification-content" href="/notifications/${Number(n.id_notification)}/ouvrir">
+             <strong>${esc(n.contenu_notification)}</strong>
+             <p>${shortDate(n.date_notification)} <span class="badge ${n.statut_notification === 'Non lue' ? 'warning' : 'neutral'}">${esc(n.statut_notification)}</span></p>
+             <small>Ouvrir la demande</small>
+           </a>`
+        : `<div>
+             <strong>${esc(n.contenu_notification)}</strong>
+             <p>${shortDate(n.date_notification)} <span class="badge ${n.statut_notification === 'Non lue' ? 'warning' : 'neutral'}">${esc(n.statut_notification)}</span></p>
+           </div>`}
       ${n.statut_notification === 'Non lue'
         ? `<form method="post" action="/notifications/${Number(n.id_notification)}/lire" class="inline-form">
              <button class="btn" type="submit">Marquer lue</button>
@@ -28,6 +34,9 @@
     const { notification } = event.detail || {};
     if (!notification) return;
     if (findItem(notification.id_notification)) return; // anti-doublon
+    listContainer.hidden = false;
+    const empty = document.querySelector('[data-notifications-empty]');
+    if (empty) empty.hidden = true;
     listContainer.insertAdjacentHTML('afterbegin', notificationItem(notification));
     // Affiche l'action « Tout marquer lu » dès qu'une notification non lue existe.
     if (notification.statut_notification === 'Non lue' && !document.querySelector('form[action="/notifications/lire-toutes"]')) {

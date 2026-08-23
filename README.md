@@ -60,6 +60,8 @@ Aucun mot de passe ni jeton n'est exposé au navigateur (pas de token en `localS
 | Matching | `/matching` | candidat |
 | Messages (compteur non lus, fil marqué lu à l'ouverture) | `/messages` | tous |
 | Notifications (badge, marquage lu) | `/notifications` | tous |
+| Mes suggestions (domaines / compétences) | `/suggestions` | candidat, recruteur |
+| Traitement des suggestions | `/admin/suggestions` | administrateur |
 | Annuaire entreprises (approuvées uniquement) | `/entreprises`, `/entreprises/:id` | tous |
 | Gestion de SON entreprise | `/entreprise` | recruteur |
 | Demande de création d'entreprise | `/entreprise/demande` | candidat |
@@ -75,7 +77,8 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 4. Le recruteur gère SA société (`/entreprise`), crée des offres, définit leurs compétences requises, publie/modifie/supprime ses offres.
 5. Les candidats consultent les offres ouvertes (les offres fermées/expirées sont invisibles sauf s'ils y ont postulé), voient le détail avec score de matching, postulent **une seule fois** (message métier explicite en cas de doublon + contrainte `uq_candidature`).
 6. Le recruteur examine les candidatures (CV, contact, compétences, score), change leur statut → le candidat est notifié.
-7. Messagerie et notifications avec **compteurs de non lus** servis par la base (`GET /api/messages/non-lus`, `GET /api/notifications/non-lues`, badges rendus côté serveur) : ouvrir un fil marque les messages reçus comme lus.
+7. Un candidat ou recruteur peut proposer un domaine absent ou une compétence de son propre domaine. Tous les administrateurs sont notifiés ; l'approbation/refus est transactionnel et notifie le compte demandeur.
+8. Messagerie et notifications avec **compteurs de non lus** servis par la base (`GET /api/messages/non-lus`, `GET /api/notifications/non-lues`, badges rendus côté serveur) : ouvrir un fil marque les messages reçus comme lus.
 
 ## Endpoints principaux (API)
 
@@ -89,6 +92,8 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 - `GET /api/candidatures/me`, `PATCH /api/candidatures/:id/annuler`, `GET /api/candidatures/recues`, `PATCH /api/candidatures/:id/statut`
 - `POST|GET /api/messages`, `GET /api/messages/:userId`, `GET /api/messages/contacts`, `GET /api/messages/non-lus`
 - `GET /api/notifications`, `PATCH /api/notifications/:id/lire`, `PATCH /api/notifications/lire-toutes`, `GET /api/notifications/non-lues`
+- `POST /api/suggestions`, `GET /api/suggestions/mine`, `GET /api/suggestions/:id`
+- `GET /api/admin/suggestions`, `GET /api/admin/suggestions/:id`, `PATCH /api/admin/suggestions/:id/approuver|refuser`
 - `POST /api/entreprises/demande-recruteur`, `GET /api/recruteurs/me`, `GET /api/entreprises/mine`, `PUT /api/entreprises/:id`, `PATCH /api/entreprises/:id/validation`
 - `GET /api/admin/utilisateurs`, `PATCH /api/admin/utilisateurs/:id/statut`, `GET /api/admin/statistiques`
 - `GET /api/admin/companies/pending`, `GET /api/admin/companies/:id`, `PUT /api/admin/companies/:id/approve|reject`
@@ -105,6 +110,7 @@ mysql -u root -p < database/migrations/20260820_photo_couverture.sql
 mysql -u root -p < database/migrations/20260821_profile_fields.sql
 mysql -u root -p < database/migrations/20260823_add_domain.sql
 mysql -u root -p < database/migrations/20260823_competence_domaine.sql
+mysql -u root -p < database/migrations/20260823_suggestions.sql
 ```
 
 - `20260809` : `message.lu` + `message.date_lecture` + index (compteurs non lus).
@@ -121,6 +127,9 @@ mysql -u root -p < database/migrations/20260823_competence_domaine.sql
   historiques restent intactes ; elles ne sont plus proposées à la sélection
   tant que l'administrateur ne les a pas classées depuis la page
   « Compétences » (aucune attribution automatique de domaine).
+- `20260823_suggestions` : table `demande_suggestion` et ajout de
+  `type_notification`, `type_reference`, `id_reference` à la table
+  `notification` existante. Aucune donnée ou notification historique n'est supprimée.
 
 ## Domaines professionnels (règles métier)
 

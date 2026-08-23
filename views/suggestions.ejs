@@ -1,0 +1,45 @@
+<%- include('partials/head', { title, page: 'suggestions' }) %>
+<% const statusLabel = { EN_ATTENTE: 'En attente', APPROUVEE: 'Approuvée', REFUSEE: 'Refusée' }; %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'suggestions' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Mes suggestions', subtitle: 'Suivez les domaines et compétences que vous avez proposés.' }) %>
+    <%- include('partials/flash') %>
+
+    <div class="page-header">
+      <div>
+        <h2>Historique</h2>
+        <p class="muted-note">Chaque décision vous est également envoyée dans vos notifications.</p>
+      </div>
+      <div class="nav-actions">
+        <a class="btn" href="/suggestions/nouvelle?type=DOMAINE"><%- icon('briefcase') %> Proposer un domaine</a>
+        <a class="btn primary" href="/suggestions/nouvelle?type=COMPETENCE"><%- icon('award') %> Proposer une compétence</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <% if (!items.length) { %>
+        <div class="empty-state"><%- icon('inbox') %><p>Vous n’avez encore envoyé aucune suggestion.</p></div>
+      <% } else { %>
+        <div class="table-wrap table-scroll">
+          <table>
+            <thead><tr><th>Type</th><th>Nom proposé</th><th>Domaine concerné</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+            <tbody>
+              <% items.forEach((item) => { %>
+                <tr>
+                  <td><span class="badge neutral"><%= item.type_demande === 'DOMAINE' ? 'Domaine' : 'Compétence' %></span></td>
+                  <td><strong><%= item.nom_propose %></strong></td>
+                  <td><%= item.nom_domaine || '—' %></td>
+                  <td><%= formatDateTime(item.date_creation) %></td>
+                  <td><span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] || item.statut %></span></td>
+                  <td><a class="btn" href="/suggestions/<%= item.id_demande %>"><%- icon('eye') %> Voir</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

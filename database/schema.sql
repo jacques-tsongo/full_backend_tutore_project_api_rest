@@ -179,12 +179,40 @@ CREATE TABLE message (
   CONSTRAINT fk_message_destinataire FOREIGN KEY (id_destinataire) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE demande_suggestion (
+  id_demande INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_utilisateur INT UNSIGNED NOT NULL,
+  type_demande ENUM('DOMAINE','COMPETENCE') NOT NULL,
+  nom_propose VARCHAR(150) NOT NULL,
+  -- Forme NFKC, espaces compactés et casse abaissée par le backend : utilisée
+  -- pour détecter « JavaScript », « javascript » et « JavaScript  » comme un
+  -- même nom sans altérer le libellé présenté à l'utilisateur.
+  nom_normalise VARCHAR(150) NOT NULL,
+  id_domaine INT UNSIGNED NULL,
+  description TEXT NULL,
+  statut ENUM('EN_ATTENTE','APPROUVEE','REFUSEE') NOT NULL DEFAULT 'EN_ATTENTE',
+  date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_traitement DATETIME NULL,
+  id_admin_traitement INT UNSIGNED NULL,
+  commentaire_admin TEXT NULL,
+  INDEX idx_demande_suggestion_statut_type (statut, type_demande, date_creation),
+  INDEX idx_demande_suggestion_demandeur (id_utilisateur, date_creation),
+  INDEX idx_demande_suggestion_normalisee (type_demande, nom_normalise, id_domaine),
+  CONSTRAINT fk_demande_suggestion_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE,
+  CONSTRAINT fk_demande_suggestion_domaine FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine) ON DELETE RESTRICT,
+  CONSTRAINT fk_demande_suggestion_admin FOREIGN KEY (id_admin_traitement) REFERENCES utilisateur(id_utilisateur) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 CREATE TABLE notification (
   id_notification INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   contenu_notification TEXT NOT NULL,
   date_notification DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   statut_notification ENUM('Non lue','Lue') NOT NULL DEFAULT 'Non lue',
+  type_notification VARCHAR(50) NOT NULL DEFAULT 'GENERALE',
+  type_reference VARCHAR(50) NULL,
+  id_reference INT UNSIGNED NULL,
   id_utilisateur INT UNSIGNED NOT NULL,
   INDEX idx_notification_utilisateur (id_utilisateur, statut_notification, date_notification),
+  INDEX idx_notification_reference (type_reference, id_reference),
   CONSTRAINT fk_notification_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;

@@ -30,7 +30,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
          dans « Mes offres » (même relation offre_competence). -->
     <div class="field">
       <label>Compétences requises</label>
-      <div class="skill-checkboxes">
+      <div class="skill-checkboxes" data-skill-checkboxes data-skill-domain="<%= extra.company.id_domaine || '' %>">
         <% extra.skills.forEach((s) => { %>
           <label class="checkbox-chip">
             <input type="checkbox" name="competences" value="<%= s.id_competence %>">
@@ -39,6 +39,10 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
         <% }) %>
       </div>
       <small class="muted-note">Seuls les candidats dont le score de compatibilité atteint le seuil requis (10&nbsp;%) verront l'offre, recevront une notification et pourront postuler.</small>
+      <div class="suggestion-cta">
+        <p>Une compétence manque dans le catalogue de <strong><%= extra.company.nom_domaine || 'votre domaine' %></strong> ?</p>
+        <a class="btn" href="/suggestions/nouvelle?type=COMPETENCE"><%- icon('message-square') %> Proposer une compétence</a>
+      </div>
     </div>
     <button class="btn primary" type="submit" <%= !extra.company.id_domaine ? 'disabled' : '' %>><%- icon('plus') %> Publier l'offre</button>
   </form>
@@ -93,7 +97,7 @@ const skillsOf = (offerId) => (extra.offerSkills || []).filter((s) => Number(s.i
             <form method="post" action="/offres/<%= o.id_offre %>/competences" class="skill-add form-inline">
               <div class="field">
                 <label class="sr-only">Compétence</label>
-                <select name="id_competence">
+                <select name="id_competence" data-skill-domain="<%= extra.company.id_domaine || '' %>">
                   <% extra.skills.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
                 </select>
               </div>

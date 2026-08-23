@@ -54,6 +54,10 @@
           </div>
           <p class="field-error" data-domain-error hidden>Veuillez sélectionner le domaine d'activité de l'entreprise.</p>
           <small class="muted-note">Les offres de cette entreprise utilisent automatiquement ce domaine.</small>
+          <div class="suggestion-cta">
+            <p>Vous ne trouvez pas le domaine d’activité adapté ?</p>
+            <a class="btn" href="/suggestions/nouvelle?type=DOMAINE"><%- icon('message-square') %> Proposer un domaine</a>
+          </div>
         </div>
         <div class="field"><label for="adresse">Adresse</label><input id="adresse" name="adresse" value="<%= company.adresse || '' %>"></div>
         <div class="grid two">

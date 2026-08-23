@@ -1,0 +1,62 @@
+<%- include('partials/head', { title, page: 'suggestions' }) %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'suggestions' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title, subtitle: 'Signalez un élément absent du catalogue administré.' }) %>
+    <%- include('partials/flash') %>
+
+    <div class="page-header">
+      <div>
+        <h2>Nouvelle suggestion</h2>
+        <p class="muted-note">L’administrateur examinera votre demande. Une approbation n’altère jamais automatiquement votre profil ou le domaine de votre entreprise.</p>
+      </div>
+      <a class="btn" href="/suggestions"><%- icon('eye') %> Mes suggestions</a>
+    </div>
+
+    <section class="card suggestion-form-card">
+      <div class="suggestion-type-switch" aria-label="Type de suggestion">
+        <a class="btn <%= type === 'DOMAINE' ? 'primary' : '' %>" href="/suggestions/nouvelle?type=DOMAINE"><%- icon('briefcase') %> Domaine</a>
+        <a class="btn <%= type === 'COMPETENCE' ? 'primary' : '' %>" href="/suggestions/nouvelle?type=COMPETENCE"><%- icon('award') %> Compétence</a>
+      </div>
+
+      <% if (type === 'COMPETENCE' && !domain) { %>
+        <div class="alert alert-danger" style="margin-top:16px">
+          <%- icon('triangle-alert') %>
+          <span>
+            <% if (user.role === 'recruteur') { %>
+              Votre entreprise approuvée doit avoir un domaine avant toute proposition de compétence.
+              <a href="/entreprise">Gérer mon entreprise</a>.
+            <% } else { %>
+              Votre profil doit avoir un domaine professionnel avant toute proposition de compétence.
+              <a href="/profil">Gérer mon profil</a>.
+            <% } %>
+          </span>
+        </div>
+      <% } else { %>
+        <form method="post" action="/suggestions" class="form" style="margin-top:18px">
+          <input type="hidden" name="type_demande" value="<%= type %>">
+
+          <% if (type === 'COMPETENCE') { %>
+            <div class="field">
+              <label>Domaine concerné</label>
+              <div class="context-value"><%- icon('briefcase') %><strong><%= domain.nom_domaine %></strong></div>
+              <small class="muted-note">Ce domaine est déterminé côté serveur depuis <%= user.role === 'recruteur' ? 'votre entreprise approuvée' : 'votre profil' %> et ne peut pas être remplacé dans cette demande.</small>
+            </div>
+          <% } %>
+
+          <div class="field">
+            <label for="nom_propose">Nom <%= type === 'DOMAINE' ? 'du domaine' : 'de la compétence' %></label>
+            <input id="nom_propose" name="nom_propose" maxlength="<%= type === 'DOMAINE' ? 150 : 100 %>" required autocomplete="off" placeholder="<%= type === 'DOMAINE' ? 'Ex. Biotechnologie' : 'Ex. Deno' %>">
+            <small class="muted-note">Les différences de casse et d’espaces sont ignorées lors du contrôle des doublons.</small>
+          </div>
+          <div class="field">
+            <label for="description">Description ou justification <span class="muted-note">(facultatif)</span></label>
+            <textarea id="description" name="description" maxlength="2000" placeholder="Précisez brièvement pourquoi cet élément serait utile…"></textarea>
+          </div>
+          <button class="btn primary" type="submit"><%- icon('send') %> Envoyer la suggestion</button>
+        </form>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

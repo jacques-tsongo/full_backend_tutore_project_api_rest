@@ -72,6 +72,10 @@
             </div>
             <p class="field-error" data-domain-error hidden>Veuillez sélectionner un domaine professionnel.</p>
           <% } %>
+          <div class="suggestion-cta">
+            <p>Vous ne trouvez pas votre domaine professionnel ?</p>
+            <a class="btn" href="/suggestions/nouvelle?type=DOMAINE"><%- icon('message-square') %> Proposer un domaine</a>
+          </div>
         </form>
 
         <% /* 2. Informations personnelles (identité) */ %>
@@ -155,24 +159,31 @@
                 (filtrage serveur — voir page.controller.profile). */ %>
           <% if (!profile?.id_domaine) { %>
             <div class="alert alert-info"><%- icon('info') %><span>Choisissez d’abord votre domaine professionnel ci-dessus : seules les compétences de votre domaine vous seront proposées.</span></div>
-          <% } else if (!catalog.length) { %>
-            <div class="alert alert-info"><%- icon('info') %><span>Aucune compétence n’est encore disponible pour le domaine « <%= profile.nom_domaine %> ». L’administrateur doit alimenter le catalogue.</span></div>
           <% } else { %>
-          <form method="post" action="/profil/competences" class="form-inline skill-add">
-            <div class="field">
-              <label class="sr-only" for="id_competence">Compétence</label>
-              <select id="id_competence" name="id_competence">
-                <% catalog.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
-              </select>
+            <% if (!catalog.length) { %>
+              <div class="alert alert-info" data-skill-catalog-empty><%- icon('info') %><span>Aucune compétence n’est encore disponible pour le domaine « <%= profile.nom_domaine %> ». Vous pouvez en proposer une ci-dessous.</span></div>
+            <% } %>
+            <form method="post" action="/profil/competences" class="form-inline skill-add">
+              <div class="field">
+                <label class="sr-only" for="id_competence">Compétence</label>
+                <select id="id_competence" name="id_competence" data-skill-domain="<%= profile.id_domaine %>" required>
+                  <% catalog.forEach((s) => { %><option value="<%= s.id_competence %>"><%= s.nom_competence %></option><% }) %>
+                </select>
+              </div>
+              <div class="field">
+                <label class="sr-only" for="niveau_competence">Niveau</label>
+                <select id="niveau_competence" name="niveau_competence">
+                  <% ['Débutant', 'Intermédiaire', 'Avancé', 'Expert'].forEach((n) => { %><option><%= n %></option><% }) %>
+                </select>
+              </div>
+              <button class="btn" type="submit" data-skill-submit data-skill-domain="<%= profile.id_domaine %>" <%= catalog.length ? '' : 'disabled' %>><%- icon('plus') %> Ajouter</button>
+            </form>
+          <% } %>
+          <% if (profile?.id_domaine) { %>
+            <div class="suggestion-cta">
+              <p>Vous ne trouvez pas la compétence dont vous avez besoin ?</p>
+              <a class="btn" href="/suggestions/nouvelle?type=COMPETENCE"><%- icon('message-square') %> Proposer une compétence</a>
             </div>
-            <div class="field">
-              <label class="sr-only" for="niveau_competence">Niveau</label>
-              <select id="niveau_competence" name="niveau_competence">
-                <% ['Débutant', 'Intermédiaire', 'Avancé', 'Expert'].forEach((n) => { %><option><%= n %></option><% }) %>
-              </select>
-            </div>
-            <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
-          </form>
           <% } %>
         </div>
 
@@ -361,4 +372,5 @@
   </main>
 </div>
 <script src="/js/pages/domain-picker.js" defer></script>
+<script src="/js/pages/catalog-realtime.js" defer></script>
 <%- include('partials/foot') %>

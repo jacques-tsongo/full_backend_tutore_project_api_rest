@@ -19,6 +19,8 @@ const resourceController = require('./resource.controller');
 const messageController = require('./message.controller');
 const notificationController = require('./notification.controller');
 const adminController = require('./admin.controller');
+const suggestionController = require('./suggestion.controller');
+const Suggestion = require('../models/suggestion.model');
 
 const DASHBOARD_PATHS = {
   administrateur: '/dashboard',
@@ -59,6 +61,7 @@ exports.dashboard = asyncHandler(async (req, res) => {
       { label: 'Utilisateurs', value: data.users.total || 0, hint: `${data.users.candidats || 0} candidats · ${data.users.recruteurs || 0} recruteurs`, icon: 'users', href: '/admin/utilisateurs' },
       { label: 'Compétences', value: data.skills?.total || 0, hint: 'Gérer les compétences', icon: 'award', href: '/admin/competences' },
       { label: 'Domaines', value: data.domains?.total || 0, hint: 'Gérer les domaines', icon: 'briefcase', href: '/admin/domaines' },
+      { label: 'Suggestions', value: data.suggestions?.total || 0, hint: `${data.suggestions?.en_attente || 0} en attente`, icon: 'message-square', href: '/admin/suggestions' },
       { label: 'Offres', value: data.offers.total || 0, hint: `${data.offers.ouvertes || 0} ouvertes`, icon: 'briefcase', href: '/offres' }
     ];
     view.extra = { pendingCompanies: pending.items || [] };
@@ -125,6 +128,7 @@ exports.skillsOnboarding = asyncHandler(async (req, res) => {
     user: req.user,
     catalog: catalog || [],
     domainName,
+    domainId,
     hasDomain: !!domainId,
     mySkills: (mine.items || []).map((s) => String(s.id_competence))
   });
@@ -273,6 +277,42 @@ exports.notifications = asyncHandler(async (req, res) => {
   res.render('notifications', { title: 'Notifications', user: req.user, items: data.items || [] });
 });
 
+/* ============================== Suggestions ============================== */
+
+exports.suggestions = asyncHandler(async (req, res) => {
+  const { data } = await collect(suggestionController.mine, req);
+  res.render('suggestions', {
+    title: 'Mes suggestions',
+    user: req.user,
+    items: data.items || []
+  });
+});
+
+exports.newSuggestion = asyncHandler(async (req, res) => {
+  const requestedType = String(req.query.type || Suggestion.TYPES.DOMAIN).toUpperCase();
+  const type = Object.values(Suggestion.TYPES).includes(requestedType)
+    ? requestedType
+    : Suggestion.TYPES.DOMAIN;
+  const domain = type === Suggestion.TYPES.SKILL
+    ? await Suggestion.getUserSkillDomain(req.user)
+    : null;
+  res.render('suggestion-form', {
+    title: type === Suggestion.TYPES.DOMAIN ? 'Proposer un domaine' : 'Proposer une compétence',
+    user: req.user,
+    type,
+    domain
+  });
+});
+
+exports.suggestionDetails = asyncHandler(async (req, res) => {
+  const { data } = await collect(suggestionController.myGet, req);
+  res.render('suggestion-details', {
+    title: 'Détail de la suggestion',
+    user: req.user,
+    item: data.item
+  });
+});
+
 /* ============================= Entreprises =============================== */
 
 exports.companies = asyncHandler(async (req, res) => {
@@ -362,5 +402,24 @@ exports.adminDomains = asyncHandler(async (req, res) => {
     title: 'Domaines',
     user: req.user,
     items: data.items || []
+  });
+});
+
+exports.adminSuggestions = asyncHandler(async (req, res) => {
+  const { data } = await collect(suggestionController.adminList, req);
+  res.render('admin-suggestions', {
+    title: 'Suggestions',
+    user: req.user,
+    items: data.items || [],
+    filters: data.filters || { statut: '', type: '', q: '' }
+  });
+});
+
+exports.adminSuggestionDetails = asyncHandler(async (req, res) => {
+  const { data } = await collect(suggestionController.adminGet, req);
+  res.render('admin-suggestion-details', {
+    title: `Suggestion #${data.item.id_demande}`,
+    user: req.user,
+    item: data.item
   });
 });

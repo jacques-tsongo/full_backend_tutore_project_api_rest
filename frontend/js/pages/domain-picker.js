@@ -140,4 +140,26 @@
       if (first) first.focus();
     });
   });
+
+  // Un domaine approuvé par un administrateur devient immédiatement disponible
+  // dans les pickers NON verrouillés des utilisateurs connectés. Le serveur
+  // reste la source de vérité et diffusera seulement après le COMMIT SQL.
+  document.addEventListener('gc:domaine-nouveau', (event) => {
+    const domaine = event.detail?.domaine;
+    if (!domaine?.id_domaine || !domaine.nom_domaine) return;
+    pickers.forEach((picker) => {
+      if (picker.dataset.locked === 'true') return;
+      if (picker.querySelector(`[data-domain-id="${Number(domaine.id_domaine)}"]`)) return;
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'skill-tile domain-tile';
+      tile.dataset.domainId = String(Number(domaine.id_domaine));
+      tile.setAttribute('aria-pressed', 'false');
+      tile.setAttribute('role', 'option');
+      const label = document.createElement('span');
+      label.textContent = domaine.nom_domaine;
+      tile.appendChild(label);
+      picker.appendChild(tile);
+    });
+  });
 })();

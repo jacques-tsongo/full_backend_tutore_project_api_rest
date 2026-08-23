@@ -1,0 +1,63 @@
+<%- include('partials/head', { title, page: 'admin-suggestions' }) %>
+<% const statusLabel = { EN_ATTENTE: 'En attente', APPROUVEE: 'Approuvée', REFUSEE: 'Refusée' }; %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'admin-suggestions' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: `Suggestion n°${item.id_demande}`, subtitle: 'Vérifiez le contexte avant de prendre une décision.' }) %>
+    <%- include('partials/flash') %>
+
+    <div class="page-header">
+      <div><span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] || item.statut %></span><h2 class="suggestion-title"><%= item.nom_propose %></h2></div>
+      <a class="btn" href="/admin/suggestions"><%- icon('chevron-left') %> Retour à la liste</a>
+    </div>
+
+    <section class="grid two suggestion-detail-grid">
+      <div class="card">
+        <h3>Suggestion</h3>
+        <dl class="detail-list">
+          <div><dt>Type</dt><dd><%= item.type_demande === 'DOMAINE' ? 'Domaine professionnel' : 'Compétence' %></dd></div>
+          <div><dt>Nom proposé</dt><dd><strong><%= item.nom_propose %></strong></dd></div>
+          <% if (item.type_demande === 'COMPETENCE') { %><div><dt>Domaine obligatoire</dt><dd><span class="badge info"><%= item.nom_domaine || `#${item.id_domaine}` %></span></dd></div><% } %>
+          <div><dt>Date</dt><dd><%= formatDateTime(item.date_creation) %></dd></div>
+          <div><dt>Justification</dt><dd class="preserve-lines"><%= item.description || 'Aucune justification fournie.' %></dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Demandeur</h3>
+        <dl class="detail-list">
+          <div><dt>Utilisateur</dt><dd><strong><%= item.prenom %> <%= item.nom %></strong></dd></div>
+          <div><dt>E-mail</dt><dd><%= item.email %></dd></div>
+          <div><dt>Rôle au moment de l’affichage</dt><dd><span class="badge neutral"><%= item.role %></span></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <% if (item.statut === 'EN_ATTENTE') { %>
+      <section class="card decision-card">
+        <h3>Décision</h3>
+        <p class="muted-note">L’approbation vérifie une dernière fois le catalogue dans une transaction. Le profil ou l’entreprise du demandeur ne sera pas modifié automatiquement.</p>
+        <div class="decision-grid">
+          <form method="post" action="/admin/suggestions/<%= item.id_demande %>/approuver" class="form decision-approve" data-confirm="Approuver « <%= item.nom_propose %> » et l’ajouter au catalogue s’il n’existe pas encore ?">
+            <div class="field"><label for="approve-comment">Commentaire <span class="muted-note">(facultatif)</span></label><textarea id="approve-comment" name="commentaire_admin" maxlength="2000" placeholder="Précision interne ou message complémentaire…"></textarea></div>
+            <button class="btn primary" type="submit"><%- icon('check') %> Approuver</button>
+          </form>
+          <form method="post" action="/admin/suggestions/<%= item.id_demande %>/refuser" class="form decision-reject">
+            <div class="field"><label for="reject-reason">Motif du refus <span class="muted-note">(facultatif)</span></label><textarea id="reject-reason" name="commentaire_admin" maxlength="2000" placeholder="Ex. Cette compétence existe sous une autre appellation."></textarea></div>
+            <button class="btn danger" type="submit"><%- icon('x') %> Refuser</button>
+          </form>
+        </div>
+      </section>
+    <% } else { %>
+      <section class="card decision-summary">
+        <h3>Décision enregistrée</h3>
+        <dl class="detail-list">
+          <div><dt>Statut</dt><dd><span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] %></span></dd></div>
+          <div><dt>Traitée le</dt><dd><%= formatDateTime(item.date_traitement) %></dd></div>
+          <div><dt>Administrateur</dt><dd><%= item.admin_prenom || item.admin_nom ? `${item.admin_prenom || ''} ${item.admin_nom || ''}`.trim() : 'Compte administrateur indisponible' %></dd></div>
+          <div><dt>Commentaire</dt><dd class="preserve-lines"><%= item.commentaire_admin || 'Aucun commentaire.' %></dd></div>
+        </dl>
+      </section>
+    <% } %>
+  </main>
+</div>
+<%- include('partials/foot') %>
