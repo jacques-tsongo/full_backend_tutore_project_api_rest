@@ -57,6 +57,20 @@ const browser = () => {
 
 const freshId = () => Math.random().toString(36).slice(2, 8);
 
+/**
+ * Résout l'id d'un domaine depuis la page publique /register (tuiles SSR
+ * data-domain-id) : le domaine est désormais OBLIGATOIRE à l'inscription.
+ */
+const resolveDomainId = async (name = null) => {
+  const page = await browser().get('/register');
+  const re = /data-domain-id="(\d+)"[^>]*>[\s\S]*?<span>([^<]+)<\/span>/g;
+  const byName = new Map();
+  let m;
+  while ((m = re.exec(page.text))) byName.set(m[2].trim(), Number(m[1]));
+  if (name && byName.has(name)) return byName.get(name);
+  return byName.values().next().value || null;
+};
+
 const run = async () => {
   /* ---------- 1. Pages publiques & protection ---------- */
   for (const p of ['/', '/login', '/register', '/about', '/contact']) {
@@ -76,7 +90,10 @@ const run = async () => {
   /* ---------- 2. Inscription & session ---------- */
   const candidate = browser();
   const email = `smoke.candidat.${freshId()}@example.com`;
-  const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000' } });
+  // Domaine professionnel OBLIGATOIRE : la tuile confirmée alimente le champ
+  // caché id_domaine (voir domain-picker.js) — on reproduit la soumission.
+  const domainInfo = await resolveDomainId('Informatique');
+  const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000', id_domaine: String(domainInfo) } });
   step('POST /register → 302 /competences + cookie httpOnly', register.status === 302 && register.location.includes('/competences') && candidate.has('gc_token'));
   const onboard = await candidate.get('/competences');
   step('Page compétences post-inscription rendue (SSR)', onboard.status === 200 && onboard.text.includes('Ajouter vos compétences') && onboard.text.includes('skills-onboarding-form'));
@@ -129,6 +146,7 @@ const run = async () => {
   const fd = new FormData();
   const companyName = `Smoke Corp ${freshId()}`;
   fd.append('nom_entreprise', companyName);
+  fd.append('id_domaine', String(domainInfo));
   fd.append('secteur_activite', 'Informatique');
   fd.append('adresse', '1 Av. Test');
   fd.append('ville', 'Kinshasa');
@@ -195,7 +213,7 @@ const run = async () => {
   // par des runs précédents (validation d'entreprise) — on crée donc notre propre
   // candidat pour que le scénario reste rejouable quelle que soit la base.
   const seeker = browser();
-  await seeker.post('/register', { form: { nom: 'Candi', prenom: 'Seeker', email: `smoke.seeker.${freshId()}@example.com`, mot_de_passe: 'Secret123!', telephone: '+2438000002' } });
+  await seeker.post('/register', { form: { nom: 'Candi', prenom: 'Seeker', email: `smoke.seeker.${freshId()}@example.com`, mot_de_passe: 'Secret123!', telephone: '+2438000002', id_domaine: String(domainInfo) } });
   await seeker.post('/competences', { form: {} });
   // Compétence alignée sur l'offre : garantit sa visibilité dans la liste
   // filtrée par compétences (fonctionnalité « offres adaptées au profil »).

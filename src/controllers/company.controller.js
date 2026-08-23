@@ -72,15 +72,23 @@ exports.updateOwn = asyncHandler(async (req, res) => {
   if (data.id_domaine !== undefined) {
     const selectedDomain = await domaine.findById(data.id_domaine);
     if (!selectedDomain) return fail(res, 'Veuillez sélectionner un domaine d’activité valide.', ['id_domaine'], 422);
+    // VERROUILLAGE DÉFINITIF DU DOMAINE D'ENTREPRISE (règle serveur) :
+    // une fois le domaine d'activité confirmé, il ne peut plus être remplacé,
+    // ni par le recruteur ni via une requête API directe (l'administrateur
+    // n'a pas non plus de procédure de changement arbitraire — pas de logique
+    // métier de « changement de domaine » à ce stade du projet).
+    if (company.id_domaine && Number(company.id_domaine) !== selectedDomain.id_domaine) {
+      return fail(res, 'Le domaine d’activité de l’entreprise est définitif et ne peut plus être modifié.', ['id_domaine'], 403);
+    }
     data.id_domaine = selectedDomain.id_domaine;
   }
 
   const updated = await Company.updateOwn(req.params.id, data);
-  // Si le domaine d'activité change, les offres déjà publiées par cette
-  // entreprise gardent une source cohérente : leur domaine dénormalisé est
-  // réaligné sur celui de l'entreprise (pas de choix manuel par offre).
+  // Première définition du domaine (ancienne entreprise sans domaine) : les
+  // offres déjà publiées sans domaine sont alignées sur celui de l'entreprise
+  // (source métier unique : entreprise.id_domaine).
   if (data.id_domaine !== undefined) {
-    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ?', [data.id_domaine, req.params.id]);
+    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL', [data.id_domaine, req.params.id]);
   }
   success(res, 'Entreprise mise à jour.', { company: updated });
 });

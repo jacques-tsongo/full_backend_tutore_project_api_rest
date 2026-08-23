@@ -12,10 +12,22 @@
           <p class="muted-note">Elle sera proposée aux candidats (profil, matching) et aux recruteurs (offres).</p>
         </div>
       </div>
+      <% if (!domains || !domains.length) { %>
+        <div class="alert alert-info"><%- icon('info') %><span>Créez d'abord un domaine dans <a href="/admin/domaines">Domaines</a> : chaque compétence doit appartenir à un domaine professionnel.</span></div>
+      <% } else { %>
       <form method="post" action="/admin/competences" class="form-inline">
         <div class="field">
           <label for="nom_competence">Nom</label>
           <input id="nom_competence" name="nom_competence" required>
+        </div>
+        <div class="field">
+          <% /* Relation DOMAINE → COMPÉTENCE : domaine obligatoire pour toute
+                nouvelle compétence (règle vérifiée aussi côté serveur). */ %>
+          <label for="skill_domaine">Domaine</label>
+          <select id="skill_domaine" name="id_domaine" required>
+            <option value="">— Choisir un domaine —</option>
+            <% domains.forEach((d) => { %><option value="<%= d.id_domaine %>"><%= d.nom_domaine %></option><% }) %>
+          </select>
         </div>
         <div class="field">
           <label for="skill_desc">Description</label>
@@ -23,6 +35,7 @@
         </div>
         <button class="btn primary" type="submit"><%- icon('plus') %> Créer</button>
       </form>
+      <% } %>
     </section>
 
     <section class="card">
@@ -32,6 +45,13 @@
           <p class="muted-note">La suppression retire la compétence des offres et des profils associés (cascade).</p>
         </div>
       </div>
+      <% const unclassified = items.filter((s) => !s.id_domaine); %>
+      <% if (unclassified.length) { %>
+        <div class="alert alert-danger" style="margin-bottom:12px">
+          <%- icon('triangle-alert') %>
+          <span><strong><%= unclassified.length %></strong> compétence(s) sans domaine : elles ne sont plus proposées aux candidats ni aux recruteurs tant qu'elles ne sont pas classées ci-dessous.</span>
+        </div>
+      <% } %>
       <% if (!items.length) { %>
         <div class="empty-state">
           <%- icon('award') %>
@@ -40,11 +60,27 @@
       <% } else { %>
         <div class="table-wrap table-scroll">
           <table>
-            <thead><tr><th>Compétence</th><th>Description</th><th style="width:110px">Action</th></tr></thead>
+            <thead><tr><th>Compétence</th><th>Domaine</th><th>Description</th><th style="width:220px">Action</th></tr></thead>
             <tbody data-skills-body>
               <% items.forEach((s) => { %>
                 <tr data-id="<%= s.id_competence %>">
                   <td><strong><%= s.nom_competence %></strong></td>
+                  <td>
+                    <% if (s.id_domaine) { %>
+                      <span class="badge info"><%= s.nom_domaine || s.id_domaine %></span>
+                    <% } else { %>
+                      <% /* Compétence historique sans domaine : l'admin la classe
+                            ici (seule voie de classement — aucune attribution
+                            automatique arbitraire). */ %>
+                      <form method="post" action="/admin/competences/<%= s.id_competence %>/domaine" class="form-inline" style="gap:6px">
+                        <select name="id_domaine" required>
+                          <option value="">— Classer dans… —</option>
+                          <% (domains || []).forEach((d) => { %><option value="<%= d.id_domaine %>"><%= d.nom_domaine %></option><% }) %>
+                        </select>
+                        <button class="btn" type="submit"><%- icon('check') %> Classer</button>
+                      </form>
+                    <% } %>
+                  </td>
                   <td><%= s.description || '—' %></td>
                   <td>
                     <form method="post" action="/admin/competences/<%= s.id_competence %>/supprimer" class="inline-form" data-confirm="Supprimer la compétence « <%= s.nom_competence %> » ?">

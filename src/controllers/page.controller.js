@@ -11,6 +11,7 @@ const Company = require('../models/company.model');
 const matching = require('../services/matching.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { collect } = require('../helpers/formPost');
+const domainService = require('../services/domain.service');
 const offerController = require('./offer.controller');
 const profileController = require('./profile.controller');
 const jobController = require('./job.controller');
@@ -77,9 +78,10 @@ exports.dashboard = asyncHandler(async (req, res) => {
       { label: 'Candidatures reçues', value: appItems.length, hint: 'Depuis vos offres', icon: 'users' },
       { label: 'En attente', value: appItems.filter((a) => a.statut_candidature === 'En attente').length, hint: 'À examiner', icon: 'clock' }
     ];
-    const [[skills]] = await Promise.all([
-      db.execute('SELECT id_competence, nom_competence FROM competence ORDER BY nom_competence')
-    ]);
+    // Filtrage DOMAINE → COMPÉTENCE côté recruteur : le formulaire d'offre ne
+    // propose que les compétences du domaine de l'entreprise (jamais celles
+    // des autres domaines). Sans domaine défini, aucune compétence proposée.
+    const skills = company?.id_domaine ? await domainService.listSkillsByDomain(company.id_domaine) : [];
     const [offerSkills] = await db.execute(
       `SELECT oc.id_offre, oc.id_competence, oc.niveau_requis, c.nom_competence
        FROM offre_competence oc JOIN competence c ON c.id_competence = oc.id_competence
@@ -110,12 +112,20 @@ exports.dashboard = asyncHandler(async (req, res) => {
  * complet et les éventuelles compétences déjà associées (accès via /profil).
  */
 exports.skillsOnboarding = asyncHandler(async (req, res) => {
-  const [catalog] = await db.execute('SELECT id_competence, nom_competence, description FROM competence ORDER BY nom_competence');
+  // Filtrage DOMAINE → COMPÉTENCE : seules les compétences du domaine
+  // professionnel de l'utilisateur sont proposées (jamais celles des autres
+  // domaines). Sans domaine (ancien compte), aucune compétence n'est listée :
+  // l'utilisateur est invité à choisir d'abord son domaine dans son profil.
+  const domainId = await domainService.getCandidateDomainId(req.user.id_utilisateur);
+  const catalog = domainId ? await domainService.listSkillsByDomain(domainId) : [];
+  const domainName = domainId ? (await domainService.findById(domainId))?.nom_domaine : null;
   const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
   res.render('skills-onboarding', {
     title: 'Ajouter vos compétences',
     user: req.user,
     catalog: catalog || [],
+    domainName,
+    hasDomain: !!domainId,
     mySkills: (mine.items || []).map((s) => String(s.id_competence))
   });
 });
@@ -129,7 +139,11 @@ exports.profile = asyncHandler(async (req, res) => {
     [req.user.id_utilisateur]
   );
   const { data: mine } = await collect(resourceController.mySkills, req).catch(() => ({ data: { items: [] } }));
-  const [catalog] = await db.execute('SELECT id_competence, nom_competence FROM competence ORDER BY nom_competence');
+  // Filtrage DOMAINE → COMPÉTENCE : le sélecteur « Ajouter une compétence »
+  // ne propose que les compétences du domaine du candidat. Sans domaine
+  // choisi, aucun catalogue n'est proposé (le choix du domaine prime).
+  const profileDomainId = profile[0]?.id_domaine ? Number(profile[0].id_domaine) : null;
+  const catalog = profileDomainId ? await domainService.listSkillsByDomain(profileDomainId) : [];
   const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   const [experiences] = await db.execute('SELECT * FROM experience_professionnelle WHERE id_utilisateur = ? ORDER BY date_debut DESC', [req.user.id_utilisateur]);
   const [diplomes] = await db.execute('SELECT * FROM diplome WHERE id_utilisateur = ? ORDER BY date_debut DESC, annee_obtention DESC', [req.user.id_utilisateur]);
@@ -331,11 +345,14 @@ exports.adminUsers = asyncHandler(async (req, res) => {
  * sont réutilisées telles quelles : seule la vitrine change d'emplacement.
  */
 exports.adminSkills = asyncHandler(async (req, res) => {
+  req.query.limit = req.query.limit || '200';
   const { data } = await collect(resourceController.list('competences'), req);
+  const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   res.render('admin-skills', {
     title: 'Compétences',
     user: req.user,
-    items: data.items || []
+    items: data.items || [],
+    domains: domains || []
   });
 });
 

@@ -30,8 +30,14 @@ const run = async () => {
   const health = await call('GET', '/health');
   step('GET /health', health.status === 200);
 
-  const u1 = { nom: 'Mbala', prenom: 'Jean', email: 'jean.mbala@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000001' };
-  const u2 = { nom: 'Kabila', prenom: 'Aline', email: 'aline.kabila@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000002' };
+  // Domaine professionnel OBLIGATOIRE à l'inscription : on résout le premier
+  // domaine disponible via l'API (jeton admin requis pour lister).
+  const domResp = await call('GET', '/domaines', { token: process.env.ADMIN_TOKEN });
+  const firstDomain = domResp.json?.data?.items?.[0]?.id_domaine;
+  step('GET /domaines (catalogue non vide)', !!firstDomain, `id=${firstDomain}`);
+
+  const u1 = { nom: 'Mbala', prenom: 'Jean', email: 'jean.mbala@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000001', id_domaine: firstDomain };
+  const u2 = { nom: 'Kabila', prenom: 'Aline', email: 'aline.kabila@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000002', id_domaine: firstDomain };
   const r1 = await call('POST', '/auth/register', { body: u1 });
   const r2 = await call('POST', '/auth/register', { body: u2 });
   const tok1 = r1.json?.data?.token, tok2 = r2.json?.data?.token;
@@ -51,6 +57,7 @@ const run = async () => {
 
   const fd = new FormData();
   fd.append('nom_entreprise', 'Tech Solutions SARL');
+  fd.append('id_domaine', String(firstDomain));
   fd.append('secteur_activite', 'Informatique');
   fd.append('adresse', '12 Av. du Commerce');
   fd.append('ville', 'Kinshasa');
@@ -79,8 +86,10 @@ const run = async () => {
   step('User promoted to recruteur', me1.json?.data?.user?.role === 'recruteur');
 
   const suffix = Date.now().toString(36);
+  // Chaque nouvelle compétence est rattachée au domaine des candidats de ce
+  // test : elle apparaît ainsi dans leur catalogue filtré par domaine.
   for (const skill of [`JS-${suffix}`, `Node-${suffix}`, `SQL-${suffix}`]) {
-    await call('POST', '/competences', { token: adminToken, body: { nom_competence: skill, description: '' } });
+    await call('POST', '/competences', { token: adminToken, body: { nom_competence: skill, description: '', id_domaine: firstDomain } });
   }
   const skills = await call('GET', '/competences', { token: tok2 });
   const freshSkills = (skills.json?.data?.items || []).filter((s) => String(s.nom_competence).endsWith(suffix));
@@ -106,14 +115,18 @@ const run = async () => {
 
   const sk = await call('PUT', `/offres/${offId}/competences`, { token: tok1, body: { competences: [{ id_competence: skJs.id_competence, niveau_requis: 'Avancé' }, { id_competence: skNode.id_competence, niveau_requis: 'Intermédiaire' }] } });
   step('PUT /offres/:id/competences', sk.status === 200, `status=${sk.status} ${sk.json?.message || ''}`);
+
+  // Règle de seuil (préexistante) : dès que l'offre exige des compétences,
+  // un candidat sans compétence compatible (< 10 %) n'y accède plus. On dote
+  // donc le candidat AVANT de consulter le détail / rechercher l'offre.
+  const addSkill = await call('POST', '/mes-competences', { token: tok2, body: { id_competence: skJs.id_competence, niveau_competence: 'Avancé' } });
+  step('POST /mes-competences (Avancé)', addSkill.status === 200, `status=${addSkill.status} ${addSkill.json?.message || ''}`);
+
   const det2 = await call('GET', `/offres/${offId}`, { token: tok2 });
   step('Offer details include skills', det2.json?.data?.item?.competences?.length === 2, `skills=${det2.json?.data?.item?.competences?.length}`);
 
   const search = await call('GET', `/offres?q=${suffix}`, { token: tok2 });
   step('GET /offres?q=<titre unique>', search.status === 200 && search.json?.data?.items?.length === 1, `count=${search.json?.data?.items?.length}`);
-
-  const addSkill = await call('POST', '/mes-competences', { token: tok2, body: { id_competence: skJs.id_competence, niveau_competence: 'Avancé' } });
-  step('POST /mes-competences (Avancé)', addSkill.status === 200, `status=${addSkill.status} ${addSkill.json?.message || ''}`);
 
   const m = await call('GET', `/offres/${offId}/matching`, { token: tok2 });
   step('GET /offres/:id/matching', m.status === 200 && m.json?.data?.matching?.score === 50, `score=${m.json?.data?.matching?.score}`);

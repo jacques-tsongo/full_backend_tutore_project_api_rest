@@ -45,7 +45,10 @@ const run = async () => {
     (await call('POST', '/auth/login', { body: { email: process.env.ADMIN_EMAIL || 'admin@example.com', mot_de_passe: process.env.ADMIN_PASS || 'Admin123!' } })).json?.data?.token;
 
   /* --- Création de 3 utilisateurs frais (candidats) --- */
-  const reg = (tag) => call('POST', '/auth/register', { body: { nom: `Test${tag}`, prenom: `RT${suffix}`, email: `rt.${tag}.${suffix}@test.com`, mot_de_passe: 'Secret123!', telephone: '+243800000009' } });
+  // Domaine professionnel OBLIGATOIRE à l'inscription : premier du catalogue.
+  const domResp = await call('GET', '/domaines', { token: adminToken });
+  const firstDomain = domResp.json?.data?.items?.[0]?.id_domaine;
+  const reg = (tag) => call('POST', '/auth/register', { body: { nom: `Test${tag}`, prenom: `RT${suffix}`, email: `rt.${tag}.${suffix}@test.com`, mot_de_passe: 'Secret123!', telephone: '+243800000009', id_domaine: firstDomain } });
   const [ra, rb, rc] = [await reg('a'), await reg('b'), await reg('c')];
   const tokA = ra.json?.data?.token, tokB = rb.json?.data?.token, tokC = rc.json?.data?.token;
   const idA = ra.json?.data?.user?.id_utilisateur, idB = rb.json?.data?.user?.id_utilisateur;
@@ -105,6 +108,7 @@ const run = async () => {
   /* --- Devenir recruteur : demande entreprise + approbation admin --- */
   const fd = new FormData();
   fd.append('nom_entreprise', `Temps Reel SARL ${suffix}`);
+  fd.append('id_domaine', String(firstDomain));
   fd.append('secteur_activite', 'Informatique');
   fd.append('adresse', '12 Av. du Commerce');
   fd.append('pays', 'RDC');
@@ -139,15 +143,17 @@ const run = async () => {
   const candPayload = await cand;
   step('B postule → A reçoit nouvelle_candidature', ap.status === 201 && candPayload?.candidature?.id_utilisateur === idB && candPayload.candidature.statut_candidature === 'En attente', `ap=${ap.status}`);
 
-  /* --- Statut modifié → B reçoit candidature_statut_modifie + notification --- */
+  /* --- Statut modifié → B reçoit candidature_statut_modifie + notification ---
+     (règle actuelle : le recruteur ne peut qu'accepter ou refuser). */
   const stNotif = once(sockB, 'candidature_statut_modifie');
-  const st = await call('PATCH', `/candidatures/${candPayload.candidature.id_candidature}/statut`, { token: tokA, body: { statut_candidature: 'Entretien' } });
+  const st = await call('PATCH', `/candidatures/${candPayload.candidature.id_candidature}/statut`, { token: tokA, body: { statut_candidature: 'Refusée' } });
   const stPayload = await stNotif;
-  step('Statut Entretien → B reçoit candidature_statut_modifie', st.status === 200 && stPayload?.statut_candidature === 'Entretien' && stPayload?.id_candidature === candPayload.candidature.id_candidature);
+  step('Statut Refusée → B reçoit candidature_statut_modifie', st.status === 200 && stPayload?.statut_candidature === 'Refusée' && stPayload?.id_candidature === candPayload.candidature.id_candidature);
 
   /* --- Compétence créée puis supprimée par l'admin → diffusée --- */
   const skNew = once(sockB, 'nouvelle_competence');
-  const sk = await call('POST', '/competences', { token: adminToken, body: { nom_competence: `SkillRT ${suffix}`, description: 'créée en test' } });
+  // Domaine obligatoire pour toute nouvelle compétence (relation domaine → compétence).
+  const sk = await call('POST', '/competences', { token: adminToken, body: { nom_competence: `SkillRT ${suffix}`, description: 'créée en test', id_domaine: firstDomain } });
   const skPayload = await skNew;
   step('Compétence créée → B reçoit nouvelle_competence', sk.status === 201 && skPayload?.competence?.nom_competence === `SkillRT ${suffix}`);
   const skDel = once(sockB, 'competence_supprimee');

@@ -43,17 +43,28 @@
           <button class="btn primary" type="submit"><%- icon('check') %> Enregistrer la présentation</button>
         </form>
 
-        <% /* Domaine professionnel : sélection unique, distincte des compétences. */ %>
+        <% /* Domaine professionnel : sélection unique et DÉFINITIVE.
+              - Sans domaine : le clic ouvre une modal de confirmation, puis le
+                formulaire est envoyé automatiquement (data-submit-on-confirm).
+              - Avec domaine : le picker est verrouillé (data-locked) — les
+                autres domaines sont désactivés et le backend refuse de toute
+                façon tout changement (contrôle serveur). */ %>
+        <% const domainLocked = !!profile?.id_domaine; %>
         <form method="post" action="/profil" class="card form">
           <h2 class="form-title"><%- icon('briefcase') %> Domaine professionnel</h2>
-          <p class="muted-note">Votre domaine limite les offres visibles et les notifications aux opportunités pertinentes.</p>
+          <% if (domainLocked) { %>
+            <p class="domain-locked-note"><%- icon('circle-check') %> Domaine professionnel : <%= profile.nom_domaine %> — ce choix est définitif.</p>
+            <p class="muted-note">Votre domaine limite les offres visibles, les compétences proposées et les notifications aux opportunités pertinentes.</p>
+          <% } else { %>
+            <p class="muted-note">Choisissez votre domaine professionnel principal. <strong>Ce choix est définitif</strong> : il détermine les compétences proposées, les offres visibles et vos notifications.</p>
+          <% } %>
           <input type="hidden" name="id_domaine" value="<%= profile?.id_domaine || '' %>" required>
           <% if (!domains || !domains.length) { %>
             <div class="alert alert-info"><%- icon('info') %><span>Aucun domaine n’est encore disponible.</span></div>
           <% } else { %>
-            <div class="domain-grid" data-domain-picker data-required="true" role="listbox" aria-label="Domaine professionnel">
+            <div class="domain-grid" data-domain-picker data-required="true" data-locked="<%= domainLocked %>" data-submit-on-confirm="true" role="listbox" aria-label="Domaine professionnel">
               <% domains.forEach((d) => { const chosen = Number(profile?.id_domaine) === Number(d.id_domaine); %>
-                <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option">
+                <button type="button" class="skill-tile domain-tile<%= chosen ? ' chosen' : '' %>" data-domain-id="<%= d.id_domaine %>" aria-pressed="<%= chosen %>" role="option" <%= domainLocked && !chosen ? 'disabled' : '' %>>
                   <%- icon('briefcase') %>
                   <span><%= d.nom_domaine %></span>
                 </button>
@@ -61,7 +72,6 @@
             </div>
             <p class="field-error" data-domain-error hidden>Veuillez sélectionner un domaine professionnel.</p>
           <% } %>
-          <button class="btn primary" type="submit" <%= !domains || !domains.length ? 'disabled' : '' %>><%- icon('check') %> Enregistrer le domaine</button>
         </form>
 
         <% /* 2. Informations personnelles (identité) */ %>
@@ -141,6 +151,13 @@
             </span>
           <% }) %>
           </div>
+          <% /* Le catalogue est limité aux compétences du DOMAINE du candidat
+                (filtrage serveur — voir page.controller.profile). */ %>
+          <% if (!profile?.id_domaine) { %>
+            <div class="alert alert-info"><%- icon('info') %><span>Choisissez d’abord votre domaine professionnel ci-dessus : seules les compétences de votre domaine vous seront proposées.</span></div>
+          <% } else if (!catalog.length) { %>
+            <div class="alert alert-info"><%- icon('info') %><span>Aucune compétence n’est encore disponible pour le domaine « <%= profile.nom_domaine %> ». L’administrateur doit alimenter le catalogue.</span></div>
+          <% } else { %>
           <form method="post" action="/profil/competences" class="form-inline skill-add">
             <div class="field">
               <label class="sr-only" for="id_competence">Compétence</label>
@@ -156,6 +173,7 @@
             </div>
             <button class="btn" type="submit"><%- icon('plus') %> Ajouter</button>
           </form>
+          <% } %>
         </div>
 
         <% /* 5. Langues */ %>
