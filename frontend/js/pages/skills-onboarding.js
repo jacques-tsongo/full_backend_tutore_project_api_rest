@@ -41,9 +41,9 @@
       tile.setAttribute('aria-pressed', String(chosen));
     });
     chipsBox.querySelectorAll('[data-chip]').forEach((chip) => {
-      chip.hidden = !ids.has(chip.dataset.skillId);
+      chip.style.display = ids.has(chip.dataset.skillId) ? '' : 'none';
     });
-    if (emptyNote) emptyNote.hidden = ids.size > 0;
+    if (emptyNote) emptyNote.style.display = ids.size > 0 ? 'none' : '';
     syncInputs();
   };
 

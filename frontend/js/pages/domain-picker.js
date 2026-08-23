@@ -23,7 +23,7 @@
     if (overlay) return overlay;
     overlay = document.createElement('div');
     overlay.className = 'domain-modal-overlay';
-    overlay.hidden = true;
+    overlay.style.display = 'none';
     overlay.innerHTML = [
       '<div class="domain-modal" role="dialog" aria-modal="true" aria-labelledby="domain-modal-title">',
       '  <h3 id="domain-modal-title">Confirmer votre domaine professionnel</h3>',
@@ -41,33 +41,39 @@
   };
 
   let pendingConfirm = null;
+  let selectedTile = null;
   const closeModal = () => {
-    if (overlay) overlay.hidden = true;
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
     pendingConfirm = null;
+    selectedTile = null;
   };
-  const openModal = (domainName, titleText, onConfirm) => {
+  const openModal = (domainName, titleText, tile, onConfirm) => {
     const node = buildModal();
     node.querySelector('[data-modal-domain]').textContent = domainName;
     node.querySelector('#domain-modal-title').textContent = titleText;
+    selectedTile = tile;
     pendingConfirm = onConfirm;
-    node.hidden = false;
+    node.style.display = 'flex';
     node.querySelector('[data-modal-confirm]').focus();
   };
 
   document.addEventListener('click', (event) => {
-    if (!overlay || overlay.hidden) return;
+    if (!overlay || overlay.style.display === 'none') return;
     if (event.target.closest('[data-modal-cancel]')) { closeModal(); return; }
     if (event.target.closest('[data-modal-confirm]')) {
+      const tile = selectedTile;
       const action = pendingConfirm;
       closeModal();
-      if (action) action();
+      if (action) action(tile);
       return;
     }
     // Clic sur le fond sombre = annulation.
-    if (event.target === overlay) closeModal();
+    if (event.target === overlay || event.target.closest('.domain-modal') !== overlay.querySelector('.domain-modal')) closeModal();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && overlay && !overlay.hidden) closeModal();
+    if (event.key === 'Escape' && overlay && overlay.style.display !== 'none') closeModal();
   });
 
   /* ------------------------- Pickers ------------------------- */
@@ -94,13 +100,14 @@
     };
 
     const applyChoice = (tile) => {
+      if (!tile) return;
       picker.querySelectorAll('[data-domain-id]').forEach((node) => {
         const active = node === tile;
         node.classList.toggle('chosen', active);
         node.setAttribute('aria-pressed', String(active));
       });
       input.value = tile.dataset.domainId;
-      if (error) error.hidden = true;
+      if (error) error.style.display = 'none';
       lockTiles();
       if (submitOnConfirm) {
         if (typeof form.requestSubmit === 'function') form.requestSubmit();
@@ -116,7 +123,7 @@
       if (picker.dataset.locked === 'true' || tile.disabled) return;
       if (tile.classList.contains('chosen')) return;
       const name = (tile.querySelector('span')?.textContent || tile.textContent).trim();
-      openModal(name, modalTitle, () => applyChoice(tile));
+      openModal(name, modalTitle, tile, (t) => applyChoice(t));
     };
 
     picker.addEventListener('click', (event) => {
@@ -135,7 +142,7 @@
     form.addEventListener('submit', (event) => {
       if (!required || input.value) return;
       event.preventDefault();
-      if (error) error.hidden = false;
+      if (error) error.style.display = 'block';
       const first = picker.querySelector('[data-domain-id]');
       if (first) first.focus();
     });

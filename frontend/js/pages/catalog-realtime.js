@@ -11,7 +11,7 @@
     const skill = event.detail?.competence;
     if (!skill?.id_competence || !skill.nom_competence || !skill.id_domaine) return;
 
-    document.querySelectorAll('[data-skill-catalog-empty]').forEach((note) => { note.hidden = true; });
+    document.querySelectorAll('[data-skill-catalog-empty]').forEach((note) => { note.style.display = 'none'; });
     document.querySelectorAll('[data-skill-submit][data-skill-domain]').forEach((button) => {
       if (sameDomain(button, skill)) button.disabled = false;
     });
@@ -61,7 +61,7 @@
         chip.className = 'badge info';
         chip.dataset.chip = '';
         chip.dataset.skillId = String(Number(skill.id_competence));
-        chip.hidden = true;
+        chip.style.display = 'none';
         chip.append(document.createTextNode(`${skill.nom_competence} `));
         const remove = document.createElement('button');
         remove.type = 'button';
