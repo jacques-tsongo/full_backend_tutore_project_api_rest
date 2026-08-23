@@ -40,7 +40,10 @@ exports.stats = asyncHandler(async (req, res) => {
   // Total des compétences de la plateforme (carte « Compétences » du dashboard admin).
   const [[skills]] = await db.execute('SELECT COUNT(*) total FROM competence');
   const [[domains]] = await db.execute('SELECT COUNT(*) total FROM domaine');
-  success(res, 'Statistiques générales.', { users, offers, applications, skills, domains });
+  const [[suggestions]] = await db.execute(
+    "SELECT COUNT(*) total, SUM(statut = 'EN_ATTENTE') en_attente FROM demande_suggestion"
+  );
+  success(res, 'Statistiques générales.', { users, offers, applications, skills, domains, suggestions });
 });
 
 exports.pendingCompanies = asyncHandler(async (req, res) => {

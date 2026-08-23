@@ -11,6 +11,110 @@
     }
   ],
   "paths": {
+    "/suggestions": {
+      "post": {
+        "summary": "Proposer un domaine ou une compétence absente",
+        "tags": [
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type_demande",
+                  "nom_propose"
+                ],
+                "properties": {
+                  "type_demande": {
+                    "type": "string",
+                    "enum": [
+                      "DOMAINE",
+                      "COMPETENCE"
+                    ]
+                  },
+                  "nom_propose": {
+                    "type": "string",
+                    "example": "Deno"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Suggestion créée et administrateurs notifiés"
+          },
+          "403": {
+            "description": "Réservé aux candidats et recruteurs"
+          },
+          "409": {
+            "description": "Élément existant ou suggestion identique en attente"
+          }
+        }
+      }
+    },
+    "/suggestions/mine": {
+      "get": {
+        "summary": "Lister les suggestions du compte connecté",
+        "tags": [
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions du demandeur"
+          }
+        }
+      }
+    },
+    "/suggestions/{id}": {
+      "get": {
+        "summary": "Consulter une de ses propres suggestions",
+        "tags": [
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détail de la suggestion"
+          },
+          "404": {
+            "description": "Suggestion absente ou appartenant à un autre compte"
+          }
+        }
+      }
+    },
     "/api/competences": {
       "get": {
         "summary": "Lister toutes les compétences",
@@ -1522,21 +1626,15 @@
                   "statut_candidature": {
                     "type": "string",
                     "enum": [
-                      "En attente",
-                      "Présélectionnée",
-                      "Entretien",
                       "Acceptée",
                       "Refusée"
                     ],
-                    "example": "Entretien"
+                    "example": "Acceptée"
                   },
                   "statut": {
                     "type": "string",
                     "description": "Alias accepté de statut_candidature",
                     "enum": [
-                      "En attente",
-                      "Présélectionnée",
-                      "Entretien",
                       "Acceptée",
                       "Refusée"
                     ]
@@ -2105,6 +2203,121 @@
           },
           "403": {
             "description": "Accès refusé"
+          }
+        }
+      }
+    },
+    "/admin/suggestions": {
+      "get": {
+        "summary": "Lister et filtrer les suggestions (administrateur)",
+        "tags": [
+          "Administration",
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "statut",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "EN_ATTENTE",
+                "APPROUVEE",
+                "REFUSEE"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DOMAINE",
+                "COMPETENCE"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions récupérées"
+          },
+          "403": {
+            "description": "Réservé aux administrateurs"
+          }
+        }
+      }
+    },
+    "/admin/suggestions/{id}/approuver": {
+      "patch": {
+        "summary": "Approuver une suggestion et alimenter le catalogue",
+        "tags": [
+          "Administration",
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestion approuvée et demandeur notifié"
+          },
+          "409": {
+            "description": "Suggestion déjà traitée ou conflit de catalogue"
+          }
+        }
+      }
+    },
+    "/admin/suggestions/{id}/refuser": {
+      "patch": {
+        "summary": "Refuser une suggestion et notifier son demandeur",
+        "tags": [
+          "Administration",
+          "Suggestions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestion refusée"
           }
         }
       }

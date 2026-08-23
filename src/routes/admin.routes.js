@@ -1,5 +1,6 @@
 const router = require('express').Router(); 
 const c = require('../controllers/admin.controller'); 
+const suggestion = require('../controllers/suggestion.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
 const valid = require('../middlewares/validate.middleware');
 const v = require('../validators/common.validator');
@@ -84,6 +85,47 @@ router.patch('/utilisateurs/:id/statut', c.userStatus);
  *         description: Accès refusé
  */
 router.get('/statistiques', c.stats); 
+
+// Workflow des suggestions : lecture et décision réservées au rôle
+// administrateur par le router.use ci-dessus (contrôle backend, pas UI seule).
+/**
+ * @swagger
+ * /admin/suggestions:
+ *   get:
+ *     summary: Lister et filtrer les suggestions (administrateur)
+ *     tags: [Administration, Suggestions]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: statut, schema: { type: string, enum: [EN_ATTENTE, APPROUVEE, REFUSEE] } }
+ *       - { in: query, name: type, schema: { type: string, enum: [DOMAINE, COMPETENCE] } }
+ *       - { in: query, name: q, schema: { type: string } }
+ *     responses:
+ *       200: { description: Suggestions récupérées }
+ *       403: { description: Réservé aux administrateurs }
+ * /admin/suggestions/{id}/approuver:
+ *   patch:
+ *     summary: Approuver une suggestion et alimenter le catalogue
+ *     tags: [Administration, Suggestions]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Suggestion approuvée et demandeur notifié }
+ *       409: { description: Suggestion déjà traitée ou conflit de catalogue }
+ * /admin/suggestions/{id}/refuser:
+ *   patch:
+ *     summary: Refuser une suggestion et notifier son demandeur
+ *     tags: [Administration, Suggestions]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Suggestion refusée }
+ */
+router.get('/suggestions', suggestion.adminList);
+router.get('/suggestions/:id', v.id, valid, suggestion.adminGet);
+router.patch('/suggestions/:id/approuver', v.id, valid, suggestion.approve);
+router.patch('/suggestions/:id/refuser', v.id, valid, suggestion.reject);
 
 router.get('/companies/pending', c.pendingCompanies);
 router.get('/companies/:id', v.id, valid, c.company);

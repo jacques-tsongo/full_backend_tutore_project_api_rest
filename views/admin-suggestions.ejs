@@ -1,0 +1,64 @@
+<%- include('partials/head', { title, page: 'admin-suggestions' }) %>
+<% const statusLabel = { EN_ATTENTE: 'En attente', APPROUVEE: 'Approuvée', REFUSEE: 'Refusée' }; %>
+<div class="app-shell">
+  <%- include('partials/sidebar', { active: 'admin-suggestions' }) %>
+  <main class="main">
+    <%- include('partials/topbar', { title: 'Suggestions', subtitle: 'Examinez les domaines et compétences proposés par les utilisateurs.' }) %>
+    <%- include('partials/flash') %>
+
+    <section class="card suggestion-filters">
+      <form method="get" action="/admin/suggestions" class="form-inline">
+        <div class="field search-field">
+          <label for="suggestion-q">Recherche</label>
+          <input id="suggestion-q" name="q" value="<%= filters.q || '' %>" placeholder="Nom, demandeur, domaine…">
+        </div>
+        <div class="field">
+          <label for="suggestion-status">Statut</label>
+          <select id="suggestion-status" name="statut">
+            <option value="">Toutes</option>
+            <% [['EN_ATTENTE','En attente'],['APPROUVEE','Approuvées'],['REFUSEE','Refusées']].forEach(([value,label]) => { %>
+              <option value="<%= value %>" <%= filters.statut === value ? 'selected' : '' %>><%= label %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label for="suggestion-type">Type</label>
+          <select id="suggestion-type" name="type">
+            <option value="">Domaines et compétences</option>
+            <option value="DOMAINE" <%= filters.type === 'DOMAINE' ? 'selected' : '' %>>Domaines</option>
+            <option value="COMPETENCE" <%= filters.type === 'COMPETENCE' ? 'selected' : '' %>>Compétences</option>
+          </select>
+        </div>
+        <button class="btn primary" type="submit"><%- icon('search') %> Filtrer</button>
+        <% if (filters.q || filters.statut || filters.type) { %><a class="btn" href="/admin/suggestions">Réinitialiser</a><% } %>
+      </form>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <div class="page-header"><div><h2>Demandes (<%= items.length %>)</h2><p class="muted-note">Les demandes en attente sont affichées en premier.</p></div></div>
+      <% if (!items.length) { %>
+        <div class="empty-state"><%- icon('inbox') %><p>Aucune suggestion ne correspond à ces filtres.</p></div>
+      <% } else { %>
+        <div class="table-wrap table-scroll">
+          <table>
+            <thead><tr><th>Type</th><th>Nom proposé</th><th>Demandeur</th><th>Domaine concerné</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+            <tbody data-suggestions-body>
+              <% items.forEach((item) => { %>
+                <tr data-id="<%= item.id_demande %>">
+                  <td><span class="badge neutral"><%= item.type_demande === 'DOMAINE' ? 'Domaine' : 'Compétence' %></span></td>
+                  <td><strong><%= item.nom_propose %></strong></td>
+                  <td><div class="user-cell"><span class="avatar-fallback"><%= ((item.prenom || ' ')[0] + (item.nom || ' ')[0]).toUpperCase() %></span><div><strong><%= item.prenom %> <%= item.nom %></strong><small><%= item.email %> · <%= item.role %></small></div></div></td>
+                  <td><%= item.nom_domaine || '—' %></td>
+                  <td><%= formatDateTime(item.date_creation) %></td>
+                  <td><span class="badge <%= statusClass(item.statut) %>"><%= statusLabel[item.statut] || item.statut %></span></td>
+                  <td><a class="btn" href="/admin/suggestions/<%= item.id_demande %>"><%- icon('eye') %> Examiner</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>

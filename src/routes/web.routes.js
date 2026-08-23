@@ -16,6 +16,7 @@ const resource = require('../controllers/resource.controller');
 const message = require('../controllers/message.controller');
 const notification = require('../controllers/notification.controller');
 const admin = require('../controllers/admin.controller');
+const suggestion = require('../controllers/suggestion.controller');
 
 const { webAuth, webOptionalAuth, webAuthorize, COOKIE_NAME } = require('../middlewares/auth.middleware');
 const { formPost } = require('../helpers/formPost');
@@ -50,7 +51,9 @@ const loadNavCounts = async (req, res, next) => {
     // chaque entreprise au statut « pending » attend validation ou rejet.
     if (req.user.role === 'administrateur') {
       const [[comp]] = await db.execute("SELECT COUNT(*) AS total FROM entreprise WHERE status = 'pending'", []);
+      const [[suggestions]] = await db.execute("SELECT COUNT(*) AS total FROM demande_suggestion WHERE statut = 'EN_ATTENTE'", []);
       res.locals.pendingCompanies = comp.total;
+      res.locals.pendingSuggestions = suggestions.total;
     }
   } catch (_) {
     // En cas d'erreur ponctuelle, aucun badge ne doit bloquer la page.
@@ -58,6 +61,7 @@ const loadNavCounts = async (req, res, next) => {
     res.locals.unreadNotifications = 0;
     res.locals.pendingApplications = 0;
     res.locals.pendingCompanies = 0;
+    res.locals.pendingSuggestions = 0;
   }
   next();
 };
@@ -164,6 +168,17 @@ router.post('/messages', authed, formPost(message.send, { redirectTo: (req) => `
 router.get('/notifications', authed, page.notifications);
 router.post('/notifications/lire-toutes', authed, formPost(notification.readAll, { redirectTo: '/notifications' }));
 router.post('/notifications/:id(\\d+)/lire', authed, formPost(notification.read, { redirectTo: '/notifications' }));
+router.get('/notifications/:id(\\d+)/ouvrir', authed, notification.open);
+
+/* ============================== Suggestions ============================== */
+router.get('/suggestions', authed, webAuthorize('candidat', 'recruteur'), page.suggestions);
+router.get('/suggestions/nouvelle', authed, webAuthorize('candidat', 'recruteur'), page.newSuggestion);
+router.post('/suggestions', authed, webAuthorize('candidat', 'recruteur'), formPost(suggestion.create, {
+  redirectTo: (req, payload) => payload?.success === false
+    ? `/suggestions/nouvelle?type=${encodeURIComponent(req.body.type_demande || 'DOMAINE')}`
+    : `/suggestions/${payload?.data?.item?.id_demande || ''}`
+}));
+router.get('/suggestions/:id(\\d+)', authed, webAuthorize('candidat', 'recruteur'), page.suggestionDetails);
 
 /* ============================== Entreprises =============================== */
 router.get('/entreprises', authed, page.companies);
@@ -184,6 +199,14 @@ router.post('/parametres/mot-de-passe', authed, formPost(auth.changePassword, { 
 router.get('/admin/utilisateurs', authed, webAuthorize('administrateur'), page.adminUsers);
 router.get('/admin/competences', authed, webAuthorize('administrateur'), page.adminSkills);
 router.get('/admin/domaines', authed, webAuthorize('administrateur'), page.adminDomains);
+router.get('/admin/suggestions', authed, webAuthorize('administrateur'), page.adminSuggestions);
+router.get('/admin/suggestions/:id(\\d+)', authed, webAuthorize('administrateur'), page.adminSuggestionDetails);
+router.post('/admin/suggestions/:id(\\d+)/approuver', authed, webAuthorize('administrateur'), formPost(suggestion.approve, {
+  redirectTo: (req) => `/admin/suggestions/${req.params.id}`
+}));
+router.post('/admin/suggestions/:id(\\d+)/refuser', authed, webAuthorize('administrateur'), formPost(suggestion.reject, {
+  redirectTo: (req) => `/admin/suggestions/${req.params.id}`
+}));
 router.post('/admin/companies/:id(\\d+)/approve', authed, webAuthorize('administrateur'), formPost(admin.approveCompany, { redirectTo: '/dashboard' }));
 router.post('/admin/companies/:id(\\d+)/reject', authed, webAuthorize('administrateur'), formPost(admin.rejectCompany, { redirectTo: '/dashboard' }));
 router.post('/admin/utilisateurs/:id(\\d+)/statut', authed, webAuthorize('administrateur'), formPost(admin.userStatus, { redirectTo: '/admin/utilisateurs' }));

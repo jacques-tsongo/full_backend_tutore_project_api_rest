@@ -18,9 +18,9 @@
   /* Petit utilitaire partagé : classe de badge, même logique que le serveur. */
   const statusClass = (value = '') => {
     const v = String(value);
-    if (['approved', 'Validée', 'Acceptée', 'Ouverte', 'actif', 'Lue'].includes(v)) return 'success';
-    if (['rejected', 'Rejetée', 'Refusée', 'Suspendue', 'suspendu', 'Annulée'].includes(v)) return 'danger';
-    if (['pending', 'En attente', 'approved_but', 'inactif', 'Entretien'].includes(v)) return 'warning';
+    if (['approved', 'Validée', 'Acceptée', 'Ouverte', 'actif', 'Lue', 'APPROUVEE'].includes(v)) return 'success';
+    if (['rejected', 'Rejetée', 'Refusée', 'Suspendue', 'suspendu', 'Annulée', 'REFUSEE'].includes(v)) return 'danger';
+    if (['pending', 'En attente', 'approved_but', 'inactif', 'Entretien', 'EN_ATTENTE'].includes(v)) return 'warning';
     if (['Présélectionnée', 'Fermée'].includes(v)) return 'info';
     return 'neutral';
   };
@@ -94,6 +94,9 @@
   socket.on('nouvelle_competence', (p) => document.dispatchEvent(new CustomEvent('gc:competence-nouvelle', { detail: p || {} })));
   socket.on('competence_modifiee', (p) => document.dispatchEvent(new CustomEvent('gc:competence-modifiee', { detail: p || {} })));
   socket.on('competence_supprimee', (p) => document.dispatchEvent(new CustomEvent('gc:competence-supprimee', { detail: p || {} })));
+  socket.on('nouveau_domaine', (p) => document.dispatchEvent(new CustomEvent('gc:domaine-nouveau', { detail: p || {} })));
+  socket.on('nouvelle_suggestion', (p) => document.dispatchEvent(new CustomEvent('gc:suggestion-nouvelle', { detail: p || {} })));
+  socket.on('suggestion_traitee', (p) => document.dispatchEvent(new CustomEvent('gc:suggestion-traitee', { detail: p || {} })));
 
   /* API publique pour les scripts de page. */
   window.GCRealtime = { userId, socket, refreshBadges, statusClass, esc, shortDate, initials };

@@ -1,10 +1,4 @@
 <%- include('partials/head', { title, page: 'competences' }) %>
-<% // Page intermédiaire post-inscription : choix multiples de compétences.
-   // « Suivant » enregistre les compétences cochées (POST /competences →
-   // resource.addSkills) ; « Ignorer » envoie le même formulaire sans
-   // compétence et redirige aussi vers le tableau de bord (aucune donnée).
-   // Les tuiles / chips sont pilotées par /js/pages/skills-onboarding.js
-   // (attributs data-skill-id, data-skill-grid, data-selected-chips…). %>
 <main class="center-screen">
   <section class="card auth-card">
     <div class="auth-head">
@@ -17,25 +11,25 @@
     <%- include('partials/flash') %>
 
     <form method="post" action="/competences" class="form" id="skills-onboarding-form">
-      <% /* Catalogue limité au DOMAINE de l'utilisateur (filtrage serveur). */ %>
-      <% if (typeof hasDomain !== 'undefined' && !hasDomain) { %>
+      <% if (!hasDomain) { %>
         <div class="alert alert-info">
           <%- icon('info') %>
           <span>Choisissez d'abord votre domaine professionnel depuis <a href="/profil">votre profil</a> : seules les compétences de votre domaine vous seront proposées.</span>
         </div>
-      <% } else if (!catalog.length) { %>
-        <div class="alert alert-info">
-          <%- icon('info') %>
-          <span>Aucune compétence n'est encore disponible pour votre domaine<%= typeof domainName !== 'undefined' && domainName ? ` « ${domainName} »` : '' %>. Vous pourrez en ajouter dès que le catalogue sera alimenté.</span>
-        </div>
       <% } else { %>
-        <% if (typeof domainName !== 'undefined' && domainName) { %>
+        <% if (!catalog.length) { %>
+          <div class="alert alert-info" data-skill-catalog-empty>
+            <%- icon('info') %>
+            <span>Aucune compétence n'est encore disponible pour votre domaine<%= domainName ? ` « ${domainName} »` : '' %>. Proposez celle dont vous avez besoin ci-dessous.</span>
+          </div>
+        <% } %>
+        <% if (domainName) { %>
           <p class="muted-note"><%- icon('briefcase') %> Compétences du domaine <strong><%= domainName %></strong>.</p>
         <% } %>
         <div class="skills-picker">
           <div>
             <label>Compétences disponibles</label>
-            <div class="skill-grid" data-skill-grid>
+            <div class="skill-grid" data-skill-grid data-skill-domain="<%= domainId || '' %>">
               <% catalog.forEach((s) => { %>
                 <% const chosen = mySkills.includes(String(s.id_competence)); %>
                 <button type="button" class="skill-tile<%= chosen ? ' chosen' : '' %>" data-skill-id="<%= s.id_competence %>" aria-pressed="<%= chosen %>">
@@ -47,8 +41,7 @@
           </div>
           <aside class="skills-selected">
             <strong>Compétences sélectionnées</strong>
-            <% // Chips des choix : un bouton « × » retire la compétence avant validation. %>
-            <div class="selected-chips" data-selected-chips>
+            <div class="selected-chips" data-selected-chips data-skill-domain="<%= domainId || '' %>">
               <% catalog.forEach((s) => { %>
                 <% const chosen = mySkills.includes(String(s.id_competence)); %>
                 <span class="badge info" data-chip data-skill-id="<%= s.id_competence %>" <%= chosen ? '' : 'hidden' %>>
@@ -56,9 +49,13 @@
                   <button type="button" class="chip-x" data-chip-remove aria-label="Retirer <%= s.nom_competence %>" title="Retirer"><%- icon('x') %></button>
                 </span>
               <% }) %>
-              <span class="muted-note selected-empty" <%= mySkills.length ? 'hidden' : '' %>>Aucune compétence pour l'instant.</span>
+              <span class="muted-note selected-empty" <%= catalog.some((s) => mySkills.includes(String(s.id_competence))) ? 'hidden' : '' %>>Aucune compétence pour l'instant.</span>
             </div>
           </aside>
+        </div>
+        <div class="suggestion-cta">
+          <p>Vous ne trouvez pas une compétence de votre domaine ?</p>
+          <a class="btn" href="/suggestions/nouvelle?type=COMPETENCE"><%- icon('message-square') %> Proposer une compétence</a>
         </div>
       <% } %>
 
@@ -71,4 +68,5 @@
   </section>
 </main>
 <script src="/js/pages/skills-onboarding.js" defer></script>
+<script src="/js/pages/catalog-realtime.js" defer></script>
 <%- include('partials/foot') %>

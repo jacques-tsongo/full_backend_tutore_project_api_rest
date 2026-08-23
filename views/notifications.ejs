@@ -13,28 +13,33 @@
       <% } %>
     </div>
 
-    <% if (!items.length) { %>
-      <div class="card empty-state">
-        <%- icon('bell') %>
-        <p>Aucune notification.</p>
-      </div>
-    <% } else { %>
-      <div class="list" data-notifications-list>
-        <% items.forEach((n) => { %>
-          <div class="list-item notification-item <%= n.statut_notification === 'Non lue' ? 'unread' : '' %>" data-id="<%= n.id_notification %>">
+    <div class="card empty-state" data-notifications-empty <%= items.length ? 'hidden' : '' %>>
+      <%- icon('bell') %>
+      <p>Aucune notification.</p>
+    </div>
+    <div class="list" data-notifications-list <%= items.length ? '' : 'hidden' %>>
+      <% items.forEach((n) => { %>
+        <div class="list-item notification-item <%= n.statut_notification === 'Non lue' ? 'unread' : '' %>" data-id="<%= n.id_notification %>">
+          <% if (n.action_url) { %>
+            <a class="notification-content" href="/notifications/<%= n.id_notification %>/ouvrir">
+              <strong><%= n.contenu_notification %></strong>
+              <p><%= formatDateTime(n.date_notification) %> <span class="badge <%= n.statut_notification === 'Non lue' ? 'warning' : 'neutral' %>"><%= n.statut_notification %></span></p>
+              <small>Ouvrir la demande</small>
+            </a>
+          <% } else { %>
             <div>
               <strong><%= n.contenu_notification %></strong>
               <p><%= formatDateTime(n.date_notification) %> <span class="badge <%= n.statut_notification === 'Non lue' ? 'warning' : 'neutral' %>"><%= n.statut_notification %></span></p>
             </div>
-            <% if (n.statut_notification === 'Non lue') { %>
-              <form method="post" action="/notifications/<%= n.id_notification %>/lire" class="inline-form">
-                <button class="btn" type="submit"><%- icon('check') %> Marquer lue</button>
-              </form>
-            <% } %>
-          </div>
-        <% }) %>
-      </div>
-    <% } %>
+          <% } %>
+          <% if (n.statut_notification === 'Non lue') { %>
+            <form method="post" action="/notifications/<%= n.id_notification %>/lire" class="inline-form">
+              <button class="btn" type="submit"><%- icon('check') %> Marquer lue</button>
+            </form>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
   </main>
 </div>
 <script src="/js/pages/notifications.js" defer></script>

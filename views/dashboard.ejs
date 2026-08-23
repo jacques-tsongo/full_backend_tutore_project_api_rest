@@ -41,4 +41,5 @@
     <% } %>
   </main>
 </div>
+<% if (user.role === 'recruteur') { %><script src="/js/pages/catalog-realtime.js" defer></script><% } %>
 <%- include('partials/foot') %>
