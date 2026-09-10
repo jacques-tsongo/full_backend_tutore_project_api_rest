@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "node scripts/seed.js",
     "swagger": "node -e \"require('fs').writeFileSync('swagger-output.json', JSON.stringify(require('./swagger'), null, 2))\"",
+    "test:sql": "node test/sql-pagination-safety.js",
     "test:e2e": "node test/e2e-workflow.js",
     "test:pages": "node test/frontend-smoke.js",
     "test:realtime": "node test/realtime-socket.js",

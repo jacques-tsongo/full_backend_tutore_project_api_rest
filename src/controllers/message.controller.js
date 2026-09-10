@@ -1,8 +1,15 @@
 const db = require('../config/database');
 const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
+const { limitClause } = require('../utils/query');
 const notify = require('../services/notification.service');
 const socket = require('../socket');
+
+// Nombre maximal de contacts renvoyés par la liste « Nouveau message »
+// (constante interne, jamais issue de la requête). Elle est insérée via
+// `limitClause()` : un placeholder `LIMIT ?` déclencherait
+// ER_WRONG_ARGUMENTS (errno 1210) avec mysql2.execute() sur MySQL >= 8.0.22.
+const CONTACTS_LIMIT = 50;
 
 exports.send = asyncHandler(async (req, res) => {
   // L'expéditeur est TOUJOURS l'utilisateur authentifié (req.user) :
@@ -121,8 +128,8 @@ exports.contacts = asyncHandler(async (req, res) => {
        WHERE e.status = 'approved' AND u.id_utilisateur != ? AND u.statut_compte = 'actif'
        ${searchWhere}
        ORDER BY u.nom, u.prenom
-       LIMIT ?`,
-      [me, ...searchValues, 50]
+       ${limitClause(CONTACTS_LIMIT)}`,
+      [me, ...searchValues]
     );
   } else if (req.user.role === 'recruteur') {
     [rows] = await db.execute(
@@ -134,8 +141,8 @@ exports.contacts = asyncHandler(async (req, res) => {
        WHERE e.id_utilisateur = ? AND u.id_utilisateur != ? AND u.statut_compte = 'actif'
        ${searchWhere}
        ORDER BY u.nom, u.prenom
-       LIMIT ?`,
-      [me, me, ...searchValues, 50]
+       ${limitClause(CONTACTS_LIMIT)}`,
+      [me, me, ...searchValues]
     );
   } else {
     [rows] = await db.execute(
@@ -144,8 +151,8 @@ exports.contacts = asyncHandler(async (req, res) => {
        WHERE u.id_utilisateur != ? AND u.statut_compte = 'actif'
        ${searchWhere}
        ORDER BY u.nom, u.prenom
-       LIMIT ?`,
-      [me, ...searchValues, 50]
+       ${limitClause(CONTACTS_LIMIT)}`,
+      [me, ...searchValues]
     );
   }
   success(res, 'Contacts récupérés.', { items: rows });
