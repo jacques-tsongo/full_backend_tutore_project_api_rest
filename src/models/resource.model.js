@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const { pagination, listResult } = require('../utils/query');
+const { pagination, listResult, limitOffsetClause } = require('../utils/query');
 
 const schema = {
   // `id_domaine` : chaque compétence appartient à un domaine professionnel
@@ -24,7 +24,7 @@ exports.list = async (name, query, extra = {}) => {
   const condition = where.length ? ` WHERE ${where.join(' AND ')}` : '';
   const order = def.fields.includes(query.sort) || query.sort === def.id ? query.sort : def.id;
   const direction = String(query.order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-  const [rows] = await db.execute(`SELECT * FROM ${def.table}${condition} ORDER BY ${order} ${direction} LIMIT ? OFFSET ?`, [...values, limit, offset]);
+  const [rows] = await db.execute(`SELECT * FROM ${def.table}${condition} ORDER BY ${order} ${direction} ${limitOffsetClause(limit, offset)}`, values);
   if ((name === 'entreprises' || name === 'competences') && rows.length) {
     const ids = [...new Set(rows.map((r) => r.id_domaine).filter(Boolean))];
     if (ids.length) {
