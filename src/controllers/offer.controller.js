@@ -153,8 +153,8 @@ exports.list = asyncHandler(async (req, res) => {
 
   // --- Recruteur / administrateur : pagination SQL classique ----------------
   const [rows] = await db.execute(
-    `${offerSelect}${condition} ORDER BY o.${order} ${direction} LIMIT ? OFFSET ?`,
-    [...values, limit, offset]
+    `${offerSelect}${condition} ORDER BY o.${order} ${direction} LIMIT ${limit} OFFSET ${offset}`,
+    values
   );
   const [[{ total }]] = await db.execute(`SELECT COUNT(*) total FROM offre_emploi o JOIN entreprise e ON e.id_entreprise = o.id_entreprise${condition}`, values);
 
