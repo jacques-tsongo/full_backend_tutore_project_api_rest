@@ -48,7 +48,10 @@ const offerPayload = async (idOffre) => {
  * - recruteurs / administrateurs : toutes les offres (règles actuelles).
  */
 const broadcastOffer = async (event, rows) => {
-  const visiblePourCandidat = rows && rows.statut_offre === 'Ouverte' && String(rows.date_expiration).slice(0, 10) >= today() && rows.date_publication;
+  // CORRECTIF matching/visibilité : `String(date)` produit « Sun Jan 05… »
+  // (jamais une date ISO) → la comparaison avec AAAA-MM-JJ était toujours
+  // fausse. `dateOnly` gère les objets Date de mysql2 ET les chaînes.
+  const visiblePourCandidat = rows && rows.statut_offre === 'Ouverte' && dateOnly(rows.date_expiration) >= today() && rows.date_publication;
   // Les offres ne sont jamais diffusées globalement à tous les candidats :
   // seuls ceux du même domaine et compatibles reçoivent l'événement temps réel.
   if (visiblePourCandidat && rows.id_domaine_effectif) {
@@ -263,7 +266,8 @@ exports.create = asyncHandler(async (req, res) => {
   // pour les candidats, uniquement à ceux qui sont compatibles (jamais à tous).
   const fresh = await offerPayload(r.insertId);
   if (fresh) {
-    const visiblePourCandidat = fresh.statut_offre === 'Ouverte' && String(fresh.date_expiration).slice(0, 10) >= today() && fresh.date_publication;
+    // Même correctif que broadcastOffer : comparaison de dates au format ISO.
+    const visiblePourCandidat = fresh.statut_offre === 'Ouverte' && dateOnly(fresh.date_expiration) >= today() && fresh.date_publication;
     socket.emitToRole('recruteur', 'nouvelle_offre', { offer: fresh });
     socket.emitToRole('administrateur', 'nouvelle_offre', { offer: fresh });
     if (visiblePourCandidat) {

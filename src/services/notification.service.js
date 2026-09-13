@@ -46,8 +46,27 @@ exports.create = async (idUtilisateur, content, options = {}) => {
 
 /** URL d'ouverture calculée côté serveur à partir de la référence, jamais du texte. */
 exports.actionUrl = (notification, user) => {
-  if (notification?.type_reference !== 'DEMANDE_SUGGESTION' || !notification.id_reference) return null;
-  return user?.role === 'administrateur'
-    ? `/admin/suggestions/${Number(notification.id_reference)}`
-    : `/suggestions/${Number(notification.id_reference)}`;
+  const id = Number(notification?.id_reference);
+  if (!notification?.type_reference || !id) return null;
+  switch (notification.type_reference) {
+    case 'DEMANDE_SUGGESTION':
+      return user?.role === 'administrateur'
+        ? `/admin/suggestions/${id}`
+        : `/suggestions/${id}`;
+    case 'ENTREPRISE':
+      // Demande de création d'entreprise : l'administrateur est conduit vers
+      // la liste des demandes en attente (ancre sur la demande concernée) ;
+      // le demandeur, vers ses paramètres (suivi de sa demande).
+      return user?.role === 'administrateur'
+        ? `/dashboard#entreprise-${id}`
+        : '/parametres';
+    case 'OFFRE':
+      // Offre proche de l'expiration : le recruteur est conduit vers les
+      // candidatures de CETTE offre (classées par pertinence).
+      return user?.role === 'recruteur'
+        ? `/candidatures?offre=${id}`
+        : `/offres/${id}`;
+    default:
+      return null;
+  }
 };

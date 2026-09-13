@@ -12,7 +12,9 @@
           let docs = [];
           try { docs = JSON.parse(c.documents_justificatifs || '[]'); } catch (_) { docs = []; }
         %>
-        <div class="list-item">
+        <% // Ancre ciblée par la notification « Nouvelle demande de création
+           // d'entreprise » (/dashboard#entreprise-ID). %>
+        <div class="list-item" id="entreprise-<%= c.id_entreprise %>">
           <div>
             <strong><%= c.nom_entreprise %></strong>
             <p>

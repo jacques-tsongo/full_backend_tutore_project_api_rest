@@ -13,7 +13,7 @@
 
   const notificationItem = (n) => `
     <div class="list-item notification-item ${n.statut_notification === 'Non lue' ? 'unread' : ''}" data-id="${Number(n.id_notification)}">
-      ${n.type_reference === 'DEMANDE_SUGGESTION' && n.id_reference
+      ${['DEMANDE_SUGGESTION', 'ENTREPRISE', 'OFFRE'].includes(n.type_reference) && n.id_reference
         ? `<a class="notification-content" href="/notifications/${Number(n.id_notification)}/ouvrir">
              <strong>${esc(n.contenu_notification)}</strong>
              <p>${shortDate(n.date_notification)} <span class="badge ${n.statut_notification === 'Non lue' ? 'warning' : 'neutral'}">${esc(n.statut_notification)}</span></p>

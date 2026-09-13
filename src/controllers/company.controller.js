@@ -37,6 +37,27 @@ exports.createRecruiter = asyncHandler(async (req, res) => {
 
   const company = await Company.createPending(req.user.id_utilisateur, payload);
   await notify.create(req.user.id_utilisateur, `Votre demande pour l'entreprise « ${company.nom_entreprise} » a été soumise et attend validation.`);
+
+  // NOTIFICATION ADMIN : chaque compte administrateur est averti qu'une
+  // nouvelle demande de création d'entreprise attend son examen. La référence
+  // (ENTREPRISE + id) permet d'ouvrir directement la demande depuis la page
+  // des notifications. Anti-doublon : une notification non lue portant déjà
+  // cette référence n'est pas recréée.
+  const [admins] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE role = 'administrateur' AND statut_compte = 'actif'");
+  for (const admin of admins) {
+    const [dup] = await db.execute(
+      `SELECT id_notification FROM notification
+       WHERE id_utilisateur = ? AND type_notification = 'NOUVELLE_DEMANDE_ENTREPRISE'
+         AND type_reference = 'ENTREPRISE' AND id_reference = ? AND statut_notification = 'Non lue'`,
+      [admin.id_utilisateur, company.id_entreprise]
+    );
+    if (dup[0]) continue;
+    await notify.create(
+      admin.id_utilisateur,
+      `Nouvelle demande de création d'entreprise à examiner : « ${company.nom_entreprise} ».`,
+      { type: 'NOUVELLE_DEMANDE_ENTREPRISE', referenceType: 'ENTREPRISE', referenceId: company.id_entreprise }
+    );
+  }
   success(res, 'Entreprise soumise pour validation.', { company }, 201);
 });
 exports.myRecruiter = asyncHandler(async (req, res) => { 
