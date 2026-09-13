@@ -1,9 +1,26 @@
 <%- include('partials/head', { title, page: 'candidatures' }) %>
+<%
+  // Deux zones : « Meilleures candidatures » (top du classement serveur —
+  // compétences + expérience) puis « Toutes les candidatures » (rien n'est
+  // jamais caché au recruteur). Le rendu de carte est défini UNE fois.
+  const bestItems = items.filter((x) => typeof topIds !== 'undefined' && topIds.has(x.id_candidature));
+  const renderYears = (x) => {
+    const total = Number(x.experience_annees || 0);
+    const rel = Number(x.experience_annees_pertinentes || 0);
+    if (!total) return 'Aucune expérience renseignée';
+    const totalTxt = `${total} an${total >= 2 ? 's' : ''} d'expérience`;
+    return rel ? `${totalTxt} (dont ${rel} an${rel >= 2 ? 's' : ''} en lien avec l'offre)` : totalTxt;
+  };
+%>
 <div class="app-shell">
   <%- include('partials/sidebar', { active: 'candidatures' }) %>
   <main class="main">
-    <%- include('partials/topbar', { title: 'Candidatures reçues', subtitle: 'Examinez les profils et mettez à jour les statuts.' }) %>
+    <%- include('partials/topbar', { title: 'Candidatures reçues', subtitle: 'Les candidatures sont classées par pertinence : compatibilité des compétences et expérience professionnelle.' }) %>
     <%- include('partials/flash') %>
+
+    <% if (typeof offerFilter !== 'undefined' && offerFilter) { %>
+      <p class="back-link"><a href="/candidatures"><%- icon('chevron-left') %> Voir les candidatures de toutes mes offres</a></p>
+    <% } %>
 
     <% if (!items.length) { %>
       <div class="card empty-state">
@@ -12,9 +29,14 @@
         <a class="btn primary" href="/dashboard#nouvelle-offre">Publier une offre</a>
       </div>
     <% } else { %>
-      <div class="list" data-applications-list>
-        <% items.forEach((x) => { %>
-          <div class="card application-card" data-candidature-id="<%= x.id_candidature %>">
+      <%
+        // Carte de candidature (fonction EJS locale : AUCUNE duplication de
+        // markup entre les deux zones).
+        const applicationCard = (x, recommended) => { %>
+          <div class="card application-card" id="candidature-<%= x.id_candidature %>" data-candidature-id="<%= x.id_candidature %>">
+            <% if (recommended) { %>
+              <p class="muted-note"><span class="badge success"><%- icon('sparkles') %> Candidature recommandée</span></p>
+            <% } %>
             <div class="offer-head">
               <div class="user-cell">
                 <span class="avatar-img">
@@ -22,6 +44,9 @@
                 </span>
                 <div>
                   <strong><%= x.prenom %> <%= x.nom %></strong>
+                  <% if (x.domaine_candidat) { %>
+                    <p class="muted-note"><%- icon('briefcase') %> Domaine : <%= x.domaine_candidat %></p>
+                  <% } %>
                   <p class="muted-note">
                     <%- icon('mail') %> <%= x.email || '' %>
                     <% if (x.telephone) { %> · <%- icon('phone') %> <%= x.telephone %><% } %>
@@ -30,10 +55,16 @@
                 </div>
               </div>
               <div class="nav-actions">
-                <% if (x.score_compatibilite != null) { %><span class="badge info"><%- icon('target') %> Matching <%= x.score_compatibilite %>%</span><% } %>
+                <% if (x.score_compatibilite != null) { %><span class="badge info"><%- icon('target') %> Compatibilité <%= Math.round(Number(x.score_compatibilite)) %>%</span><% } %>
                 <span class="badge <%= statusClass(x.statut_candidature) %>"><%= x.statut_candidature %></span>
               </div>
             </div>
+            <p class="muted-note"><%- icon('clock') %> <%= renderYears(x) %></p>
+            <% if (x.competences_correspondantes && x.competences_correspondantes.length) { %>
+              <p><strong>Compétences correspondantes :</strong>
+                <% x.competences_correspondantes.forEach((s) => { %><span class="badge success"><%= s %></span> <% }) %>
+              </p>
+            <% } %>
             <% if (x.lettre_motivation) { %><p><strong>Lettre de motivation :</strong> <%= x.lettre_motivation %></p><% } %>
             <% if (x.accroche) { %><p><strong>Présentation :</strong> <%= x.accroche %></p><% } %>
             <% if (x.competences) { %><p><strong>Compétences :</strong> <%= x.competences %></p><% } %>
@@ -97,9 +128,56 @@
               <% } %>
             </div>
           </div>
-        <% }) %>
-      </div>
+      <% }; %>
+
+      <% if (bestItems.length) { %>
+        <% // Zone « Meilleures candidatures » : RÉSUMÉ compact (pas de carte
+           // dupliquée — la carte complète vit dans « Toutes les candidatures »,
+           // ancre #candidature-ID). Aucune candidature n'est cachée. %>
+        <section class="card" style="margin-bottom:18px">
+          <h2><%- icon('sparkles') %> Meilleures candidatures</h2>
+          <p class="muted-note">Profils les plus adaptés selon la compatibilité des compétences et l'expérience professionnelle pertinente.</p>
+          <div class="list">
+            <% bestItems.forEach((x) => { %>
+              <div class="list-item">
+                <div class="user-cell">
+                  <span class="avatar-img">
+                    <% if (x.photo) { %><img src="<%= asset(x.photo) %>" alt="<%= `${x.prenom} ${x.nom}` %>"><% } else { %><span class="avatar-fallback"><%= ((x.prenom || ' ')[0] + (x.nom || ' ')[0]).toUpperCase() %></span><% } %>
+                  </span>
+                  <div>
+                    <strong><%= x.prenom %> <%= x.nom %></strong>
+                    <p class="muted-note">
+                      Offre : <%= x.titre_offre %>
+                      <% if (x.domaine_candidat) { %> · <%= x.domaine_candidat %><% } %>
+                      · <%= renderYears(x) %>
+                    </p>
+                    <% if (x.competences_correspondantes && x.competences_correspondantes.length) { %>
+                      <p class="muted-note">Compétences correspondantes :
+                        <% x.competences_correspondantes.forEach((s) => { %><span class="badge success"><%= s %></span> <% }) %>
+                      </p>
+                    <% } %>
+                  </div>
+                </div>
+                <div class="nav-actions">
+                  <% if (x.score_compatibilite != null) { %><span class="badge info"><%- icon('target') %> Compatibilité <%= Math.round(Number(x.score_compatibilite)) %>%</span><% } %>
+                  <span class="badge <%= statusClass(x.statut_candidature) %>"><%= x.statut_candidature %></span>
+                  <a class="btn" href="#candidature-<%= x.id_candidature %>"><%- icon('eye') %> Voir la candidature</a>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
+
+      <section>
+        <h2><%- icon('file-text') %> Toutes les candidatures (<%= items.length %>)</h2>
+        <p class="muted-note">Classées par pertinence — toutes les candidatures restent accessibles, quel que soit leur score.</p>
+        <div class="list" data-applications-list>
+          <% items.forEach((x) => { applicationCard(x, typeof topIds !== 'undefined' && topIds.has(x.id_candidature)); }) %>
+        </div>
+      </section>
     <% } %>
+    <% if (!items.length) { %><div class="list" data-applications-list hidden></div><% } %>
   </main>
 </div>
 <script src="/js/pages/applications-received.js" defer></script>

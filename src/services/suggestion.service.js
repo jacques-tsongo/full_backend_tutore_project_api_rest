@@ -121,7 +121,7 @@ exports.submit = async (user, body) => {
     for (const admin of admins) {
       const created = await notify.create(
         admin.id_utilisateur,
-        `Nouvelle suggestion de ${kind} : « ${data.name} »`,
+        `Nouvelle suggestion de ${kind} à examiner : « ${data.name} ».`,
         {
           type: data.type === TYPES.DOMAIN ? 'NOUVELLE_SUGGESTION_DOMAINE' : 'NOUVELLE_SUGGESTION_COMPETENCE',
           referenceType: 'DEMANDE_SUGGESTION',

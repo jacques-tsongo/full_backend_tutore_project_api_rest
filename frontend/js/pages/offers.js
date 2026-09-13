@@ -16,7 +16,10 @@
   const offerVisible = (offer) => {
     if (!offer) return false;
     if (role === 'candidat') {
-      const expired = new Date(offer.date_expiration) < new Date();
+      // Comparaison jour à jour (offre valide jusqu'au jour d'expiration
+      // inclus) — cohérente avec la règle serveur date_expiration >= CURDATE().
+      const expIso = String(offer.date_expiration || '').slice(0, 10);
+      const expired = !!expIso && expIso < new Date().toISOString().slice(0, 10);
       if (offer.statut_offre !== 'Ouverte' || expired) return false;
     }
     if (listContainer) {

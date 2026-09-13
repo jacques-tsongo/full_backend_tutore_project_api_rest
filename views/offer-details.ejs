@@ -1,6 +1,10 @@
 <%- include('partials/head', { title, page: 'offres' }) %>
 <%
-  const expired = item.date_expiration && new Date(item.date_expiration) < new Date();
+  // Comparaison DATE à DATE (jour inclus) — cohérente avec la règle serveur
+  // `date_expiration >= CURDATE()` : une offre reste valide toute la journée
+  // de sa date d'expiration.
+  const expIso = item.date_expiration ? dateInput(item.date_expiration) : '';
+  const expired = !!expIso && expIso < new Date().toISOString().slice(0, 10);
   const open = item.statut_offre === 'Ouverte' && !expired;
 %>
 <div class="app-shell">

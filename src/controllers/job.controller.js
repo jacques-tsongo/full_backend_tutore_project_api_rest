@@ -114,12 +114,17 @@ exports.cancel = asyncHandler(async (req, res) => {
 });
 
 exports.companyApplications = asyncHandler(async (req, res) => {
+  // AUTORISATION : la requête est TOUJOURS bornée à l'entreprise approuvée du
+  // recruteur connecté (WHERE o.id_entreprise = ?). Aucun identifiant
+  // d'entreprise ne provient de l'URL : impossible de consulter les
+  // candidatures d'une autre entreprise en manipulant la requête.
   const company = await recruiterCompany(req.user.id_utilisateur);
   if (!company || company.status !== 'approved') return fail(res, 'Entreprise approuvée et profil recruteur requis.', [], 403);
   const [rows] = await db.execute(
     `SELECT c.*, u.nom, u.prenom, u.email, u.telephone, u.photo, u.photo_couverture, p.cv, p.bio,
             p.accroche AS accroche,
             p.adresse AS profil_adresse,
+            dp.nom_domaine AS domaine_candidat,
             o.titre_offre, o.localisation, m.score_compatibilite,
             (SELECT GROUP_CONCAT(CONCAT(comp.nom_competence, ' (', uc.niveau_competence, ')') SEPARATOR ', ')
              FROM utilisateur_competence uc JOIN competence comp ON comp.id_competence = uc.id_competence
@@ -132,10 +137,15 @@ exports.companyApplications = asyncHandler(async (req, res) => {
      JOIN offre_emploi o ON o.id_offre = c.id_offre
      JOIN utilisateur u ON u.id_utilisateur = c.id_utilisateur
      LEFT JOIN profil_professionnel p ON p.id_utilisateur = c.id_utilisateur
+     LEFT JOIN domaine dp ON dp.id_domaine = p.id_domaine
      LEFT JOIN matching m ON m.id_utilisateur = c.id_utilisateur AND m.id_offre = c.id_offre
-     WHERE o.id_entreprise = ? AND c.statut_candidature != 'Annulée'
+     WHERE o.id_entreprise = ?${req.query.offre ? ' AND c.id_offre = ?' : ''} AND c.statut_candidature != 'Annulée'
      ORDER BY c.date_candidature DESC`,
-    [company.id_entreprise]
+    req.query.offre
+      // Filtre facultatif ?offre=ID : borné par id_entreprise ci-dessus, un
+      // id d'offre d'une AUTRE entreprise renvoie simplement une liste vide.
+      ? [company.id_entreprise, Number(req.query.offre) || 0]
+      : [company.id_entreprise]
   );
   // `offre_pourvue` sert au frontend pour désactiver les boutons d'acceptation
   // des AUTRES candidatures (le backend reste la source de vérité : verrou
@@ -169,6 +179,65 @@ exports.companyApplications = asyncHandler(async (req, res) => {
       row.experiences = expByUser[row.id_utilisateur] || [];
       row.diplomes = dipByUser[row.id_utilisateur] || [];
     });
+  }
+
+  /* ------------------- Matching + classement intelligent -------------------
+   * 1) RÉPARATION du matching : les scores manquants ou obsolètes de la table
+   *    `matching` sont recalculés/persistés en lot (formule unique du service)
+   *    — le recruteur voit désormais TOUJOURS un score de compatibilité réel,
+   *    même pour les candidatures dont le score n'avait jamais été enregistré.
+   * 2) CLASSEMENT : score de recommandation calculé côté serveur
+   *    (0.7 × compatibilité + 0.3 × expérience pondérée par sa pertinence),
+   *    sans nouvelle colonne SQL ; le score_compatibilite n'est pas altéré.
+   */
+  if (rows.length) {
+    const synced = await matching.syncPairs(
+      rows.map((r) => ({ id_utilisateur: r.id_utilisateur, id_offre: r.id_offre }))
+    );
+
+    // Noms des compétences requises par offre (mots-clés de pertinence +
+    // affichage « compétences correspondantes » côté recruteur).
+    const offerIds = [...new Set(rows.map((r) => Number(r.id_offre)))];
+    const [reqSkills] = await db.execute(
+      `SELECT oc.id_offre, oc.id_competence, comp.nom_competence
+       FROM offre_competence oc JOIN competence comp ON comp.id_competence = oc.id_competence
+       WHERE oc.id_offre IN (${offerIds.map(() => '?').join(',')})`,
+      offerIds
+    );
+    const skillNamesByOffer = new Map();
+    const skillNameById = new Map();
+    reqSkills.forEach((s) => {
+      const list = skillNamesByOffer.get(Number(s.id_offre)) || [];
+      list.push(s.nom_competence);
+      skillNamesByOffer.set(Number(s.id_offre), list);
+      skillNameById.set(Number(s.id_competence), s.nom_competence);
+    });
+
+    rows.forEach((row) => {
+      const key = `${Number(row.id_utilisateur)}:${Number(row.id_offre)}`;
+      const result = synced.get(key);
+      if (result) {
+        row.score_compatibilite = result.score;
+        row.competences_correspondantes = (result.matchedSkillIds || [])
+          .map((id) => skillNameById.get(id))
+          .filter(Boolean);
+      } else {
+        row.competences_correspondantes = [];
+      }
+      const keywords = matching.offerKeywords(row.titre_offre, skillNamesByOffer.get(Number(row.id_offre)) || []);
+      const xp = matching.experienceScore(row.experiences || [], keywords);
+      row.experience_annees = xp.totalYears;
+      row.experience_annees_pertinentes = xp.relevantYears;
+      row.score_experience = xp.score;
+      row.score_recommandation = matching.recommendationScore(row.score_compatibilite, xp.score);
+    });
+
+    // Classement : recommandation décroissante, puis compatibilité, puis
+    // ancienneté de candidature (stabilité de l'affichage).
+    rows.sort((a, b) =>
+      (b.score_recommandation - a.score_recommandation)
+      || ((Number(b.score_compatibilite) || 0) - (Number(a.score_compatibilite) || 0))
+      || (new Date(a.date_candidature) - new Date(b.date_candidature)));
   }
   success(res, 'Candidatures reçues.', { items: rows });
 });

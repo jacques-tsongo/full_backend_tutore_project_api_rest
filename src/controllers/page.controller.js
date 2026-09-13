@@ -191,7 +191,13 @@ exports.offerDetails = asyncHandler(async (req, res) => {
   const item = data.item;
   // `open` : l'offre accepte de nouvelles candidatures (cohérent avec la
   // règle de visibilité des listes : Ouverte + non expirée + non pourvue).
-  const expired = String(item.date_expiration || '').slice(0, 10) < new Date().toISOString().slice(0, 10);
+  // CORRECTIF : mysql2 renvoie un objet Date → String(Date) donne
+  // « Sun Jan 05… », jamais une date ISO ; la comparaison était donc toujours
+  // fausse et une offre expirée restait « ouverte » sur sa page de détail.
+  const expIso = item.date_expiration instanceof Date
+    ? item.date_expiration.toISOString().slice(0, 10)
+    : String(item.date_expiration || '').slice(0, 10);
+  const expired = !!expIso && expIso < new Date().toISOString().slice(0, 10);
   const view = { title: item.titre_offre, user: req.user, item, alreadyApplied: false, matching: null, isOwner: false, open: item.statut_offre === 'Ouverte' && !expired };
   if (req.user.role === 'candidat') {
     const [app] = await db.execute('SELECT id_candidature FROM candidature WHERE id_utilisateur = ? AND id_offre = ?', [req.user.id_utilisateur, req.params.id]);
@@ -207,7 +213,22 @@ exports.offerDetails = asyncHandler(async (req, res) => {
 exports.applications = asyncHandler(async (req, res) => {
   if (req.user.role === 'recruteur') {
     const { data } = await collect(jobController.companyApplications, req).catch(() => ({ data: { items: [] } }));
-    return res.render('applications-received', { title: 'Candidatures reçues', user: req.user, items: data.items || [] });
+    const items = data.items || [];
+    // « Meilleures candidatures » : le TOP des candidatures classées par le
+    // score de recommandation serveur (compétences + expérience). Seuil
+    // qualitatif : recommandation > 0 et score de compatibilité connu.
+    // Les autres candidatures restent TOUTES visibles dans la seconde zone.
+    const top = items
+      .filter((x) => Number(x.score_recommandation) > 0)
+      .slice(0, 3)
+      .map((x) => x.id_candidature);
+    return res.render('applications-received', {
+      title: 'Candidatures reçues',
+      user: req.user,
+      items,
+      topIds: new Set(top),
+      offerFilter: Number(req.query.offre) || null
+    });
   }
   const { data } = await collect(jobController.myApplications, req).catch(() => ({ data: { items: [] } }));
   return res.render('applications', { title: 'Mes candidatures', user: req.user, items: data.items || [] });
