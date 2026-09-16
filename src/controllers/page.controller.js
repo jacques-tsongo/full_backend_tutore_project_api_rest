@@ -239,12 +239,17 @@ exports.applications = asyncHandler(async (req, res) => {
 exports.matching = asyncHandler(async (req, res) => {
   req.query.limit = '100';
   const { data } = await collect(offerController.list, req);
-  const selectedId = Number(req.query.id_offre || 0) || null;
-  const score = selectedId ? await matching.calculate(req.user.id_utilisateur, selectedId) : null;
+  const items = (data.items || []).filter((o) => o.statut_offre === 'Ouverte');
+  const requestedId = Number(req.query.id_offre || 0) || null;
+  // Ne jamais calculer ni exposer le score d'une offre qui n'a pas été
+  // retournée par offer.list (domaine, statut, expiration et seuil serveur).
+  const selected = requestedId ? items.find((o) => Number(o.id_offre) === requestedId) : null;
+  const selectedId = selected ? requestedId : null;
+  const score = selected ? await matching.calculate(req.user.id_utilisateur, selectedId) : null;
   res.render('matching', {
     title: 'Matching',
     user: req.user,
-    items: (data.items || []).filter((o) => o.statut_offre === 'Ouverte'),
+    items,
     selectedId,
     score
   });

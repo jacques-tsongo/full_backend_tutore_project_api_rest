@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const db = require('../config/database');
 const socket = require('../socket');
 const domaine = require('../services/domain.service');
+const matching = require('../services/matching.service');
 const Company = require('../models/company.model');
 
 /**
@@ -122,7 +123,9 @@ exports.addSkill = asyncHandler(async (req, res) => {
     if (!candidateDomainId) return fail(res, 'Choisissez d’abord votre domaine professionnel dans votre profil.', ['id_domaine'], 422);
     const domainCheck = await domaine.checkSkillsAgainstDomain([req.body.id_competence], candidateDomainId);
     if (!domainCheck.ok) return fail(res, 'Cette compétence appartient à un autre domaine professionnel.', ['id_competence'], 403);
-    await db.execute('INSERT INTO utilisateur_competence (id_utilisateur, id_competence, niveau_competence) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE niveau_competence = VALUES(niveau_competence)', [req.user.id_utilisateur, req.body.id_competence, req.body.niveau_competence]); 
+    await db.execute('INSERT INTO utilisateur_competence (id_utilisateur, id_competence, niveau_competence) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE niveau_competence = VALUES(niveau_competence)', [req.user.id_utilisateur, req.body.id_competence, req.body.niveau_competence]);
+    // Un score déjà mis en cache doit suivre la nouvelle compétence/niveau.
+    await matching.syncUser(req.user.id_utilisateur);
     success(res, 'Compétence associée.'); });
 
 /**
@@ -186,8 +189,12 @@ exports.addSkills = asyncHandler(async (req, res) => {
      ON DUPLICATE KEY UPDATE niveau_competence = niveau_competence`,
     values.flat()
   );
+  // Recalcule les scores existants sans créer de couples inutiles pour toutes
+  // les offres de la base.
+  await matching.syncUser(req.user.id_utilisateur);
   success(res, 'Compétences enregistrées.', { added: valid.length });
 });
-exports.removeSkill = asyncHandler(async (req, res) => { 
-    await db.execute('DELETE FROM utilisateur_competence WHERE id_utilisateur = ? AND id_competence = ?', [req.user.id_utilisateur, req.params.id]); 
+exports.removeSkill = asyncHandler(async (req, res) => {
+    await db.execute('DELETE FROM utilisateur_competence WHERE id_utilisateur = ? AND id_competence = ?', [req.user.id_utilisateur, req.params.id]);
+    await matching.syncUser(req.user.id_utilisateur);
     success(res, 'Compétence retirée.'); });
