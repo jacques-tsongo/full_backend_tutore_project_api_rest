@@ -25,6 +25,9 @@ exports.setSkills = asyncHandler(async (req, res) => {
   for (const skill of req.body.competences || []) {
     await db.execute('INSERT INTO offre_competence (id_offre, id_competence, niveau_requis) VALUES (?, ?, ?)', [req.params.id, skill.id_competence, skill.niveau_requis]);
   }
+  // Les scores existants dépendent des exigences de l'offre : recalcul ciblé
+  // des candidatures/couples déjà connus, sans toucher aux autres offres.
+  await matching.syncOffer(req.params.id);
   success(res, 'Compétences requises mises à jour.');
 });
 
@@ -90,6 +93,9 @@ exports.apply = asyncHandler(async (req, res) => {
 });
 
 exports.myApplications = asyncHandler(async (req, res) => {
+  // Répare aussi les candidatures historiques dépourvues de ligne matching et
+  // évite de renvoyer un score obsolète après une modification du profil.
+  await matching.syncUser(req.user.id_utilisateur);
   const [rows] = await db.execute(
     `SELECT c.*, o.titre_offre, o.localisation, o.statut_offre, o.date_expiration,
             e.nom_entreprise, e.logo AS logo_entreprise, e.id_utilisateur AS id_recruteur, m.score_compatibilite

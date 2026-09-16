@@ -9,6 +9,7 @@
     "seed": "node scripts/seed.js",
     "swagger": "node -e \"require('fs').writeFileSync('swagger-output.json', JSON.stringify(require('./swagger'), null, 2))\"",
     "test:sql": "node test/sql-pagination-safety.js",
+    "test:matching:unit": "node test/matching-unit.js",
     "test:e2e": "node test/e2e-workflow.js",
     "test:matching": "node test/matching-ranking.js",
     "test:pages": "node test/frontend-smoke.js",

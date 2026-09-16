@@ -172,6 +172,43 @@ exports.syncPairs = async (pairs) => {
   return results;
 };
 
+/**
+ * Recalcule les couples déjà connus pour un candidat.
+ *
+ * `matching` est une projection/cache du calcul : modifier une compétence du
+ * profil ne doit pas laisser un ancien score servir à `candidature`/`me`. On
+ * inclut à la fois les couples déjà matérialisés dans `matching` et les
+ * candidatures historiques qui n'ont jamais eu de ligne de matching.
+ */
+exports.syncUser = async (userId) => {
+  const id = Number(userId);
+  if (!Number.isInteger(id) || id < 1) return new Map();
+  const [pairs] = await db.execute(
+    `SELECT id_utilisateur, id_offre FROM matching WHERE id_utilisateur = ?
+     UNION
+     SELECT id_utilisateur, id_offre FROM candidature WHERE id_utilisateur = ?`,
+    [id, id]
+  );
+  return exports.syncPairs(pairs);
+};
+
+/**
+ * Recalcule les couples déjà connus pour une offre après modification de ses
+ * compétences requises. Les candidatures sans ligne `matching` sont incluses
+ * afin que le score recruteur/candidat soit créé immédiatement.
+ */
+exports.syncOffer = async (offerId) => {
+  const id = Number(offerId);
+  if (!Number.isInteger(id) || id < 1) return new Map();
+  const [pairs] = await db.execute(
+    `SELECT id_utilisateur, id_offre FROM matching WHERE id_offre = ?
+     UNION
+     SELECT id_utilisateur, id_offre FROM candidature WHERE id_offre = ?`,
+    [id, id]
+  );
+  return exports.syncPairs(pairs);
+};
+
 /* ==================== Classement des candidatures ======================== */
 /*
  * Le classement des candidatures d'une offre combine :
