@@ -8,7 +8,7 @@ Plateforme de gestion des carrières et offres d'emploi :
 ## Installation
 
 1. Créez la base avec [database/schema.sql](database/schema.sql) dans MySQL (le script force `SET NAMES utf8mb4` pour éviter tout problème d'encodage des valeurs accentuées).
-2. Appliquez les migrations dans l'ordre : `database/migrations/*.sql` (idempotentes — elles ajoutent notamment le suivi de lecture des messages `lu` / `date_lecture`).
+2. Appliquez les migrations : `npm run migrate` (suivi automatique dans `schema_migrations`, seules les migrations non encore appliquées sont exécutées).
 3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL ainsi qu'un `JWT_SECRET` robuste.
 4. Exécutez `npm install`, puis `npm run dev`.
 
@@ -101,7 +101,18 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 ## Migrations de base de données
 
 Le schéma d'origine est conservé. Les migrations sont additives et idempotentes,
-à appliquer dans l'ordre :
+appliquées automatiquement dans l'ordre alphabétique (préfixe date) :
+
+```bash
+npm run migrate          # applique les migrations non encore enregistrées
+npm run migrate:status   # affiche l'état sans rien modifier
+```
+
+Chaque migration réussie est enregistrée dans la table `schema_migrations`
+(`nom`, `applique_le`) créée automatiquement. Une migration en échec n'est pas
+enregistrée : corrigez le fichier puis relancez la commande.
+
+Application manuelle (dépannage uniquement) :
 
 ```bash
 mysql -u root -p < database/migrations/20260809_message_read_tracking.sql
