@@ -4,6 +4,7 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const notify = require('../services/notification.service');
 const domaine = require('../services/domain.service');
+const files = require('../services/fileStorage.service');
 
 const requiredCompanyFields = [
   'nom_entreprise',
@@ -23,7 +24,7 @@ exports.createRecruiter = asyncHandler(async (req, res) => {
   const existing = await Company.hasOpenRequest(req.user.id_utilisateur);
   if (existing) return fail(res, 'Une demande recruteur est déjà en cours ou approuvée.', [], 409);
 
-  const payload = Company.normalizePayload(req.body, req.files);
+  const payload = Company.normalizePayload(req.body);
   const missing = requiredCompanyFields.filter((field) => !payload[field]);
   if (missing.length) return fail(res, 'Informations entreprise incomplètes.', missing, 422);
   const selectedDomain = await domaine.findById(payload.id_domaine);
@@ -33,9 +34,47 @@ exports.createRecruiter = asyncHandler(async (req, res) => {
     return fail(res, 'Le domaine d’activité de l’entreprise doit correspondre à votre domaine professionnel déjà choisi.', ['id_domaine'], 403);
   }
   payload.id_domaine = selectedDomain.id_domaine;
-  if (!payload.documents_justificatifs) return fail(res, 'Document justificatif PDF requis.', ['documents'], 422);
 
-  const company = await Company.createPending(req.user.id_utilisateur, payload);
+  const logoFile = req.files?.logo?.[0];
+  const documentFiles = [
+    ...(req.files?.documents || []),
+    ...(req.files?.supporting_documents || [])
+  ];
+  if (!documentFiles.length) return fail(res, 'Document justificatif PDF requis.', ['documents'], 422);
+
+  // Les fichiers sont enregistrés dans le stockage privé et remplacés par des
+  // URL `/files/:id`. Toute erreur annule les fichiers déjà enregistrés afin
+  // de ne laisser ni ligne orpheline ni octet orphelin.
+  const savedFiles = [];
+  let company;
+  try {
+    if (logoFile) {
+      const savedLogo = await files.save({
+        buffer: logoFile.buffer,
+        originalname: logoFile.originalname,
+        ownerId: req.user.id_utilisateur,
+        categorie: 'LOGO'
+      });
+      savedFiles.push(savedLogo);
+      payload.logo = savedLogo.url;
+    }
+    const documentUrls = [];
+    for (const documentFile of documentFiles) {
+      const savedDocument = await files.save({
+        buffer: documentFile.buffer,
+        originalname: documentFile.originalname,
+        ownerId: req.user.id_utilisateur,
+        categorie: 'JUSTIFICATIF'
+      });
+      savedFiles.push(savedDocument);
+      documentUrls.push(savedDocument.url);
+    }
+    payload.documents_justificatifs = JSON.stringify(documentUrls);
+    company = await Company.createPending(req.user.id_utilisateur, payload);
+  } catch (error) {
+    await Promise.all(savedFiles.map(files.discard));
+    throw error;
+  }
   await notify.create(req.user.id_utilisateur, `Votre demande pour l'entreprise « ${company.nom_entreprise} » a été soumise et attend validation.`);
 
   // NOTIFICATION ADMIN : chaque compte administrateur est averti qu'une
@@ -91,7 +130,7 @@ exports.updateOwn = asyncHandler(async (req, res) => {
     return fail(res, 'Accès non autorisé.', [], 403);
   }
 
-  const payload = Company.normalizePayload(req.body, req.files || {});
+  const payload = Company.normalizePayload(req.body);
   const data = {};
   let assignedDomainId = null;
   for (const field of Company.EDITABLE_FIELDS) if (payload[field] !== undefined) data[field] = payload[field];
@@ -113,25 +152,45 @@ exports.updateOwn = asyncHandler(async (req, res) => {
     delete data.id_domaine;
   }
 
-  if (assignedDomainId !== null) {
-    const [domainUpdate] = await db.execute(
-      'UPDATE entreprise SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL',
-      [assignedDomainId, req.params.id]
-    );
-    if (!domainUpdate.affectedRows) {
-      return fail(res, 'Le domaine d’activité de l’entreprise a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
-    }
+  // Nouveau logo : enregistré dans le stockage privé (le corps de requête ne
+  // peut jamais fournir directement une URL de logo).
+  let savedLogo = null;
+  const logoFile = req.files?.logo?.[0];
+  if (logoFile) {
+    savedLogo = await files.save({
+      buffer: logoFile.buffer,
+      originalname: logoFile.originalname,
+      ownerId: req.user.id_utilisateur,
+      categorie: 'LOGO'
+    });
+    data.logo = savedLogo.url;
   }
 
-  const updated = await Company.updateOwn(req.params.id, data);
-  // Première définition du domaine (ancienne entreprise sans domaine) : les
-  // offres déjà publiées sans domaine sont alignées sur celui de l'entreprise
-  // (source métier unique : entreprise.id_domaine).
-  if (assignedDomainId !== null) {
-    await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL', [assignedDomainId, req.params.id]);
-    if (company.id_utilisateur) await domaine.assignUserDomainIfMissing(company.id_utilisateur, assignedDomainId);
+  try {
+    if (assignedDomainId !== null) {
+      const [domainUpdate] = await db.execute(
+        'UPDATE entreprise SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL',
+        [assignedDomainId, req.params.id]
+      );
+      if (!domainUpdate.affectedRows) {
+        await files.discard(savedLogo);
+        return fail(res, 'Le domaine d’activité de l’entreprise a déjà été choisi et ne peut plus être modifié.', ['id_domaine'], 403);
+      }
+    }
+
+    const updated = await Company.updateOwn(req.params.id, data);
+    // Première définition du domaine (ancienne entreprise sans domaine) : les
+    // offres déjà publiées sans domaine sont alignées sur celui de l'entreprise
+    // (source métier unique : entreprise.id_domaine).
+    if (assignedDomainId !== null) {
+      await db.execute('UPDATE offre_emploi SET id_domaine = ? WHERE id_entreprise = ? AND id_domaine IS NULL', [assignedDomainId, req.params.id]);
+      if (company.id_utilisateur) await domaine.assignUserDomainIfMissing(company.id_utilisateur, assignedDomainId);
+    }
+    return success(res, 'Entreprise mise à jour.', { company: updated });
+  } catch (error) {
+    await files.discard(savedLogo);
+    throw error;
   }
-  success(res, 'Entreprise mise à jour.', { company: updated });
 });
 exports.validate = asyncHandler(async (req, res) => {
   const map = { 'Validée': 'approved', 'Rejetée': 'rejected', pending: 'pending', approved: 'approved', rejected: 'rejected' };

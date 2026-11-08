@@ -1,4 +1,6 @@
-// Génère les images par défaut du profil (avatar + couverture) dans uploads/.
+// Génère les images par défaut du profil (avatar + couverture) dans
+// frontend/images/defaults. Elles sont publiques (aucune donnée personnelle) et
+// servies par express.static : les fichiers téléversés, eux, restent privés.
 // Aucune dépendance : PNG écrit manuellement (signature + chunks IHDR/IDAT/IEND,
 // CRC32 calculé localement). À réexécuter si les fichiers sont supprimés.
 const fs = require('fs');
@@ -58,5 +60,5 @@ const out = (file, data) => {
   console.log(`OK ${file} (${data.length} octets)`);
 };
 
-out(path.join(process.cwd(), 'uploads', 'photos', 'default-avatar.png'), png(200, 200, [79, 109, 245]));
-out(path.join(process.cwd(), 'uploads', 'covers', 'default-cover.png'), png(800, 300, [56, 78, 189]));
+out(path.join(process.cwd(), 'frontend', 'images', 'defaults', 'default-avatar.png'), png(200, 200, [79, 109, 245]));
+out(path.join(process.cwd(), 'frontend', 'images', 'defaults', 'default-cover.png'), png(800, 300, [56, 78, 189]));

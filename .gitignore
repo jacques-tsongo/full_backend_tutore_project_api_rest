@@ -1,8 +1,12 @@
 node_modules/
 .env
+# Stockage privé des fichiers téléversés (jamais servi statiquement)
+storage/
+# Ancien emplacement public : conservé pour la migration, non versionné
 uploads/cv/*
 uploads/photos/*
 uploads/companies/*
+uploads/covers/*
 !uploads/cv/.gitkeep
 !uploads/photos/.gitkeep
 !uploads/companies/.gitkeep

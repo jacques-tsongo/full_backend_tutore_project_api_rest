@@ -35,8 +35,10 @@ exports.register = asyncHandler(async (req, res) => {
   // Inscription + profil professionnel dans une transaction : le domaine est
   // obligatoire et rattaché à profil_professionnel, jamais stocké dans une
   // structure parallèle. Aucun profil incomplet n'est créé si une étape échoue.
-  const DEFAULT_AVATAR = 'uploads/photos/default-avatar.png';
-  const DEFAULT_COVER = 'uploads/covers/default-cover.png';
+  // Images par défaut PUBLIQUES (frontend/images/defaults) : elles ne
+  // contiennent aucune donnée personnelle et n'ont pas à passer par /files/:id.
+  const DEFAULT_AVATAR = '/images/defaults/default-avatar.png';
+  const DEFAULT_COVER = '/images/defaults/default-cover.png';
   const connection = await db.getConnection();
   let userId;
   try {

@@ -9,8 +9,9 @@ Plateforme de gestion des carrières et offres d'emploi :
 
 1. Créez la base avec [database/schema.sql](database/schema.sql) dans MySQL (le script force `SET NAMES utf8mb4` pour éviter tout problème d'encodage des valeurs accentuées).
 2. Appliquez les migrations : `npm run migrate` (suivi automatique dans `schema_migrations`, seules les migrations non encore appliquées sont exécutées).
-3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL ainsi qu'un `JWT_SECRET` robuste.
+3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL, un `JWT_SECRET` robuste et `STORAGE_DIR` (stockage privé des fichiers).
 4. Exécutez `npm install`, puis `npm run dev`.
+5. Si des fichiers existent déjà dans `uploads/` (ancien stockage public) : `npm run files:migrate`.
 
 - Application web : `http://localhost:5000/` (pages EJS).
 - API : `http://localhost:5000/api` — vérification : `GET /api/health`.
@@ -34,6 +35,7 @@ src/
 views/                   Gabarits EJS (pages + partials : navbar, sidebar, flash…)
 frontend/                Assets statiques (CSS, JS client léger, icônes Lucide locales)
 database/                schema.sql, seed.sql, migrations/
+storage/                 Fichiers privés téléversés (hors racine web, non versionné)
 ```
 
 ## Authentification (un seul mécanisme, deux transports)
@@ -141,6 +143,40 @@ mysql -u root -p < database/migrations/20260823_suggestions.sql
 - `20260823_suggestions` : table `demande_suggestion` et ajout de
   `type_notification`, `type_reference`, `id_reference` à la table
   `notification` existante. Aucune donnée ou notification historique n'est supprimée.
+- `20261107_01_fichier` : table `fichier` (stockage privé des téléversements,
+  voir la section suivante).
+
+## Fichiers privés (CV, photos, justificatifs)
+
+Les fichiers téléversés ne sont **plus** écrits dans `uploads/` ni servis
+statiquement. Ils sont stockés dans `STORAGE_DIR` (par défaut `./storage`,
+hors racine web), enregistrés dans la table `fichier` et accessibles
+uniquement via `GET /files/:id`.
+
+- Le type réel est vérifié par les octets (`file-type`), pas par l'extension ;
+  le nom sur disque est un UUID.
+- Le corps de requête ne peut jamais fournir une URL de fichier
+  (`logo`, `photo`, `cv`…) : seuls les fichiers réellement téléversés sont
+  acceptés, et les URL renvoyées sont de la forme `/files/<id>`.
+- Un refus d'accès renvoie **404** (comme un fichier inexistant), jamais 403,
+  afin de ne pas révéler l'existence d'un fichier d'autrui.
+
+| Catégorie | Propriétaire | Administrateur | Recruteur légitime | Tout utilisateur authentifié |
+| --- | --- | --- | --- | --- |
+| `PHOTO`, `COUVERTURE`, `LOGO` | oui | oui | oui | oui |
+| `CV` | oui | oui | oui (candidat ayant postulé à une offre de son entreprise approuvée) | non |
+| `JUSTIFICATIF` | oui | oui | non | non |
+
+Migration des fichiers historiques (idempotente, les originaux de `uploads/`
+sont conservés) :
+
+```bash
+npm run files:migrate             # enregistre et remplace les références uploads/... par /files/:id
+npm run files:migrate -- --dry-run # simulation
+```
+
+Les images par défaut (avatar, couverture) sont publiques et servies depuis
+`frontend/images/defaults/` — elles ne contiennent aucune donnée personnelle.
 
 ## Domaines professionnels (règles métier)
 
@@ -168,6 +204,12 @@ le frontend n'est pas la seule protection.
 ## Tests
 
 ```bash
+# Tests autonomes (sans serveur ni base MySQL)
+npm run test:migrations   # suivi des migrations
+npm run test:files        # stockage privé et politique d'accès aux fichiers
+npm run test:sql          # sûreté des requêtes SQL / pagination
+npm run test:matching:unit # scoring de compatibilité (base simulée)
+
 # Serveur démarré + base seedée
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
   -H 'Content-Type: application/json' \

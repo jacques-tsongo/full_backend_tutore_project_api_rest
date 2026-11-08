@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/user.model');
 const Company = require('../models/company.model');
 const domaine = require('../services/domain.service');
+const files = require('../services/fileStorage.service');
 
 /**
  * Champs personnalisables du profil professionnel (informations du CV
@@ -116,23 +117,56 @@ exports.upsert = asyncHandler(async (req, res) => {
 
 exports.uploadPhoto = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'Photo requise.', [], 422);
-  const user = await User.update(req.user.id_utilisateur, { photo: `uploads/photos/${req.file.filename}` });
-  success(res, 'Photo enregistrée.', { user });
+  const saved = await files.save({
+    buffer: req.file.buffer,
+    originalname: req.file.originalname,
+    ownerId: req.user.id_utilisateur,
+    categorie: 'PHOTO'
+  });
+  try {
+    const user = await User.updateAppearance(req.user.id_utilisateur, { photo: saved.url });
+    success(res, 'Photo enregistrée.', { user, file: saved });
+  } catch (err) {
+    await files.discard(saved);
+    throw err;
+  }
 });
 
 exports.uploadCover = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'Photo de couverture requise.', [], 422);
-  const user = await User.update(req.user.id_utilisateur, { photo_couverture: `uploads/covers/${req.file.filename}` });
-  success(res, 'Photo de couverture enregistrée.', { user });
+  const saved = await files.save({
+    buffer: req.file.buffer,
+    originalname: req.file.originalname,
+    ownerId: req.user.id_utilisateur,
+    categorie: 'COUVERTURE'
+  });
+  try {
+    const user = await User.updateAppearance(req.user.id_utilisateur, { photo_couverture: saved.url });
+    success(res, 'Photo de couverture enregistrée.', { user, file: saved });
+  } catch (err) {
+    await files.discard(saved);
+    throw err;
+  }
 });
 
 exports.uploadCv = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'CV requis.', [], 422);
-  const cv = `uploads/cv/${req.file.filename}`;
-  const [existing] = await db.execute('SELECT id_profil FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
-  if (existing[0]) await db.execute('UPDATE profil_professionnel SET cv = ? WHERE id_utilisateur = ?', [cv, req.user.id_utilisateur]);
-  else await db.execute('INSERT INTO profil_professionnel (id_utilisateur, cv) VALUES (?, ?)', [req.user.id_utilisateur, cv]);
-  success(res, 'CV enregistré.', { cv });
+  const saved = await files.save({
+    buffer: req.file.buffer,
+    originalname: req.file.originalname,
+    ownerId: req.user.id_utilisateur,
+    categorie: 'CV'
+  });
+  const cv = saved.url;
+  try {
+    const [existing] = await db.execute('SELECT id_profil FROM profil_professionnel WHERE id_utilisateur = ?', [req.user.id_utilisateur]);
+    if (existing[0]) await db.execute('UPDATE profil_professionnel SET cv = ? WHERE id_utilisateur = ?', [cv, req.user.id_utilisateur]);
+    else await db.execute('INSERT INTO profil_professionnel (id_utilisateur, cv) VALUES (?, ?)', [req.user.id_utilisateur, cv]);
+  } catch (err) {
+    await files.discard(saved);
+    throw err;
+  }
+  success(res, 'CV enregistré.', { cv, file: saved });
 });
 
 /* ------------------------- Langues (N:N langue ⇄ utilisateur) ------------- */

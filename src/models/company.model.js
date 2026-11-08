@@ -14,12 +14,15 @@ const frenchStatus = {
   rejected: 'Rejetée'
 };
 
-const normalizePayload = (body, files = {}) => {
-  const documents = [
-    ...(files.documents || []),
-    ...(files.supporting_documents || [])
-  ].map((file) => `/uploads/companies/${file.filename}`);
-
+/**
+ * Normalise les champs texte de l'entreprise.
+ *
+ * Les fichiers (logo, justificatifs) ne sont JAMAIS acceptés depuis le corps de
+ * la requête : ils sont enregistrés par `fileStorage.service` puis injectés par
+ * le contrôleur sous forme d'URL `/files/:id`. Une valeur `body.logo` fournie
+ * par le client est donc ignorée (protection contre l'injection d'URL).
+ */
+const normalizePayload = (body) => {
   // Géolocalisation : coordonnées libres (décimales, bornes valides).
   // Le recruteur peut les saisir ou les choisir via la carte (maps.js).
   const latitude = body.latitude === undefined || body.latitude === ''
@@ -40,10 +43,8 @@ const normalizePayload = (body, files = {}) => {
     email: body.email,
     site_web: body.site_web || body.website,
     description: body.description || body.company_description,
-    logo: files.logo?.[0] ? `/uploads/companies/${files.logo[0].filename}` : body.logo,
     numero_rccm: body.numero_rccm || body.registration_number || body.rccm,
     numero_fiscal: body.numero_fiscal || body.tax_number,
-    documents_justificatifs: documents.length ? JSON.stringify(documents) : body.documents_justificatifs,
     latitude: Number.isFinite(latitude) ? latitude : undefined,
     longitude: Number.isFinite(longitude) ? longitude : undefined
   };

@@ -39,7 +39,6 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' })); // formulaires HTML
 app.use(cookieParser());
 app.use(morgan('dev')); 
-app.use('/uploads', express.static(path.join(rootPath, 'uploads')));
 app.use(express.static(frontendPath));
 app.use(readFlash);
 
@@ -74,7 +73,7 @@ app.locals.formatDateTime = (value) => {
   const d = value instanceof Date ? value : new Date(value);
   return Number.isNaN(d.getTime()) ? '-' : `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })} ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 };
-// Normalise les chemins de fichiers stockés ('uploads/x' ou '/uploads/x').
+// Normalise les chemins de fichiers stockés (`/files/:id` ou chemin public).
 app.locals.asset = (p) => (p ? (String(p).startsWith('/') ? p : `/${p}`) : null);
 app.locals.statusClass = (value = '') => {
   const v = String(value);
@@ -134,6 +133,10 @@ app.use('/api/messages', require('./routes/message.routes'));
 app.use('/api/notifications', require('./routes/notification.routes')); 
 app.use('/api/suggestions', require('./routes/suggestion.routes'));
 app.use('/api/admin', require('./routes/admin.routes')); 
+
+// Fichiers privés : hors /api (les balises <img>/<a> utilisent le cookie de
+// session), mais toujours protégés par le contrôle d'accès par catégorie.
+app.use('/files', require('./routes/file.routes'));
 
 /* --------------------------- Pages EJS ----------------------------------- */
 app.use('/', require('./routes/web.routes'));

@@ -17,7 +17,17 @@ exports.updatePassword = async (id, hashedPassword) => {
   return exports.findById(id);
 };
 exports.update = async (id, data) => {
-  const allowed = ['nom', 'prenom', 'telephone', 'photo', 'photo_couverture'];
+  const allowed = ['nom', 'prenom', 'telephone'];
+  const fields = allowed.filter((k) => data[k] !== undefined);
+  if (!fields.length) return exports.findById(id);
+  await db.execute(`UPDATE utilisateur SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id_utilisateur = ?`, [...fields.map((f) => data[f]), id]);
+  return exports.findById(id);
+};
+// Les fichiers d'apparence ne sont modifiables que par les contrôleurs de
+// téléversement, avec une URL générée côté serveur (`/files/:id`). Le corps
+// d'une requête client ne peut donc jamais les définir.
+exports.updateAppearance = async (id, data) => {
+  const allowed = ['photo', 'photo_couverture'];
   const fields = allowed.filter((k) => data[k] !== undefined);
   if (!fields.length) return exports.findById(id);
   await db.execute(`UPDATE utilisateur SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id_utilisateur = ?`, [...fields.map((f) => data[f]), id]);
