@@ -19,10 +19,22 @@ const broadcastSkill = (name, event, payload) => {
 };
 
 const ownerFor = (name, user) => ['experiences', 'diplomes'].includes(name) ? { ownerField: 'id_utilisateur', ownerId: user.id_utilisateur } : null;
-const owns = async (name, id, user) => { 
-    const row = await Resource.get(name, id); if (!row) return null; 
+/**
+ * Charge une ressource en vérifiant l'appartenance.
+ * - `null` : la ressource n'existe pas ;
+ * - `false` : elle existe mais appartient à quelqu'un d'autre.
+ * Les deux cas sont volontairement confondus par les contrôleurs en un 404
+ * identique : impossible de déduire l'existence d'une expérience ou d'un
+ * diplôme d'autrui (IDOR).
+ */
+const owns = async (name, id, user, deps = {}) => {
+    const get = deps.get || Resource.get;
+    const row = await get(name, id); if (!row) return null;
     const o = ownerFor(name, user);
-     return (!o || row[o.ownerField] === o.ownerId || user.role === 'administrateur') ? row : false; };
+    if (!o || user.role === 'administrateur') return row;
+    return Number(row[o.ownerField]) === Number(o.ownerId) ? row : false;
+};
+exports.owns = owns;
 
 // Annuaire des entreprises : seuls les organismes approuvés sont visibles pour
 // les non-administrateurs, et les justificatifs internes (RCCM/fiscal/documents)
@@ -54,7 +66,7 @@ exports.list = (name) => asyncHandler(async (req, res) => {
   success(res, 'Liste récupérée.', result);
 });
 exports.get = (name) => asyncHandler(async (req, res) => { 
-    let row = await Resource.get(name, req.params.id); 
+    let row = await owns(name, req.params.id, req.user); 
     if (row && name === 'entreprises' && req.user.role !== 'administrateur' && row.status !== 'approved' && row.id_utilisateur !== req.user.id_utilisateur) row = null;
     if (row && name === 'entreprises') row = visibleCompany(row, req.user);
     return row ? success(res, 'Ressource récupérée.', { item: row }) : fail(res, 'Ressource introuvable.', [], 404); });
@@ -79,7 +91,7 @@ exports.create = (name) => asyncHandler(async (req, res) => {
     success(res, 'Ressource créée.', { item }, 201); });
 exports.update = (name) => asyncHandler(async (req, res) => { 
     const row = await owns(name, req.params.id, req.user); 
-    if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
+    if (!row) return fail(res, 'Ressource introuvable.', [], 404); 
     if (name === 'domaines' && req.body.nom_domaine !== undefined && !String(req.body.nom_domaine || '').trim()) {
       return fail(res, 'Nom de domaine requis.', ['nom_domaine'], 422);
     }
@@ -97,7 +109,7 @@ exports.update = (name) => asyncHandler(async (req, res) => {
     success(res, 'Ressource mise à jour.', { item }); });
 exports.remove = (name) => asyncHandler(async (req, res) => { 
     const row = await owns(name, req.params.id, req.user); 
-    if (!row) return fail(res, 'Ressource introuvable ou accès refusé.', [], row === false ? 403 : 404); 
+    if (!row) return fail(res, 'Ressource introuvable.', [], 404); 
     const d = Resource.schema[name]; 
     try {
       await db.execute(`DELETE FROM ${d.table} WHERE ${d.id} = ?`, [req.params.id]);

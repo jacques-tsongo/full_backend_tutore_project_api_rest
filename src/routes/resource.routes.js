@@ -92,6 +92,7 @@ crud('/domaines', 'domaines', ['administrateur']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Détails de l'expérience }
+ *       404: { description: Expérience introuvable ou appartenant à un autre utilisateur }
  *   put:
  *     summary: Modifier une expérience (Candidat)
  *     tags: [Ressources - Expériences]
@@ -99,6 +100,7 @@ crud('/domaines', 'domaines', ['administrateur']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Expérience mise à jour }
+ *       404: { description: Expérience introuvable ou appartenant à un autre utilisateur }
  *   delete:
  *     summary: Supprimer une expérience (Candidat)
  *     tags: [Ressources - Expériences]
@@ -106,6 +108,7 @@ crud('/domaines', 'domaines', ['administrateur']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Expérience supprimée }
+ *       404: { description: Expérience introuvable ou appartenant à un autre utilisateur }
  */
 crud('/experiences', 'experiences', ['candidat']); 
 
@@ -133,6 +136,7 @@ crud('/experiences', 'experiences', ['candidat']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Détails du diplôme }
+ *       404: { description: Diplôme introuvable ou appartenant à un autre utilisateur }
  *   put:
  *     summary: Modifier un diplôme (Candidat)
  *     tags: [Ressources - Diplômes]
@@ -140,6 +144,7 @@ crud('/experiences', 'experiences', ['candidat']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Diplôme mis à jour }
+ *       404: { description: Diplôme introuvable ou appartenant à un autre utilisateur }
  *   delete:
  *     summary: Supprimer un diplôme (Candidat)
  *     tags: [Ressources - Diplômes]
@@ -147,6 +152,7 @@ crud('/experiences', 'experiences', ['candidat']);
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Diplôme supprimé }
+ *       404: { description: Diplôme introuvable ou appartenant à un autre utilisateur }
  */
 crud('/diplomes', 'diplomes', ['candidat']); 
 

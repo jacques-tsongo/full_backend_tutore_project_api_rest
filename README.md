@@ -221,6 +221,14 @@ n'est jamais joignable. En cas de refus, l'envoi renvoie **403** avec un
 message explicite ; l'ouverture directe d'un fil renvoie **404** (comme un
 utilisateur inexistant).
 
+## Isolation des données personnelles
+
+Les expériences et diplômes appartiennent au candidat qui les a créés. La
+lecture, la modification et la suppression d'une ressource d'autrui renvoient
+**404** avec le même message qu'une ressource inexistante : un identifiant
+deviné ne permet ni de lire ni de modifier les données personnelles d'un autre
+compte (protection IDOR). L'administrateur conserve un accès de consultation.
+
 ## Tests
 
 ```bash
@@ -228,6 +236,7 @@ utilisateur inexistant).
 npm run test:migrations   # suivi des migrations
 npm run test:files        # stockage privé et politique d'accès aux fichiers
 npm run test:messaging    # politique de messagerie (rôles et relations)
+npm run test:idor         # isolation des expériences et diplômes
 npm run test:sql          # sûreté des requêtes SQL / pagination
 npm run test:matching:unit # scoring de compatibilité (base simulée)
 
