@@ -108,11 +108,18 @@ appliquées automatiquement dans l'ordre alphabétique (préfixe date) :
 ```bash
 npm run migrate          # applique les migrations non encore enregistrées
 npm run migrate:status   # affiche l'état sans rien modifier
+npm run db:check         # contrôle les données avant les contraintes d'intégrité
 ```
 
 Chaque migration réussie est enregistrée dans la table `schema_migrations`
 (`nom`, `applique_le`) créée automatiquement. Une migration en échec n'est pas
 enregistrée : corrigez le fichier puis relancez la commande.
+
+La migration `20261107_02_contraintes` ajoute des `CHECK` en base. Elle ne
+supprime ni ne réécrit aucune donnée : elle affiche d'abord le nombre de lignes
+qui violeraient chaque règle. Si ce nombre est non nul, l'ajout de la
+contrainte échoue (migration non enregistrée) — lancez `npm run db:check` pour
+le rapport détaillé, corrigez les lignes signalées, puis relancez `npm run migrate`.
 
 Application manuelle (dépannage uniquement) :
 
@@ -124,6 +131,8 @@ mysql -u root -p < database/migrations/20260821_profile_fields.sql
 mysql -u root -p < database/migrations/20260823_add_domain.sql
 mysql -u root -p < database/migrations/20260823_competence_domaine.sql
 mysql -u root -p < database/migrations/20260823_suggestions.sql
+mysql -u root -p < database/migrations/20261107_01_fichier.sql
+mysql -u root -p < database/migrations/20261107_02_contraintes.sql
 ```
 
 - `20260809` : `message.lu` + `message.date_lecture` + index (compteurs non lus).
@@ -145,6 +154,10 @@ mysql -u root -p < database/migrations/20260823_suggestions.sql
   `notification` existante. Aucune donnée ou notification historique n'est supprimée.
 - `20261107_01_fichier` : table `fichier` (stockage privé des téléversements,
   voir la section suivante).
+- `20261107_02_contraintes` : `CHECK` d'intégrité — message sans auto-adressage,
+  score de matching dans `[0, 100]`, chronologie des expériences/diplômes,
+  dates et salaire des offres, cohérence des deux statuts d'entreprise, taille
+  des fichiers strictement positive. Idempotente et sans perte de données.
 
 ## Fichiers privés (CV, photos, justificatifs)
 
@@ -237,6 +250,7 @@ npm run test:migrations   # suivi des migrations
 npm run test:files        # stockage privé et politique d'accès aux fichiers
 npm run test:messaging    # politique de messagerie (rôles et relations)
 npm run test:idor         # isolation des expériences et diplômes
+npm run test:constraints  # migration des contraintes d'intégrité
 npm run test:sql          # sûreté des requêtes SQL / pagination
 npm run test:matching:unit # scoring de compatibilité (base simulée)
 
