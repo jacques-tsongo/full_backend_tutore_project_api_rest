@@ -3,6 +3,7 @@ const { success, fail } = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { limitClause } = require('../utils/query');
 const notify = require('../services/notification.service');
+const messaging = require('../services/messaging.service');
 const socket = require('../socket');
 
 // Nombre maximal de contacts renvoyés par la liste « Nouveau message »
@@ -23,13 +24,19 @@ exports.send = asyncHandler(async (req, res) => {
   // express-validator.
   const destId = Number(id_destinataire);
   if (!Number.isInteger(destId) || destId < 1) return fail(res, 'Destinataire invalide.', [], 422);
-  if (destId === me) return fail(res, 'Vous ne pouvez pas vous écrire.', [], 422);
   const texte = typeof contenu === 'string' ? contenu.trim() : '';
   if (!texte) return fail(res, 'Le message ne peut pas être vide.', [], 422);
   if (texte.length > 5000) return fail(res, 'Le message est trop long (5000 caractères maximum).', [], 422);
 
-  const [recipient] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur=? AND statut_compte='actif'", [destId]);
-  if (!recipient[0]) return fail(res, 'Destinataire introuvable.', [], 404);
+  // Politique de messagerie : seuls les contacts légitimes sont joignables
+  // (rôle + relation métier ou conversation déjà engagée). Une requête directe
+  // avec un identifiant arbitraire est donc refusée, même si le compte existe.
+  const decision = await messaging.evaluate(req.user, destId);
+  if (!decision.allowed) {
+    if (decision.reason === 'not_found') return fail(res, 'Destinataire introuvable.', [], 404);
+    if (decision.reason === 'self') return fail(res, 'Vous ne pouvez pas vous écrire.', [], 422);
+    return fail(res, 'Vous ne pouvez pas contacter cet utilisateur : aucune relation professionnelle ou conversation existante.', [], 403);
+  }
   // Les nouveaux messages sont non lus (lu = 0) : ils alimentent le compteur du destinataire.
   const [r] = await db.execute('INSERT INTO message (id_expediteur, id_destinataire, contenu) VALUES (?, ?, ?)', [me, destId, texte]);
   await notify.create(destId, 'Vous avez reçu un nouveau message.');
@@ -58,8 +65,10 @@ exports.send = asyncHandler(async (req, res) => {
 
 exports.conversation = asyncHandler(async (req, res) => {
   const id = Number(req.params.userId);
-  const [recipient] = await db.execute("SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur=? AND statut_compte='actif'", [id]);
-  if (!recipient[0]) return fail(res, 'Utilisateur introuvable.', [], 404);
+  // Même politique que l'envoi : un fil ne s'ouvre pas avec un inconnu.
+  // Le refus est renvoyé en 404 (comme un utilisateur inexistant).
+  const decision = await messaging.evaluate(req.user, id);
+  if (!decision.allowed) return fail(res, 'Utilisateur introuvable.', [], 404);
   const [rows] = await db.execute(
     `SELECT m.*, u.nom expediteur_nom, u.prenom expediteur_prenom
      FROM message m JOIN utilisateur u ON u.id_utilisateur = m.id_expediteur

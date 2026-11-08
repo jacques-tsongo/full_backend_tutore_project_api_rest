@@ -22,17 +22,17 @@ router.use(authenticate);
  *           schema:
  *             type: object
  *             required:
- *               - destinataireId
+ *               - id_destinataire
  *               - contenu
  *             properties:
- *               destinataireId:
- *                 type: string
- *                 example: "64a8f1234b56c7890d123456"
- *                 description: ID unique du destinataire
+ *               id_destinataire:
+ *                 type: integer
+ *                 example: 42
+ *                 description: Identifiant du destinataire (contact légitime uniquement)
  *               contenu:
  *                 type: string
  *                 example: "Bonjour, je souhaite en savoir plus sur votre offre."
- *                 description: Contenu textuel du message
+ *                 description: Contenu textuel du message (5000 caractères max)
  *     responses:
  *       201:
  *         description: Message envoyé avec succès
@@ -40,6 +40,12 @@ router.use(authenticate);
  *         description: Destinataire ou contenu manquant / invalide
  *       401:
  *         description: Non authentifié (token manquant ou invalide)
+ *       403:
+ *         description: >
+ *           Aucune relation professionnelle ni conversation existante avec ce
+ *           destinataire (politique de messagerie)
+ *       404:
+ *         description: Destinataire introuvable ou inactif
  * 
  *   get:
  *     summary: Récupérer toutes les conversations actives de l'utilisateur
@@ -110,7 +116,8 @@ router.get('/contacts', c.contacts);
  *       401:
  *         description: Non authentifié
  *       404:
- *         description: Utilisateur non trouvé
+ *         description: >
+ *           Utilisateur introuvable, inactif, ou hors politique de messagerie
  */
 router.get('/:userId', v.userId, valid, c.conversation); 
 

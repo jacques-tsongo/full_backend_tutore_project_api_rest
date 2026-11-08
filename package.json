@@ -14,6 +14,7 @@
     "test:sql": "node test/sql-pagination-safety.js",
     "test:migrations": "node test/migrations-safety.js",
     "test:files": "node test/security-files.js",
+    "test:messaging": "node test/messaging-policy.js",
     "test:matching:unit": "node test/matching-unit.js",
     "test:e2e": "node test/e2e-workflow.js",
     "test:matching": "node test/matching-ranking.js",

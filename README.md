@@ -80,7 +80,7 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 5. Les candidats consultent les offres ouvertes (les offres fermées/expirées sont invisibles sauf s'ils y ont postulé), voient le détail avec score de matching, postulent **une seule fois** (message métier explicite en cas de doublon + contrainte `uq_candidature`).
 6. Le recruteur examine les candidatures (CV, contact, compétences, score), change leur statut → le candidat est notifié.
 7. Un candidat ou recruteur peut proposer un domaine absent ou une compétence de son propre domaine. Tous les administrateurs sont notifiés ; l'approbation/refus est transactionnel et notifie le compte demandeur.
-8. Messagerie et notifications avec **compteurs de non lus** servis par la base (`GET /api/messages/non-lus`, `GET /api/notifications/non-lues`, badges rendus côté serveur) : ouvrir un fil marque les messages reçus comme lus.
+8. Messagerie et notifications avec **compteurs de non lus** servis par la base (`GET /api/messages/non-lus`, `GET /api/notifications/non-lues`, badges rendus côté serveur) : ouvrir un fil marque les messages reçus comme lus. L'envoi est réservé aux contacts légitimes (voir « Politique de messagerie »).
 
 ## Endpoints principaux (API)
 
@@ -201,12 +201,33 @@ postule qu'aux offres ouvertes/non expirées dont le score est **supérieur ou
 règle est appliquée côté serveur (liste, détail, candidature, notifications) —
 le frontend n'est pas la seule protection.
 
+## Politique de messagerie
+
+La liste des contacts ne constitue pas une sécurité : `POST /api/messages` et
+`GET /api/messages/:userId` appliquent la même règle serveur
+(`src/services/messaging.service.js`). Un identifiant arbitraire est refusé
+même si le compte existe.
+
+| Expéditeur | Destinataire autorisé |
+| --- | --- |
+| Administrateur | tout utilisateur actif |
+| Candidat | recruteur d'une entreprise **approuvée** |
+| Recruteur | candidat ayant postulé à l'une de ses offres |
+| Tous | interlocuteur d'une **conversation déjà engagée** (réponse toujours possible) |
+
+Sont donc refusés : candidat → candidat, recruteur → recruteur, et
+utilisateur → administrateur sans conversation préalable. Un compte inactif
+n'est jamais joignable. En cas de refus, l'envoi renvoie **403** avec un
+message explicite ; l'ouverture directe d'un fil renvoie **404** (comme un
+utilisateur inexistant).
+
 ## Tests
 
 ```bash
 # Tests autonomes (sans serveur ni base MySQL)
 npm run test:migrations   # suivi des migrations
 npm run test:files        # stockage privé et politique d'accès aux fichiers
+npm run test:messaging    # politique de messagerie (rôles et relations)
 npm run test:sql          # sûreté des requêtes SQL / pagination
 npm run test:matching:unit # scoring de compatibilité (base simulée)
 
