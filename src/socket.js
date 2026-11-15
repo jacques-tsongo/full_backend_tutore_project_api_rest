@@ -15,6 +15,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('./models/user.model');
+const mailer = require('./services/email.service');
 
 let io = null;
 
@@ -39,6 +40,7 @@ const initSocket = (server) => {
       const payload = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(payload.id);
       if (!user || user.statut_compte !== 'actif') return next(new Error('compte_indisponible'));
+      if (mailer.isVerificationRequired() && Number(user.email_verifie) !== 1) return next(new Error('email_non_verifie'));
       socket.user = user;
       return next();
     } catch (_) {

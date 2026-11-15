@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const { notFound, errorHandler } = require('./middlewares/error.middleware'); 
 const { readFlash } = require('./helpers/flash');
 const { success } = require('./utils/apiResponse');
+const { maskSensitiveUrl } = require('./utils/logMask');
 const app = express();
 
 /* ------------------------- Sécurité & parsing --------------------------- */
@@ -38,6 +39,8 @@ app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || true, credentials:
 app.use(express.json({ limit: '1mb' })); 
 app.use(express.urlencoded({ extended: false, limit: '1mb' })); // formulaires HTML
 app.use(cookieParser());
+// Le jeton de vérification ne doit jamais apparaître dans les logs HTTP.
+morgan.token('url', (req) => maskSensitiveUrl(req.originalUrl || req.url));
 app.use(morgan('dev')); 
 app.use(express.static(frontendPath));
 app.use(readFlash);
