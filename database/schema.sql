@@ -20,7 +20,12 @@ CREATE TABLE utilisateur (
   role ENUM('candidat','recruteur','administrateur') NOT NULL DEFAULT 'candidat',
   date_inscription DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   statut_compte ENUM('actif','inactif','suspendu') NOT NULL DEFAULT 'actif',
-  INDEX idx_utilisateur_role_statut (role, statut_compte)
+  email_verifie TINYINT(1) NOT NULL DEFAULT 0,
+  email_verifie_le DATETIME NULL,
+  email_verification_token_hash CHAR(64) NULL,
+  email_verification_expire DATETIME NULL,
+  INDEX idx_utilisateur_role_statut (role, statut_compte),
+  UNIQUE KEY uq_utilisateur_email_verification_token (email_verification_token_hash)
 ) ENGINE=InnoDB;
 
 CREATE TABLE domaine (

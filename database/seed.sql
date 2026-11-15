@@ -10,16 +10,16 @@
 SET NAMES utf8mb4;
 
 -- --- Utilisateurs ---------------------------------------------------------
-INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role)
-SELECT 'Admin', 'Super', 'admin@example.com', '$2b$12$Wm6Avgv9zJZaOpp9DGWGRe4/KiQdsMZtN6DkPJFO4RcjMap7Z13Rm', '+243800000000', 'administrateur'
+INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role, email_verifie, email_verifie_le)
+SELECT 'Admin', 'Super', 'admin@example.com', '$2b$12$Wm6Avgv9zJZaOpp9DGWGRe4/KiQdsMZtN6DkPJFO4RcjMap7Z13Rm', '+243800000000', 'administrateur', 1, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM utilisateur WHERE email = 'admin@example.com');
 
-INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role)
-SELECT 'Mukendi', 'Paul', 'recruteur@example.com', '$2b$12$5NIky9yk4dpmgNEiFlTDvevM29i/CShn1FzvbDWfrU7wF7I3qJ09u', '+243810000001', 'candidat'
+INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role, email_verifie, email_verifie_le)
+SELECT 'Mukendi', 'Paul', 'recruteur@example.com', '$2b$12$5NIky9yk4dpmgNEiFlTDvevM29i/CShn1FzvbDWfrU7wF7I3qJ09u', '+243810000001', 'candidat', 1, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM utilisateur WHERE email = 'recruteur@example.com');
 
-INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role)
-SELECT 'Ilunga', 'Sarah', 'candidat@example.com', '$2b$12$pzeLIdsDhNKr9PbVjsIRMu7UAWYe65ODwwn.jCt1/hILzq2Ff8I7C', '+243810000002', 'candidat'
+INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, telephone, role, email_verifie, email_verifie_le)
+SELECT 'Ilunga', 'Sarah', 'candidat@example.com', '$2b$12$pzeLIdsDhNKr9PbVjsIRMu7UAWYe65ODwwn.jCt1/hILzq2Ff8I7C', '+243810000002', 'candidat', 1, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM utilisateur WHERE email = 'candidat@example.com');
 
 -- --- Profils --------------------------------------------------------------
