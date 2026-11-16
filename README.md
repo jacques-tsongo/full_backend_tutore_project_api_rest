@@ -9,7 +9,7 @@ Plateforme de gestion des carrières et offres d'emploi :
 
 1. Créez la base avec [database/schema.sql](database/schema.sql) dans MySQL (le script force `SET NAMES utf8mb4` pour éviter tout problème d'encodage des valeurs accentuées).
 2. Appliquez les migrations : `npm run migrate` (suivi automatique dans `schema_migrations`, seules les migrations non encore appliquées sont exécutées).
-3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL, un `JWT_SECRET` robuste et `STORAGE_DIR` (stockage privé des fichiers).
+3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL, un `JWT_SECRET` robuste et `STORAGE_DIR` (stockage privé des fichiers). L'inscription par code exige aussi `EMAIL_CODE_SECRET` (≥ 32 caractères) et un envoi d'e-mails configuré (`SMTP_USER`/`SMTP_PASS` Gmail ou `MAIL_DRIVER=console` en local) — voir [Inscription par code de vérification](#inscription-par-code-de-vérification).
 4. Exécutez `npm install`, puis `npm run dev`.
 5. Si des fichiers existent déjà dans `uploads/` (ancien stockage public) : `npm run files:migrate`.
 
@@ -55,6 +55,7 @@ Aucun mot de passe ni jeton n'est exposé au navigateur (pas de token en `localS
 |---|---|---|
 | Accueil, contact, à propos | `/`, `/contact`, `/about` | public |
 | Connexion / inscription | `/login`, `/register` | public (redirigé vers `/dashboard` si déjà connecté) |
+| Saisie du code d'inscription | `/register/verification` | public (cookie httpOnly `gc_signup`) |
 | Tableau de bord (adapté au rôle) | `/dashboard` | tous |
 | Profil + CV + photo + compétences + expériences + diplômes | `/profil` | candidat, recruteur |
 | Offres (recherche, filtre, pagination) / détail + candidature | `/offres`, `/offres/:id` | tous |
@@ -73,7 +74,7 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 
 ## Workflow métier
 
-1. Un candidat s'inscrit (tout nouveau compte est `candidat` — jamais de choix de rôle à l'inscription), complète son profil (bio, adresse, photo, CV) et ses compétences.
+1. Un candidat s'inscrit en deux étapes : il reçoit un code à 6 chiffres par e-mail, le valide, et **seulement alors** le compte `candidat` est créé (jamais de choix de rôle à l'inscription). Il complète ensuite son profil (bio, adresse, photo, CV) et ses compétences.
 2. Il soumet une entreprise depuis **Paramètres → Espace recruteur** (`POST /api/entreprises/demande-recruteur` ou le formulaire `/entreprise/demande`, multipart : `logo`, `supporting_documents` PDF).
 3. L'administrateur approuve ou rejette (`PUT /api/admin/companies/:id/approve|reject` ou le dashboard admin) — **l'approbation promeut le rôle `recruteur`** ; elle n'est jamais contournable (la modification d'entreprise, `PUT /api/entreprises/:id`, ne permet pas de changer le statut).
 4. Le recruteur gère SA société (`/entreprise`), crée des offres, définit leurs compétences requises, publie/modifie/supprime ses offres.
@@ -84,7 +85,7 @@ Les anciennes URLs `*.html` redirigent en 301 vers les nouvelles routes.
 
 ## Endpoints principaux (API)
 
-- `POST /api/auth/register`, `POST /api/auth/login`, `GET|PUT /api/auth/me`, `PUT /api/auth/mot-de-passe`, `POST /api/auth/logout`
+- `POST /api/auth/register` (202 : inscription en attente + envoi du code), `POST /api/auth/register/verify`, `POST /api/auth/register/resend`, `POST|DELETE /api/auth/register/cancel`, `POST /api/auth/login`, `GET|PUT /api/auth/me`, `PUT /api/auth/mot-de-passe`, `POST /api/auth/logout`
 - `GET|POST|PUT|DELETE /api/competences`, `/api/experiences`, `/api/diplomes`
 - `GET /api/offres` (`q`, `statut`, `mine=1`, `page`, `limit`, `sort`, `order`), `GET|POST /api/offres`, `GET|PUT|DELETE /api/offres/:id`
 - `PUT /api/offres/:id/competences`, `GET /api/offres/:id/matching`, `POST /api/offres/:id/postuler`
@@ -133,6 +134,7 @@ mysql -u root -p < database/migrations/20260823_competence_domaine.sql
 mysql -u root -p < database/migrations/20260823_suggestions.sql
 mysql -u root -p < database/migrations/20261107_01_fichier.sql
 mysql -u root -p < database/migrations/20261107_02_contraintes.sql
+mysql -u root -p < database/migrations/20261107_03_email_verification.sql
 ```
 
 - `20260809` : `message.lu` + `message.date_lecture` + index (compteurs non lus).
@@ -158,6 +160,15 @@ mysql -u root -p < database/migrations/20261107_02_contraintes.sql
   score de matching dans `[0, 100]`, chronologie des expériences/diplômes,
   dates et salaire des offres, cohérence des deux statuts d'entreprise, taille
   des fichiers strictement positive. Idempotente et sans perte de données.
+- `20261107_03_email_verification` : `email_verifie`, `email_verifie_le` (ainsi
+  que les colonnes historiques de jeton, conservées mais plus utilisées). Les
+  comptes historiques sont marqués vérifiés (aucun verrouillage) ; les
+  nouvelles inscriptions sont créées avec `email_verifie = 1` après validation
+  du code.
+- `20261116_01_inscription_en_attente` : table `inscription_en_attente` qui
+  stocke les demandes non validées (mot de passe haché, empreinte du ticket et
+  HMAC du code, expiration, tentatives, renvois). Aucun compte `utilisateur`
+  n'est créé tant que le code n'est pas validé.
 
 ## Fichiers privés (CV, photos, justificatifs)
 
@@ -242,6 +253,81 @@ lecture, la modification et la suppression d'une ressource d'autrui renvoient
 deviné ne permet ni de lire ni de modifier les données personnelles d'un autre
 compte (protection IDOR). L'administrateur conserve un accès de consultation.
 
+## Inscription par code de vérification
+
+Aucun compte `utilisateur` n'est créé tant que l'adresse e-mail n'a pas été
+prouvée. L'inscription se fait en deux étapes :
+
+1. `POST /api/auth/register` (ou le formulaire `/register`) : la demande est
+   stockée dans `inscription_en_attente` (mot de passe déjà haché, code et
+   ticket jamais stockés en clair) et un **code à 6 chiffres** est envoyé par
+   e-mail. Réponse API `202` avec `ticket`, `email_masque`, `expire_dans` et
+   `renvoi_dans`. Côté web, le ticket reste dans le cookie httpOnly
+   `gc_signup` (jamais dans l'URL).
+2. `POST /api/auth/register/verify` avec `{ ticket, code }` : le code est
+   comparé en temps constant, puis le compte `utilisateur`, son profil
+   professionnel et la session sont créés dans une transaction. Réponse `201`
+   avec `user` + `token` ; la session web est ouverte immédiatement.
+
+Endpoints associés : `POST /api/auth/register/resend` (nouveau code),
+`POST|DELETE /api/auth/register/cancel` (abandon), et côté web
+`/register/verification`,
+`/register/verification/renvoyer`, `/register/verification/annuler`.
+
+Configuration `.env` :
+
+```dotenv
+# Envoi réel via Nodemailer + Gmail (mot de passe d'application)
+MAIL_DRIVER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=compte-dedie-linkemploi@gmail.com
+SMTP_PASS=abcdefghijklmnop
+MAIL_FROM_EMAIL=compte-dedie-linkemploi@gmail.com
+MAIL_FROM_NAME=LinkEmploi
+
+# Code d'inscription
+EMAIL_CODE_SECRET=chaine-aleatoire-d-au-moins-32-caracteres
+EMAIL_CODE_TTL_SECONDS=600        # 1 à 600
+EMAIL_CODE_RESEND_SECONDS=60
+EMAIL_CODE_MAX_ATTEMPTS=5
+EMAIL_CODE_MAX_RESENDS=3
+BLOCK_DISPOSABLE_EMAILS=true
+```
+
+- Générez le secret avec
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+  Sans `EMAIL_CODE_SECRET` (ou s'il fait moins de 32 caractères), l'inscription
+  est **bloquée** avec un `503` explicite.
+- `MAIL_DRIVER` accepte `smtp` (envoi réel), `console` (le code s'affiche dans
+  le terminal, développement) et `outbox` (e-mails JSON dans
+  `MAIL_OUTBOX_DIR`, tests). `console`/`outbox` sont interdits en production et
+  `smtp` est interdit en mode `test`.
+- `npm run mail:check` affiche la configuration sans jamais révéler le mot de
+  passe. Ajoutez `-- --send-to=adresse@exemple.com` pour un envoi de test réel.
+- Le code expire selon `EMAIL_CODE_TTL_SECONDS` ; l'expiration, le délai de
+  renvoi et les tentatives sont calculés **en SQL** (`DATE_ADD`, `NOW()`,
+  `TIMESTAMPDIFF`), donc dans le fuseau de MariaDB quel que soit le pool.
+- Le code est vérifié via un HMAC-SHA256 (clé `EMAIL_CODE_SECRET`) et le ticket
+  via un SHA-256 : une fuite de la table `inscription_en_attente` ne permet pas
+  de retrouver un code ou un ticket utilisable. Un code incorrect incrémente
+  les tentatives ; au-delà de `EMAIL_CODE_MAX_ATTEMPTS`, la demande doit être
+  recommencée. Les renvois sont limités par `EMAIL_CODE_MAX_RESENDS`.
+- Les adresses jetables (`disposable-email-domains`) et les domaines sans
+  enregistrement MX/A/AAAA sont refusés (`422`). Une panne DNS passagère ne
+  bloque pas une inscription légitime.
+- L'adresse est normalisée (espaces retirés, minuscules) sur l'API **et** les
+  pages web ; les points ne sont jamais supprimés
+  (`jean.dupont@gmail.com` reste inchangé).
+- Par sécurité, un compte dont `email_verifie != 1` (compte historique) est
+  refusé à la connexion API (`403`, « Compte non vérifié. Contacte
+  l'administrateur. »), sur les pages web et à l'authentification Socket.IO.
+  Le flux normal ne crée que des comptes vérifiés.
+- Les inscriptions expirées depuis plus d'une heure sont purgées
+  opportunistement au démarrage et lors des demandes ; aucune donnée de compte
+  n'est concernée.
+
 ## Tests
 
 ```bash
@@ -251,10 +337,17 @@ npm run test:files        # stockage privé et politique d'accès aux fichiers
 npm run test:messaging    # politique de messagerie (rôles et relations)
 npm run test:idor         # isolation des expériences et diplômes
 npm run test:constraints  # migration des contraintes d'intégrité
+npm run test:signup       # inscription par code (base, DNS et e-mail simulés)
+npm run test:contract     # imports locaux cohérents avec les exports des modules
+npm run test:auth-flow    # contrôleurs register/verify/login (base simulée)
+npm run test:email-normalization # normalisation API ↔ pages web
+npm run test:rate-limit   # limiteur : JSON 429 côté API, flash côté page
+npm run test:log-mask     # jetons masqués dans les logs HTTP
 npm run test:sql          # sûreté des requêtes SQL / pagination
 npm run test:matching:unit # scoring de compatibilité (base simulée)
 
-# Serveur démarré + base seedée
+# Serveur démarré + base seedée, avec MAIL_DRIVER=outbox (aucun e-mail réel).
+# Les helpers lisent le code d'inscription dans MAIL_OUTBOX_DIR (tmp/outbox).
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.com","mot_de_passe":"Admin123!"}' | jq -r .data.token) \
@@ -267,7 +360,8 @@ npm run test:pages     # 54 assertions sur les pages EJS (HTTP réel)
 Aucun compte admin n'est créé par le schéma (hors seed). Créez-le manuellement :
 
 ```sql
-INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, role) VALUES ('Admin', 'Super', 'admin@example.com', '<hash bcrypt du mot de passe>', 'administrateur');
+INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, role, email_verifie, email_verifie_le)
+VALUES ('Admin', 'Super', 'admin@example.com', '<hash bcrypt du mot de passe>', 'administrateur', 1, NOW());
 ```
 
 Générez le hash avec `node hash-password.js`.

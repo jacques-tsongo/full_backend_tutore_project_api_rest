@@ -10,3 +10,5 @@ uploads/covers/*
 !uploads/cv/.gitkeep
 !uploads/photos/.gitkeep
 !uploads/companies/.gitkeep
+# Fichiers temporaires (outbox e-mail de test, etc.)
+tmp/
