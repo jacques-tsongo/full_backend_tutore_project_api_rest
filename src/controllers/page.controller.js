@@ -11,6 +11,8 @@ const Company = require('../models/company.model');
 const matching = require('../services/matching.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { collect } = require('../helpers/formPost');
+const { flash } = require('../helpers/flash');
+const signup = require('../services/signup.service');
 const domainService = require('../services/domain.service');
 const offerController = require('./offer.controller');
 const profileController = require('./profile.controller');
@@ -43,6 +45,27 @@ exports.registerPage = asyncHandler(async (req, res) => {
   if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
   const [domains] = await db.execute('SELECT id_domaine, nom_domaine FROM domaine ORDER BY nom_domaine');
   return res.render('register', { title: 'Inscription', user: null, domains: domains || [] });
+});
+
+/**
+ * Page de saisie du code à 6 chiffres. Le ticket d'inscription est conservé
+ * dans un cookie httpOnly dédié (`gc_signup`) : il n'apparaît jamais dans
+ * l'URL ni dans le HTML.
+ */
+exports.registerVerificationPage = asyncHandler(async (req, res) => {
+  if (res.locals.user) return res.redirect(exports.dashboardPath(res.locals.user));
+  const ticket = req.cookies?.gc_signup;
+  const pending = ticket ? await signup.getPending({ ticket }) : null;
+  if (!pending) {
+    res.clearCookie('gc_signup', { path: '/' });
+    flash(res, 'danger', 'Votre demande d’inscription a expiré. Recommencez l’inscription.');
+    return res.redirect('/register');
+  }
+  return res.render('register-verification', {
+    title: 'Vérification de l’e-mail',
+    user: null,
+    pending
+  });
 });
 
 /* =========================== Tableau de bord ============================= */
