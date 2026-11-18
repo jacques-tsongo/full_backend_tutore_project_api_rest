@@ -10,7 +10,6 @@ const assert = require('node:assert/strict');
 const { validationResult } = require('express-validator');
 const { normalizeEmailAddress } = require('../src/utils/email');
 const validators = require('../src/validators/auth.validator');
-const verification = require('../src/services/emailVerification.service');
 const { webValidate } = require('../src/middlewares/webValidate.middleware');
 
 const runChain = async (chain, req) => {
@@ -92,15 +91,6 @@ console.log('Normalisation des adresses e-mail');
     assert.equal(res.redirectUrl, '/login');
     assert.equal(cookies.length, 1);
     assert.match(cookies[0].value, /Invalid value/);
-  });
-
-  await test('le renvoi recherche l’adresse normalisée', async () => {
-    let received = null;
-    await verification.resend('  JUAN.Dupont@Gmail.com ', {
-      config: { apiKey: '', senderEmail: '', verificationTtlHours: 24 },
-      findByEmail: async (value) => { received = value; return null; }
-    });
-    assert.equal(received, 'juan.dupont@gmail.com');
   });
 
   if (process.exitCode) {

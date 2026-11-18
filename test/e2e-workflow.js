@@ -1,4 +1,7 @@
-/* E2E test of the complete workflow — run with ADMIN_TOKEN env var. */
+/* E2E test of the complete workflow — run with ADMIN_TOKEN env var.
+   Prérequis : serveur lancé avec MAIL_DRIVER=outbox (le code d'inscription est
+   lu dans le dossier outbox, aucun e-mail réel n'est envoyé). */
+const { registerVerified } = require('./helpers/live-signup');
 const BASE = `http://127.0.0.1:${process.env.PORT || 5000}/api`;
 const results = [];
 const step = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  → ' + detail : ''}`); };
@@ -38,11 +41,11 @@ const run = async () => {
 
   const u1 = { nom: 'Mbala', prenom: 'Jean', email: 'jean.mbala@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000001', id_domaine: firstDomain };
   const u2 = { nom: 'Kabila', prenom: 'Aline', email: 'aline.kabila@test.com', mot_de_passe: 'Secret123!', telephone: '+243800000002', id_domaine: firstDomain };
-  const r1 = await call('POST', '/auth/register', { body: u1 });
-  const r2 = await call('POST', '/auth/register', { body: u2 });
-  const tok1 = r1.json?.data?.token, tok2 = r2.json?.data?.token;
-  const id1 = r1.json?.data?.user?.id_utilisateur, id2 = r2.json?.data?.user?.id_utilisateur;
-  step('Register both candidates', r1.status === 201 && r2.status === 201 && !!tok1 && !!tok2);
+  const r1 = await registerVerified(u1, { base: BASE });
+  const r2 = await registerVerified(u2, { base: BASE });
+  const tok1 = r1.token, tok2 = r2.token;
+  const id1 = r1.user?.id_utilisateur, id2 = r2.user?.id_utilisateur;
+  step('Register both candidates', !!tok1 && !!tok2);
 
   const p1 = await call('PUT', '/profil', { token: tok1, body: { bio: 'Developpeur fullstack', adresse: 'Kinshasa', date_naissance: '1995-04-12', lieu_naissance: 'Kinshasa' } });
   step('PUT /profil (recruteur à venir)', p1.status === 200);

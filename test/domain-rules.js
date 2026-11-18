@@ -6,8 +6,10 @@
  *   node test/domain-rules.js
  *
  * Le script crée ses propres comptes jetables (suffixe horodaté) : il ne
- * modifie ni ne supprime aucune donnée existante.
+ * modifie ni ne supprime aucune donnée existante. Le serveur doit être lancé
+ * avec MAIL_DRIVER=outbox : le code d'inscription est lu dans le dossier outbox.
  */
+const { registerVerified } = require('./helpers/live-signup');
 const BASE = `http://127.0.0.1:${process.env.PORT || 5000}/api`;
 const results = [];
 const step = (name, ok, detail = '') => {
@@ -51,19 +53,19 @@ const run = async () => {
   step('CAS 2 — sans id_domaine soumis, rien n\'est enregistré', noDomain.status === 422, `status=${noDomain.status}`);
 
   // CAS 1/3 : l'utilisateur sélectionne Informatique → domaine enregistré.
-  const cand1 = await call('POST', '/auth/register', {
-    body: { nom: 'Info', prenom: 'Cand', email: `info.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: INFO }
-  });
-  const tokInfo = cand1.json?.data?.token;
-  step('CAS 3 — sélection Informatique → domaine enregistré', cand1.status === 201 && !!tokInfo, `status=${cand1.status}`);
+  const cand1 = await registerVerified({
+    nom: 'Info', prenom: 'Cand', email: `info.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: INFO
+  }, { base: BASE });
+  const tokInfo = cand1.token;
+  step('CAS 3 — sélection Informatique → domaine enregistré', !!tokInfo);
   const prof1 = await call('GET', '/profil', { token: tokInfo });
   step('CAS 3bis — le profil porte bien id_domaine Informatique', Number(prof1.json?.data?.profile?.id_domaine) === INFO);
 
   // Candidat Santé pour la suite.
-  const cand2 = await call('POST', '/auth/register', {
-    body: { nom: 'Sante', prenom: 'Cand', email: `sante.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: SANTE }
-  });
-  const tokSante = cand2.json?.data?.token;
+  const cand2 = await registerVerified({
+    nom: 'Sante', prenom: 'Cand', email: `sante.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: SANTE
+  }, { base: BASE });
+  const tokSante = cand2.token;
 
   /* -------- CAS 4 : changement de domaine refusé côté backend -------- */
   const change = await call('PUT', '/profil', { token: tokInfo, body: { id_domaine: SANTE } });
@@ -109,10 +111,10 @@ const run = async () => {
   fd.append('description', 'Entreprise de test des règles de domaine');
   fd.append('numero_rccm', `RCCM/TEST/${stamp}`);
   fd.append('supporting_documents', new Blob(['%PDF-1.4 test'], { type: 'application/pdf' }), 'doc.pdf');
-  const recruiterReg = await call('POST', '/auth/register', {
-    body: { nom: 'Rec', prenom: 'Info', email: `rec.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: INFO }
-  });
-  let tokRec = recruiterReg.json?.data?.token;
+  const recruiterReg = await registerVerified({
+    nom: 'Rec', prenom: 'Info', email: `rec.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: INFO
+  }, { base: BASE });
+  let tokRec = recruiterReg.token;
   const compReq = await call('POST', '/entreprises/demande-recruteur', { token: tokRec, form: fd });
   const pend = await call('GET', '/admin/companies/pending', { token: adminTok });
   const myCompany = (pend.json?.data?.items || []).find((c) => c.nom_entreprise === `Tech Domaines ${stamp}`);

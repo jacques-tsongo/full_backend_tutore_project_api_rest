@@ -7,6 +7,7 @@
    (nouvelle + statut), compétences (création/suppression), sécurité.
 */
 const { io } = require('socket.io-client');
+const { registerVerified } = require('./helpers/live-signup');
 const BASE = 'http://127.0.0.1:' + (process.env.PORT || 5100);
 const results = [];
 const step = (name, ok, detail = '') => {
@@ -48,11 +49,13 @@ const run = async () => {
   // Domaine professionnel OBLIGATOIRE à l'inscription : premier du catalogue.
   const domResp = await call('GET', '/domaines', { token: adminToken });
   const firstDomain = domResp.json?.data?.items?.[0]?.id_domaine;
-  const reg = (tag) => call('POST', '/auth/register', { body: { nom: `Test${tag}`, prenom: `RT${suffix}`, email: `rt.${tag}.${suffix}@test.com`, mot_de_passe: 'Secret123!', telephone: '+243800000009', id_domaine: firstDomain } });
-  const [ra, rb, rc] = [await reg('a'), await reg('b'), await reg('c')];
-  const tokA = ra.json?.data?.token, tokB = rb.json?.data?.token, tokC = rc.json?.data?.token;
-  const idA = ra.json?.data?.user?.id_utilisateur, idB = rb.json?.data?.user?.id_utilisateur;
-  step('3 candidats créés', [ra, rb, rc].every((r) => r.status === 201) && !!tokA && !!tokB && !!tokC);
+  const reg = (tag) => registerVerified({ nom: `Test${tag}`, prenom: `RT${suffix}`, email: `rt.${tag}.${suffix}@test.com`, mot_de_passe: 'Secret123!', telephone: '+243800000009', id_domaine: firstDomain }, { base: BASE });
+  const ra = await reg('a');
+  const rb = await reg('b');
+  const rc = await reg('c');
+  const tokA = ra.token, tokB = rb.token, tokC = rc.token;
+  const idA = ra.user?.id_utilisateur, idB = rb.user?.id_utilisateur;
+  step('3 candidats créés', !!tokA && !!tokB && !!tokC);
 
   /* --- Auth Socket.IO --- */
   let authOk = false;
@@ -100,7 +103,7 @@ const run = async () => {
   let leak = false;
   const guard = () => { leak = true; };
   sockB.on('nouveau_message', guard);
-  await call('POST', '/messages', { token: tokA, body: { id_destinataire: rc.json?.data?.user?.id_utilisateur, contenu: 'Privé pour C' } });
+  await call('POST', '/messages', { token: tokA, body: { id_destinataire: rc.user?.id_utilisateur, contenu: 'Privé pour C' } });
   await new Promise((r) => setTimeout(r, 800));
   sockB.off('nouveau_message', guard);
   step('A → C : B ne reçoit pas le message privé', !leak);

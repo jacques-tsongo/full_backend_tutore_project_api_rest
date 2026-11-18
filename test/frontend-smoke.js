@@ -10,6 +10,7 @@
  *
  * Exécution : node test/frontend-smoke.js
  */
+const { registerWeb, waitForCode } = require('./helpers/live-signup');
 const BASE = `http://127.0.0.1:${process.env.PORT || 5000}`;
 const results = [];
 const step = (name, ok, detail = '') => {
@@ -94,7 +95,12 @@ const run = async () => {
   // champ caché id_domaine (voir domain-picker.js) — on reproduit la soumission.
   const domainInfo = await resolveDomainId('Informatique');
   const register = await candidate.post('/register', { form: { nom: 'Smoke', prenom: 'Testeur', email, mot_de_passe: 'Secret123!', telephone: '+2438000000', id_domaine: String(domainInfo) } });
-  step('POST /register → 302 /competences + cookie httpOnly', register.status === 302 && register.location.includes('/competences') && candidate.has('gc_token'));
+  step('POST /register → 302 /register/verification + cookie gc_signup', register.status === 302 && register.location.includes('/register/verification') && candidate.has('gc_signup') && !candidate.has('gc_token'));
+  const verificationPage = await candidate.get('/register/verification');
+  step('Page de saisie du code rendue (SSR)', verificationPage.status === 200 && verificationPage.text.includes('code'));
+  const code = await waitForCode(email);
+  const verify = await candidate.post('/register/verification', { form: { code } });
+  step('POST /register/verification → 302 /competences + cookie httpOnly', verify.status === 302 && verify.location.includes('/competences') && candidate.has('gc_token') && !candidate.has('gc_signup'));
   const onboard = await candidate.get('/competences');
   step('Page compétences post-inscription rendue (SSR)', onboard.status === 200 && onboard.text.includes('Ajouter vos compétences') && onboard.text.includes('skills-onboarding-form'));
   const skip = await candidate.post('/competences', { form: {} });
@@ -213,7 +219,9 @@ const run = async () => {
   // par des runs précédents (validation d'entreprise) — on crée donc notre propre
   // candidat pour que le scénario reste rejouable quelle que soit la base.
   const seeker = browser();
-  await seeker.post('/register', { form: { nom: 'Candi', prenom: 'Seeker', email: `smoke.seeker.${freshId()}@example.com`, mot_de_passe: 'Secret123!', telephone: '+2438000002', id_domaine: String(domainInfo) } });
+  const seekerEmail = `smoke.seeker.${freshId()}@example.com`;
+  const seekerReg = await registerWeb(seeker, { nom: 'Candi', prenom: 'Seeker', email: seekerEmail, mot_de_passe: 'Secret123!', telephone: '+2438000002', id_domaine: String(domainInfo) });
+  step('Candidat secondaire inscrit et vérifié (web)', seekerReg.verify.status === 302 && seeker.has('gc_token'));
   await seeker.post('/competences', { form: {} });
   // Compétence alignée sur l'offre : garantit sa visibilité dans la liste
   // filtrée par compétences (fonctionnalité « offres adaptées au profil »).

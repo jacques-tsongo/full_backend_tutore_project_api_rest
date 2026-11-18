@@ -12,6 +12,7 @@
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
+const { registerVerified } = require('./helpers/live-signup');
 
 const BASE = `http://127.0.0.1:${process.env.PORT || 5000}/api`;
 const WEB = `http://127.0.0.1:${process.env.PORT || 5000}`;
@@ -63,10 +64,10 @@ const run = async () => {
 
   /* ---------------- Recruteur + entreprise approuvée ----------------------- */
   const reg = async (prefix) => {
-    const r = await call('POST', '/auth/register', {
-      body: { nom: prefix, prenom: 'Test', email: `${prefix.toLowerCase()}.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: DOM }
-    });
-    return { token: r.json?.data?.token, id: r.json?.data?.user?.id_utilisateur };
+    const r = await registerVerified({
+      nom: prefix, prenom: 'Test', email: `${prefix.toLowerCase()}.${stamp}@test.local`, mot_de_passe: 'Secret123!', id_domaine: DOM
+    }, { base: BASE });
+    return { token: r.token, id: r.user?.id_utilisateur };
   };
   let rec = await reg('Rec');
   const fd = new FormData();

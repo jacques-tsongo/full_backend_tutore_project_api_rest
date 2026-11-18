@@ -2,44 +2,81 @@
  * Flux du contrôleur d'authentification — aucune base ni réseau.
  *
  * `src/config/database` est remplacé dans `require.cache` par une fausse base
- * (`execute`, `getConnection` avec transaction) et `global.fetch` par un faux
- * client Brevo. On exerce `register`, `login`, `resendVerification` et
- * `verifyEmail` dans les trois modes de configuration :
- *   (a) Brevo non configuré  → comptes vérifiés d'office, aucun envoi ;
- *   (b) Brevo configuré, vérification informative ;
- *   (c) Brevo configuré, vérification obligatoire (aucune session).
+ * en mémoire, DNS est simulé et `mailer.send` est remplacé par un capteur.
+ * On vérifie le nouveau flux d'inscription en deux étapes :
+ *   (a) `register` crée seulement une inscription en attente (202) ;
+ *   (b) `registerVerify` crée le compte vérifié et ouvre la session (201) ;
+ *   (c) `login` refuse les comptes historiques non vérifiés.
  *
  * Exécution : node test/auth-controller-flow.js (npm run test:auth-flow)
  */
 const assert = require('node:assert/strict');
+const bcrypt = require('bcrypt');
+const dns = require('dns').promises;
 
-/* ----------------------- Fausse base de données ------------------------- */
+/* ----------------------- Environnement de test ------------------------- */
+process.env.NODE_ENV = 'test';
+process.env.MAIL_DRIVER = 'outbox';
+process.env.MAIL_OUTBOX_DIR = 'tmp/outbox-test';
+delete process.env.SMTP_USER;
+delete process.env.SMTP_PASS;
+process.env.EMAIL_CODE_SECRET = 'secret-de-test-au-moins-32-caracteres!!';
+process.env.EMAIL_CODE_TTL_SECONDS = '600';
+process.env.EMAIL_CODE_RESEND_SECONDS = '60';
+process.env.EMAIL_CODE_MAX_ATTEMPTS = '5';
+process.env.EMAIL_CODE_MAX_RESENDS = '3';
+process.env.JWT_SECRET = 'secret-de-test';
+process.env.JWT_EXPIRES_IN = '1h';
+
+/* ----------------------------- DNS simulé ------------------------------ */
+const originalResolveMx = dns.resolveMx;
+dns.resolveMx = async (domain) => [{ exchange: `mx.${domain}`, priority: 10 }];
+
+/* ------------------------- Fausse base mémoire ------------------------- */
 const state = {
-  usersById: new Map(),
-  usersByEmail: new Map(),
-  inserts: [],
-  tokenUpdates: [],
-  fetchCalls: [],
-  nextId: 200
+  users: [],
+  profiles: [],
+  pending: [],
+  nextUserId: 300
 };
 
-const fakeExecute = async (sql, params = []) => {
-  const statement = String(sql);
+const resetState = () => {
+  state.users = [];
+  state.profiles = [];
+  state.pending = [];
+  state.nextUserId = 300;
+};
 
-  if (/FROM domaine WHERE id_domaine/.test(statement)) {
+const timing = (row, resendSeconds) => ({
+  ...row,
+  expire_dans: Math.floor((row.expire_at - Date.now()) / 1000),
+  renvoi_dans: Math.max(0, Math.floor((row.dernier_envoi_at + resendSeconds * 1000 - Date.now()) / 1000))
+});
+
+const fakeExecute = async (statement, params = []) => {
+  const sql = String(statement).replace(/\s+/g, ' ').trim();
+
+  if (/FROM domaine WHERE id_domaine = \?/.test(sql)) {
     return [[{ id_domaine: Number(params[0]), nom_domaine: 'Informatique' }]];
   }
-  if (/FROM utilisateur WHERE email\s*=\s*\?/.test(statement)) {
-    const user = state.usersByEmail.get(String(params[0]));
+
+  if (/FROM utilisateur WHERE email = \?/.test(sql)) {
+    const user = state.users.find((u) => u.email === String(params[0]));
     return [user ? [{ ...user }] : []];
   }
-  if (/FROM utilisateur WHERE id_utilisateur\s*=\s*\?/.test(statement)) {
-    const user = state.usersById.get(Number(params[0]));
-    return [user ? [{ ...user }] : []];
+
+  if (/FROM utilisateur WHERE id_utilisateur = \?/.test(sql)) {
+    const user = state.users.find((u) => Number(u.id_utilisateur) === Number(params[0]));
+    if (!user) return [[]];
+    const publicUser = { ...user };
+    delete publicUser.mot_de_passe;
+    return [[publicUser]];
   }
-  if (/INSERT INTO utilisateur/.test(statement)) {
-    const [nom, prenom, email, mot_de_passe, telephone, photo, photo_couverture, email_verifie] = params;
-    const id = state.nextId++;
+
+  if (/INSERT INTO utilisateur/.test(sql)) {
+    const [nom, prenom, email, mot_de_passe, telephone, role, photo, photo_couverture, email_verifie] = params;
+    const id = state.nextUserId++;
+    const verifie = Number(email_verifie) === 1;
     const user = {
       id_utilisateur: id,
       nom,
@@ -47,44 +84,118 @@ const fakeExecute = async (sql, params = []) => {
       email,
       mot_de_passe,
       telephone,
+      role,
       photo,
       photo_couverture,
-      role: 'candidat',
-      email_verifie: Number(email_verifie),
+      email_verifie: verifie ? 1 : 0,
+      email_verifie_le: verifie ? new Date() : null,
       date_inscription: new Date(),
-      statut_compte: 'actif',
-      email_verifie_le: Number(email_verifie) ? new Date() : null
+      statut_compte: 'actif'
     };
-    state.usersById.set(id, user);
-    state.usersByEmail.set(email, user);
-    state.inserts.push({ sql: statement, params });
+    state.users.push(user);
     return [{ insertId: id, affectedRows: 1 }];
   }
-  if (/INSERT INTO profil_professionnel/.test(statement)) {
+
+  if (/INSERT INTO profil_professionnel/.test(sql)) {
+    state.profiles.push({ id_utilisateur: Number(params[0]), id_domaine: Number(params[1]) });
     return [{ affectedRows: 1 }];
   }
-  if (/UPDATE utilisateur\s+SET email_verification_token_hash/.test(statement)) {
-    state.tokenUpdates.push({ sql: statement, params });
+
+  if (/INSERT INTO inscription_en_attente/.test(sql)) {
+    const [id, email, nom, prenom, telephone, id_domaine, mot_de_passe, ticket_hash, code_hash, ttl] = params;
+    const now = Date.now();
+    state.pending.push({
+      id_inscription: id,
+      email,
+      nom,
+      prenom,
+      telephone,
+      id_domaine: Number(id_domaine),
+      mot_de_passe,
+      ticket_hash,
+      code_hash,
+      expire_at: now + Number(ttl) * 1000,
+      tentatives: 0,
+      envois: 1,
+      dernier_envoi_at: now
+    });
     return [{ affectedRows: 1 }];
   }
-  if (/UPDATE utilisateur\s+SET email_verifie = 1/.test(statement)) {
+
+  if (/FROM inscription_en_attente WHERE id_inscription = \? FOR UPDATE/.test(sql)) {
+    const row = state.pending.find((p) => p.id_inscription === params[0]);
+    return [row ? [{ ...row }] : []];
+  }
+
+  if (/SELECT TIMESTAMPDIFF\(SECOND, NOW\(\), expire_at\) AS expire_dans FROM inscription_en_attente WHERE id_inscription = \?/.test(sql)) {
+    const row = state.pending.find((p) => p.id_inscription === params[0]);
+    if (!row) return [[]];
+    return [[{ expire_dans: Math.floor((row.expire_at - Date.now()) / 1000) }]];
+  }
+
+  if (/^SELECT[\s\S]*FROM inscription_en_attente WHERE ticket_hash = \?/.test(sql)) {
+    const resendSeconds = Number(params[0]) || 60;
+    const row = state.pending.find((p) => p.ticket_hash === params[1]);
+    return [row ? [timing(row, resendSeconds)] : []];
+  }
+
+  if (/UPDATE inscription_en_attente SET code_hash = \?/.test(sql)) {
+    const [code_hash, ttl, id, ticket_hash] = params;
+    const row = state.pending.find((p) => p.id_inscription === id && p.ticket_hash === ticket_hash);
+    if (!row) return [{ affectedRows: 0 }];
+    row.code_hash = code_hash;
+    row.tentatives = 0;
+    row.envois += 1;
+    row.dernier_envoi_at = Date.now();
+    row.expire_at = Date.now() + Number(ttl) * 1000;
     return [{ affectedRows: 1 }];
   }
-  throw new Error(`Requête SQL inattendue dans le test : ${statement}`);
+
+  if (/UPDATE inscription_en_attente SET tentatives = \?/.test(sql)) {
+    const row = state.pending.find((p) => p.id_inscription === params[1]);
+    if (!row) return [{ affectedRows: 0 }];
+    row.tentatives = Number(params[0]);
+    return [{ affectedRows: 1 }];
+  }
+
+  if (/DELETE FROM inscription_en_attente WHERE expire_at < DATE_SUB\(NOW\(\), INTERVAL 1 HOUR\)/.test(sql)) {
+    const limit = Date.now() - 60 * 60 * 1000;
+    const before = state.pending.length;
+    state.pending = state.pending.filter((p) => p.expire_at >= limit);
+    return [{ affectedRows: before - state.pending.length }];
+  }
+
+  if (/DELETE FROM inscription_en_attente WHERE email = \?/.test(sql)) {
+    const before = state.pending.length;
+    state.pending = state.pending.filter((p) => p.email !== params[0]);
+    return [{ affectedRows: before - state.pending.length }];
+  }
+
+  if (/DELETE FROM inscription_en_attente WHERE ticket_hash = \?/.test(sql)) {
+    const before = state.pending.length;
+    state.pending = state.pending.filter((p) => p.ticket_hash !== params[0]);
+    return [{ affectedRows: before - state.pending.length }];
+  }
+
+  if (/DELETE FROM inscription_en_attente WHERE id_inscription = \?/.test(sql)) {
+    const before = state.pending.length;
+    state.pending = state.pending.filter((p) => p.id_inscription !== params[0]);
+    return [{ affectedRows: before - state.pending.length }];
+  }
+
+  throw new Error(`Requête SQL inattendue dans le test : ${sql}`);
 };
 
+let snapshot = null;
 const fakeConnection = {
   execute: fakeExecute,
-  beginTransaction: async () => {},
-  commit: async () => {},
-  rollback: async () => {},
+  beginTransaction: async () => { snapshot = structuredClone(state); },
+  commit: async () => { snapshot = null; },
+  rollback: async () => { if (snapshot) Object.assign(state, structuredClone(snapshot)); snapshot = null; },
   release: () => {}
 };
 
-const fakeDb = {
-  execute: fakeExecute,
-  getConnection: async () => fakeConnection
-};
+const fakeDb = { execute: fakeExecute, getConnection: async () => fakeConnection };
 
 // Remplacement AVANT tout chargement du contrôleur (et de ses dépendances).
 const databasePath = require.resolve('../src/config/database');
@@ -95,50 +206,11 @@ require.cache[databasePath] = {
   exports: fakeDb
 };
 
+const mailer = require('../src/services/email.service');
+const sent = [];
+mailer.send = async (message) => { sent.push(message); };
+
 const auth = require('../src/controllers/auth.controller');
-
-/* --------------------------- Environnement ------------------------------ */
-const ENV_KEYS = [
-  'BREVO_API_KEY', 'MAIL_FROM_EMAIL', 'MAIL_FROM_NAME', 'APP_URL',
-  'EMAIL_VERIFICATION_REQUIRED', 'EMAIL_VERIFICATION_TTL_HOURS'
-];
-
-const setEnv = ({ configured, required }) => {
-  for (const key of ENV_KEYS) delete process.env[key];
-  process.env.JWT_SECRET = 'secret-de-test';
-  process.env.JWT_EXPIRES_IN = '1h';
-  if (configured) {
-    process.env.BREVO_API_KEY = 'xkeysib-test';
-    process.env.MAIL_FROM_EMAIL = 'no-reply@linkemploi.test';
-    process.env.MAIL_FROM_NAME = 'LinkEmploi Test';
-    process.env.APP_URL = 'http://localhost:5000';
-  }
-  process.env.EMAIL_VERIFICATION_REQUIRED = required ? 'true' : 'false';
-  process.env.EMAIL_VERIFICATION_TTL_HOURS = '24';
-};
-
-const resetState = () => {
-  state.usersById.clear();
-  state.usersByEmail.clear();
-  state.inserts = [];
-  state.tokenUpdates = [];
-  state.fetchCalls = [];
-  state.nextId = 200;
-};
-
-const okFetch = async (url, options) => {
-  state.fetchCalls.push({ url, options });
-  return { ok: true, status: 201, text: async () => '' };
-};
-
-const failingFetch = async (url, options) => {
-  state.fetchCalls.push({ url, options });
-  return {
-    ok: false,
-    status: 401,
-    text: async () => JSON.stringify({ code: 'unauthorized', message: 'Key not found' })
-  };
-};
 
 /* ------------------------- Requête / réponse ---------------------------- */
 const makeReq = ({ body = {}, params = {}, query = {}, headers = {} } = {}) => ({
@@ -150,7 +222,6 @@ const makeRes = () => ({
   statusCode: 200,
   payload: null,
   cookies: [],
-  redirectUrl: null,
   status(code) { this.statusCode = code; return this; },
   json(payload) { this.payload = payload; return this; },
   cookie(name, value, options) { this.cookies.push({ name, value, options }); return this; },
@@ -173,8 +244,17 @@ const registerBody = (email) => ({
   prenom: 'Jean',
   email,
   mot_de_passe: 'MotDePasse123!',
+  telephone: '+243800000000',
   id_domaine: 1
 });
+
+const extractCode = (message) => {
+  const match = String(message?.text || '').match(/^\d{6}$/m);
+  if (!match) throw new Error('Code absent de l’e-mail capturé.');
+  return match[0];
+};
+
+const lastCode = () => extractCode(sent[sent.length - 1]);
 
 let checks = 0;
 const test = async (name, fn) => {
@@ -189,141 +269,150 @@ const test = async (name, fn) => {
   }
 };
 
-console.log('Flux du contrôleur d’authentification (base et Brevo simulés)');
+console.log('Flux du contrôleur d’authentification (base, DNS et e-mail simulés)');
 
 (async () => {
-  global.fetch = okFetch;
-
-  await test('(a) Brevo non configuré : inscription vérifiée d’office, sans envoi ni session obligatoire', async () => {
-    resetState();
-    setEnv({ configured: false, required: false });
-    const email = 'mode-a@example.com';
-
-    const res = await call(auth.register, makeReq({ body: registerBody(email) }));
-
-    assert.equal(res.statusCode, 201);
-    assert.equal(res.payload.success, true);
-    assert.equal(res.payload.data.verification_required, false);
-    assert.ok(res.payload.data.token);
-    assert.equal(state.fetchCalls.length, 0, 'aucun appel Brevo attendu');
-
-    const insert = state.inserts.find((entry) => entry.params[2] === email);
-    assert.ok(insert, 'insertion du compte attendue');
-    assert.equal(Number(insert.params[7]), 1, 'compte vérifié automatiquement');
-    assert.equal(state.usersByEmail.get(email).email_verifie, 1);
-    assert.ok(res.cookies.some((cookie) => cookie.name === 'gc_token'), 'session créée');
-  });
-
-  await test('(b) Brevo configuré, vérification informative : compte non vérifié, session + un envoi', async () => {
-    resetState();
-    setEnv({ configured: true, required: false });
-    const email = 'mode-b@example.com';
-
-    const res = await call(auth.register, makeReq({ body: registerBody(email) }));
-
-    assert.equal(res.statusCode, 201);
-    assert.equal(res.payload.data.verification_required, false);
-    assert.equal(res.payload.data.email_verification_sent, true);
-    assert.ok(res.payload.data.token);
-    assert.equal(state.fetchCalls.length, 1, 'un seul appel Brevo attendu');
-
-    const insert = state.inserts.find((entry) => entry.params[2] === email);
-    assert.equal(Number(insert.params[7]), 0, 'compte non vérifié');
-    assert.ok(res.cookies.some((cookie) => cookie.name === 'gc_token'), 'session créée');
-  });
-
-  await test('(c) Brevo configuré, vérification obligatoire : compte non vérifié, aucune session', async () => {
-    resetState();
-    setEnv({ configured: true, required: true });
-    const email = 'mode-c@example.com';
-
-    const res = await call(auth.register, makeReq({ body: registerBody(email) }));
-
-    assert.equal(res.statusCode, 201);
-    assert.equal(res.payload.data.verification_required, true);
-    assert.equal(res.payload.data.email_verification_sent, true);
-    assert.equal(res.payload.data.token, undefined, 'aucun jeton de session');
-    assert.equal(res.cookies.length, 0, 'aucune session');
-    assert.equal(state.fetchCalls.length, 1, 'un seul appel Brevo attendu');
-
-    const insert = state.inserts.find((entry) => entry.params[2] === email);
-    assert.equal(Number(insert.params[7]), 0, 'compte non vérifié');
-  });
-
-  await test('connexion : refusée (403) si non vérifié en mode (c), acceptée en (a) et (b)', async () => {
-    // (a) : le compte créé est vérifié d'office.
-    resetState();
-    setEnv({ configured: false, required: false });
-    let body = registerBody('login-a@example.com');
-    await call(auth.register, makeReq({ body }));
-    let res = await call(auth.login, makeReq({ body: { email: body.email, mot_de_passe: body.mot_de_passe } }));
-    assert.equal(res.statusCode, 200);
-    assert.ok(res.payload.data.token);
-
-    // (b) : comtpe non vérifié mais mode informatif.
-    resetState();
-    setEnv({ configured: true, required: false });
-    body = registerBody('login-b@example.com');
-    await call(auth.register, makeReq({ body }));
-    res = await call(auth.login, makeReq({ body: { email: body.email, mot_de_passe: body.mot_de_passe } }));
-    assert.equal(res.statusCode, 200);
-
-    // (c) : compte non vérifié, mode strict.
-    resetState();
-    setEnv({ configured: true, required: true });
-    body = registerBody('login-c@example.com');
-    await call(auth.register, makeReq({ body }));
-    res = await call(auth.login, makeReq({ body: { email: body.email, mot_de_passe: body.mot_de_passe } }));
-    assert.equal(res.statusCode, 403);
-    assert.equal(res.payload.success, false);
-  });
-
-  await test('renvoi : 503 sans Brevo, envoi effectif en mode informatif et obligatoire', async () => {
-    resetState();
-    setEnv({ configured: false, required: false });
-    let res = await call(auth.resendVerification, makeReq({ body: { email: 'inconnu@example.com' } }));
-    assert.equal(res.statusCode, 503);
-
-    for (const required of [false, true]) {
+  try {
+    await test('register : 202, inscription en attente, aucun compte, un code envoyé', async () => {
       resetState();
-      setEnv({ configured: true, required });
-      const body = registerBody(`renvoi-${required ? 'strict' : 'info'}@example.com`);
-      await call(auth.register, makeReq({ body }));
-      const before = state.fetchCalls.length;
-      res = await call(auth.resendVerification, makeReq({ body: { email: `  ${body.email.toUpperCase()} ` } }));
+      sent.length = 0;
+      const email = 'jean.dupont@example.com';
+
+      const res = await call(auth.register, makeReq({ body: registerBody(email) }));
+
+      assert.equal(res.statusCode, 202);
+      assert.equal(res.payload.success, true);
+      assert.ok(res.payload.data.ticket, 'ticket attendu');
+      assert.equal(res.payload.data.email_masque, 'j***@example.com');
+      assert.equal(state.users.length, 0, 'aucun compte ne doit être créé');
+      assert.equal(state.pending.length, 1, 'inscription en attente attendue');
+      assert.equal(state.pending[0].email, email);
+      assert.equal(sent.length, 1, 'un seul code envoyé');
+      assert.equal(extractCode(sent[0]).length, 6);
+      assert.equal(res.cookies.length, 0, 'aucune session à l’étape 1');
+    });
+
+    await test('registerVerify : 201, compte vérifié, profil et session httpOnly', async () => {
+      resetState();
+      sent.length = 0;
+      const email = 'verify@example.com';
+      const register = await call(auth.register, makeReq({ body: registerBody(email) }));
+      const { ticket } = register.payload.data;
+
+      const res = await call(auth.registerVerify, makeReq({ body: { ticket, code: lastCode() } }));
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.payload.success, true);
+      assert.equal(res.payload.data.user.email, email);
+      assert.equal(res.payload.data.user.email_verifie, 1);
+      assert.ok(res.payload.data.token);
+      assert.equal(state.users.length, 1);
+      assert.equal(state.users[0].email_verifie, 1);
+      assert.deepEqual(state.profiles, [{ id_utilisateur: state.users[0].id_utilisateur, id_domaine: 1 }]);
+      assert.equal(state.pending.length, 0, 'demande supprimée après création');
+      const cookie = res.cookies.find((c) => c.name === 'gc_token');
+      assert.ok(cookie, 'cookie gc_token attendu');
+      assert.equal(cookie.options.httpOnly, true);
+    });
+
+    await test('registerVerify : code incorrect (422) sans créer de compte ni ouvrir de session', async () => {
+      resetState();
+      sent.length = 0;
+      const register = await call(auth.register, makeReq({ body: registerBody('wrong@example.com') }));
+      const { ticket } = register.payload.data;
+
+      const res = await call(auth.registerVerify, makeReq({ body: { ticket, code: '000000' } }));
+
+      assert.equal(res.statusCode, 422);
+      assert.equal(res.payload.success, false);
+      assert.equal(state.users.length, 0);
+      assert.equal(state.pending.length, 1);
+      assert.equal(state.pending[0].tentatives, 1);
+      assert.equal(res.cookies.length, 0);
+    });
+
+    await test('registerResend : délai respecté (429) puis nouveau code après 60 s', async () => {
+      resetState();
+      sent.length = 0;
+      const register = await call(auth.register, makeReq({ body: registerBody('resend@example.com') }));
+      const { ticket } = register.payload.data;
+
+      let res = await call(auth.registerResend, makeReq({ body: { ticket } }));
+      assert.equal(res.statusCode, 429);
+      assert.equal(sent.length, 1, 'aucun nouvel envoi avant le délai');
+
+      state.pending[0].dernier_envoi_at = Date.now() - 61000;
+      res = await call(auth.registerResend, makeReq({ body: { ticket } }));
       assert.equal(res.statusCode, 200);
-      assert.equal(state.fetchCalls.length, before + 1, 'un envoi de renvoi attendu');
-    }
-  });
+      assert.equal(sent.length, 2, 'nouveau code envoyé');
+      assert.equal(state.pending[0].envois, 2);
+    });
 
-  await test('vérification d’un jeton bien formé : succès', async () => {
-    resetState();
-    setEnv({ configured: true, required: true });
-    const res = await call(auth.verifyEmail, makeReq({ params: { token: 'a'.repeat(64) } }));
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.payload.success, true);
-  });
+    await test('registerCancel : 200 et idempotent', async () => {
+      resetState();
+      sent.length = 0;
+      const register = await call(auth.register, makeReq({ body: registerBody('cancel@example.com') }));
+      const { ticket } = register.payload.data;
 
-  await test('un refus Brevo (HTTP 401) n’empêche pas l’inscription', async () => {
-    resetState();
-    setEnv({ configured: true, required: false });
-    global.fetch = failingFetch;
-    const res = await call(auth.register, makeReq({ body: registerBody('brevo-401@example.com') }));
-    global.fetch = okFetch;
+      let res = await call(auth.registerCancel, makeReq({ body: { ticket } }));
+      assert.equal(res.statusCode, 200);
+      assert.equal(state.pending.length, 0);
 
-    assert.equal(res.statusCode, 201);
-    assert.equal(res.payload.data.email_verification_sent, false);
-  });
+      res = await call(auth.registerCancel, makeReq({ body: { ticket } }));
+      assert.equal(res.statusCode, 200);
+    });
 
-  // Vérifie que les e-mails de test sont bien normalisés (minuscules).
-  await test('l’adresse est normalisée avant insertion (casse et espaces ignorés)', async () => {
-    resetState();
-    setEnv({ configured: false, required: false });
-    const res = await call(auth.register, makeReq({ body: registerBody('  JEAN.Dupont@Example.COM ') }));
-    assert.equal(res.statusCode, 201);
-    assert.equal(res.payload.data.user.email, 'jean.dupont@example.com');
-    assert.ok(state.usersByEmail.has('jean.dupont@example.com'));
-  });
+    await test('l’adresse est normalisée avant l’inscription en attente', async () => {
+      resetState();
+      sent.length = 0;
+      await call(auth.register, makeReq({ body: registerBody('  JEAN.Dupont@Example.COM ') }));
+      assert.equal(state.pending[0].email, 'jean.dupont@example.com');
+      assert.equal(sent[0].to, 'jean.dupont@example.com');
+    });
+
+    await test('login : refusé (403) pour un compte historique non vérifié', async () => {
+      resetState();
+      const password = await bcrypt.hash('MotDePasse123!', 4);
+      state.users.push({
+        id_utilisateur: 900,
+        nom: 'Ancien',
+        prenom: 'Compte',
+        email: 'legacy@example.com',
+        mot_de_passe: password,
+        email_verifie: 0,
+        statut_compte: 'actif',
+        role: 'candidat'
+      });
+
+      const res = await call(auth.login, makeReq({
+        body: { email: 'legacy@example.com', mot_de_passe: 'MotDePasse123!' }
+      }));
+
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.payload.success, false);
+      assert.match(res.payload.message, /non vérifié/i);
+      assert.equal(res.cookies.length, 0);
+    });
+
+    await test('login : accepté pour un compte vérifié créé par le flux', async () => {
+      resetState();
+      sent.length = 0;
+      const email = 'login@example.com';
+      const register = await call(auth.register, makeReq({ body: registerBody(email) }));
+      const { ticket } = register.payload.data;
+      await call(auth.registerVerify, makeReq({ body: { ticket, code: lastCode() } }));
+
+      const res = await call(auth.login, makeReq({
+        body: { email, mot_de_passe: 'MotDePasse123!' }
+      }));
+
+      assert.equal(res.statusCode, 200);
+      assert.ok(res.payload.data.token);
+      assert.ok(res.cookies.some((c) => c.name === 'gc_token'));
+    });
+  } finally {
+    dns.resolveMx = originalResolveMx;
+  }
 
   if (process.exitCode) {
     console.error(`\n${checks} test(s) réussi(s), des erreurs subsistent.`);

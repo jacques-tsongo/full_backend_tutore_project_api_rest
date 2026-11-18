@@ -139,9 +139,9 @@ const countPlaceholders = (sql) => {
 const state = { mode: 'empty', candidateHasDomain: true, calls: [], violations: [] };
 
 const USERS = {
-  1: { id_utilisateur: 1, nom: 'Candidat', prenom: 'Alice', email: 'alice@example.com', telephone: null, photo: null, photo_couverture: null, role: 'candidat', date_inscription: new Date(), statut_compte: 'actif' },
-  2: { id_utilisateur: 2, nom: 'Recruteur', prenom: 'Bob', email: 'bob@example.com', telephone: null, photo: null, photo_couverture: null, role: 'recruteur', date_inscription: new Date(), statut_compte: 'actif' },
-  3: { id_utilisateur: 3, nom: 'Admin', prenom: 'Carol', email: 'carol@example.com', telephone: null, photo: null, photo_couverture: null, role: 'administrateur', date_inscription: new Date(), statut_compte: 'actif' }
+  1: { id_utilisateur: 1, nom: 'Candidat', prenom: 'Alice', email: 'alice@example.com', telephone: null, photo: null, photo_couverture: null, role: 'candidat', date_inscription: new Date(), statut_compte: 'actif', email_verifie: 1 },
+  2: { id_utilisateur: 2, nom: 'Recruteur', prenom: 'Bob', email: 'bob@example.com', telephone: null, photo: null, photo_couverture: null, role: 'recruteur', date_inscription: new Date(), statut_compte: 'actif', email_verifie: 1 },
+  3: { id_utilisateur: 3, nom: 'Admin', prenom: 'Carol', email: 'carol@example.com', telephone: null, photo: null, photo_couverture: null, role: 'administrateur', date_inscription: new Date(), statut_compte: 'actif', email_verifie: 1 }
 };
 
 const offerRow = (id) => ({
