@@ -221,3 +221,27 @@ CREATE TABLE notification (
   INDEX idx_notification_reference (type_reference, id_reference),
   CONSTRAINT fk_notification_utilisateur FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Inscriptions en attente de vérification par code e-mail (aucun compte
+-- `utilisateur` créé tant que le code n'est pas validé). Les secrets sont
+-- stockés uniquement sous forme d'empreintes (bcrypt / SHA-256 / HMAC).
+CREATE TABLE inscription_en_attente (
+  id_inscription CHAR(36) NOT NULL,
+  email VARCHAR(254) NOT NULL,
+  nom VARCHAR(100) NOT NULL,
+  prenom VARCHAR(100) NOT NULL,
+  telephone VARCHAR(20) NULL,
+  id_domaine INT UNSIGNED NULL,
+  mot_de_passe VARCHAR(255) NOT NULL,
+  ticket_hash CHAR(64) NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  expire_at DATETIME NOT NULL,
+  tentatives TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  envois TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  dernier_envoi_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_inscription),
+  UNIQUE KEY uq_inscription_en_attente_email (email),
+  INDEX idx_inscription_en_attente_expire (expire_at),
+  INDEX idx_inscription_en_attente_ticket (ticket_hash)
+) ENGINE=InnoDB;
