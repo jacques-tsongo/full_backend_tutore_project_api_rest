@@ -1,0 +1,49 @@
+<%- include('partials/head', { title: 'Vérification de l’e-mail', page: 'register' }) %>
+<main class="center-screen">
+  <section class="card auth-card">
+    <div class="auth-head">
+      <a class="brand" href="/" aria-label="Retour à l'accueil LinkEmploi">
+        <img src="/icons/icone_logo_application.png" alt="LinkEmploi" class="brand-logo">
+      </a>
+      <h1>Vérifiez votre e-mail</h1>
+      <p class="auth-sub">
+        Saisissez le code à 6 chiffres envoyé à
+        <strong><%= pending.email_masque %></strong>.
+        Il permet d’activer votre compte.
+      </p>
+    </div>
+    <%- include('partials/flash') %>
+    <form method="post" action="/register/verification" class="form"
+          data-signup-verify
+          data-expire-dans="<%= pending.expire_dans %>"
+          data-renvoi-dans="<%= pending.renvoi_dans %>">
+      <div class="field">
+        <label for="code">Code de vérification</label>
+        <input id="code" name="code" class="code-input" type="text"
+               inputmode="numeric" autocomplete="one-time-code"
+               pattern="[0-9]{6}" maxlength="6" required autofocus
+               aria-describedby="code-help">
+        <small id="code-help" class="muted-note">
+          Le code est valable <span data-expire-label>quelques minutes</span>.
+          Tentatives restantes : <%= pending.tentatives_restantes %>.
+        </small>
+      </div>
+      <p class="countdown" data-expire-message role="status" aria-live="polite"></p>
+      <button class="btn primary full" type="submit" data-verify-submit>
+        <%- icon('shield-check') %> Vérifier mon compte
+      </button>
+    </form>
+    <form method="post" action="/register/verification/renvoyer" class="form" data-resend-form>
+      <button class="btn ghost full" type="submit" data-resend-button>
+        <%- icon('send') %> <span data-resend-label>Renvoyer le code</span>
+      </button>
+    </form>
+    <p class="countdown" data-resend-message role="status" aria-live="polite"></p>
+    <form method="post" action="/register/verification/annuler" class="auth-actions">
+      <button type="submit" class="link-button">Modifier mon adresse e-mail</button>
+      <a href="/login">Retour à la connexion</a>
+    </form>
+  </section>
+</main>
+<script src="/js/pages/register-verify.js" defer></script>
+<%- include('partials/foot') %>
