@@ -35,7 +35,8 @@ const describeErrors = (payload) => {
 
 /**
  * Enveloppe : formulaire POST → contrôleur API → flash + redirect.
- * options.redirectTo : chaîne, fonction(req, payload) ou absent (→ page précédente).
+ * options.redirectTo : chaîne, fonction(req, payload, res) ou absent
+ * (→ page précédente). `res` permet de poser/effacer un cookie de flux.
  */
 exports.formPost = (controllerFn, options = {}) => async (req, res, next) => {
   try {
@@ -47,7 +48,7 @@ exports.formPost = (controllerFn, options = {}) => async (req, res, next) => {
       flash(res, 'success', payload.message || 'Opération réussie.');
     }
     const target = typeof options.redirectTo === 'function'
-      ? options.redirectTo(req, payload)
+      ? options.redirectTo(req, payload, res)
       : options.redirectTo;
     return res.redirect(target || backUrl(req, '/dashboard'));
   } catch (err) {
