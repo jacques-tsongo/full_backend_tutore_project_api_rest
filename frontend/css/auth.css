@@ -145,3 +145,60 @@ body[data-page="register"] .alert { border-radius: 12px; }
   .auth-head .brand-logo { height: 40px; }
   .auth-head h1 { font-size: 23px; }
 }
+
+
+/* ---------- 9. Renvoi de l'e-mail de vérification ---------- */
+.auth-resend {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(15, 107, 123, 0.28);
+}
+.auth-resend summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+}
+.auth-resend .form { margin-top: 12px; }
+[data-theme="dark"] .auth-resend { border-top-color: rgba(255, 255, 255, 0.14); }
+
+/* ---------- 10. Vérification de l'e-mail par code ---------- */
+.code-input {
+  text-align: center;
+  letter-spacing: 0.45em;
+  font-size: 28px;
+  font-weight: 700;
+  padding: 16px 14px;
+  font-variant-numeric: tabular-nums;
+}
+.auth-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.link-button:hover { text-decoration: underline; }
+.countdown {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  min-height: 1.2em;
+}
+.countdown.is-error { color: var(--danger); font-weight: 600; }
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none;
+}
