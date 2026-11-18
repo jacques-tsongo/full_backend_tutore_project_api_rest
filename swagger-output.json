@@ -1981,14 +1981,15 @@
             "description": "Identifiants incorrects"
           },
           "403": {
-            "description": "Compte inactif ou adresse e-mail non vérifiée (mode strict)"
+            "description": "Compte inactif ou adresse e-mail non vérifiée"
           }
         }
       }
     },
     "/api/auth/register": {
       "post": {
-        "summary": "Inscription d'un nouvel utilisateur",
+        "summary": "Démarrer une inscription (envoi d'un code à 6 chiffres)",
+        "description": "Aucun compte n'est créé à cette étape. Les données sont stockées dans `inscription_en_attente` et un code à 6 chiffres est envoyé par e-mail. La réponse contient un `ticket` à transmettre à l'étape de vérification.\n",
         "tags": [
           "Auth"
         ],
@@ -2000,23 +2001,120 @@
                 "type": "object",
                 "required": [
                   "nom",
+                  "prenom",
                   "email",
-                  "password"
+                  "mot_de_passe",
+                  "id_domaine"
                 ],
                 "properties": {
                   "nom": {
                     "type": "string",
-                    "example": "Jean Dupont"
+                    "example": "Dupont"
+                  },
+                  "prenom": {
+                    "type": "string",
+                    "example": "Jean"
                   },
                   "email": {
                     "type": "string",
                     "format": "email",
                     "example": "jean.dupont@example.com"
                   },
-                  "password": {
+                  "mot_de_passe": {
                     "type": "string",
                     "format": "password",
                     "example": "Secret123!"
+                  },
+                  "telephone": {
+                    "type": "string",
+                    "example": "+243800000000"
+                  },
+                  "id_domaine": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Code envoyé (ticket, email masqué, durées)"
+          },
+          "409": {
+            "description": "Adresse e-mail déjà utilisée"
+          },
+          "422": {
+            "description": "Données invalides, domaine inconnu ou e-mail jetable"
+          },
+          "429": {
+            "description": "Trop de demandes"
+          },
+          "503": {
+            "description": "Service d'envoi d'e-mails non configuré"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Annuler une inscription en attente",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ticket"
+                ],
+                "properties": {
+                  "ticket": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inscription annulée (idempotent)"
+          },
+          "422": {
+            "description": "Ticket invalide"
+          }
+        }
+      }
+    },
+    "/api/auth/register/verify": {
+      "post": {
+        "summary": "Valider le code et créer le compte",
+        "description": "Consomme l'inscription en attente, crée le compte vérifié et son profil professionnel dans une transaction, puis ouvre la session.\n",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ticket",
+                  "code"
+                ],
+                "properties": {
+                  "ticket": {
+                    "type": "string",
+                    "description": "Ticket opaque renvoyé par /api/auth/register"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$",
+                    "example": "123456"
                   }
                 }
               }
@@ -2025,10 +2123,59 @@
         },
         "responses": {
           "201": {
-            "description": "Compte créé (une vérification e-mail peut être requise)"
+            "description": "Compte créé et session ouverte"
           },
-          "400": {
-            "description": "Données invalides ou email déjà utilisé"
+          "410": {
+            "description": "Inscription introuvable ou code expiré"
+          },
+          "422": {
+            "description": "Code incorrect (tentatives restantes dans data)"
+          },
+          "429": {
+            "description": "Trop de tentatives ou trop de demandes"
+          },
+          "503": {
+            "description": "Service d'envoi d'e-mails non configuré"
+          }
+        }
+      }
+    },
+    "/api/auth/register/resend": {
+      "post": {
+        "summary": "Renvoyer un nouveau code de vérification",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ticket"
+                ],
+                "properties": {
+                  "ticket": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nouveau code envoyé (durées mises à jour)"
+          },
+          "410": {
+            "description": "Inscription introuvable ou expirée"
+          },
+          "429": {
+            "description": "Délai de renvoi, nombre maximal de renvois ou trop de demandes"
+          },
+          "503": {
+            "description": "Service d'envoi d'e-mails non configuré"
           }
         }
       }
@@ -2050,6 +2197,9 @@
           },
           "401": {
             "description": "Non autorisé (token manquant ou invalide)"
+          },
+          "403": {
+            "description": "Compte non vérifié"
           }
         }
       },
@@ -2161,75 +2311,6 @@
           },
           "401": {
             "description": "Non autorisé"
-          }
-        }
-      }
-    },
-    "/api/auth/verify-email/{token}": {
-      "get": {
-        "summary": "Vérifier une adresse e-mail à partir du lien reçu",
-        "tags": [
-          "Auth"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Jeton à usage unique reçu par e-mail"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Adresse e-mail vérifiée"
-          },
-          "400": {
-            "description": "Jeton invalide ou expiré"
-          }
-        }
-      }
-    },
-    "/api/auth/resend-verification": {
-      "post": {
-        "summary": "Renvoyer l'e-mail de vérification",
-        "tags": [
-          "Auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "example": "jean.dupont@example.com"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Demande prise en compte (réponse identique si le compte est inconnu ou déjà vérifié)"
-          },
-          "422": {
-            "description": "Adresse e-mail invalide"
-          },
-          "429": {
-            "description": "Trop de demandes"
-          },
-          "503": {
-            "description": "Service d'envoi d'e-mails non configuré"
           }
         }
       }
