@@ -20,8 +20,39 @@ const suggestion = require('../controllers/suggestion.controller');
 
 const { webAuth, webOptionalAuth, webAuthorize, COOKIE_NAME } = require('../middlewares/auth.middleware');
 const { formPost } = require('../helpers/formPost');
+const { verifyCodeLimiter, resendCodeLimiter } = require('../middlewares/rateLimit.middleware');
+const { webValidate } = require('../middlewares/webValidate.middleware');
+const v = require('../validators/auth.validator');
 const { flash } = require('../helpers/flash');
+const signup = require('../services/signup.service');
 const { photoUpload, cvUpload, coverUpload, companyUpload } = require('../middlewares/upload.middleware');
+
+/* ------------------- Flux d'inscription par code (web) ------------------- */
+const SIGNUP_COOKIE = 'gc_signup';
+const SIGNUP_COOKIE_MAX_AGE = (signup.loadConfig().ttlSeconds + 5 * 60) * 1000;
+
+const signupCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  maxAge: SIGNUP_COOKIE_MAX_AGE
+});
+
+const setSignupCookie = (res, ticket) => res.cookie(SIGNUP_COOKIE, ticket, signupCookieOptions());
+const clearSignupCookie = (res) => res.clearCookie(SIGNUP_COOKIE, { path: '/' });
+
+/** Le ticket d'inscription reste côté serveur (cookie httpOnly), pas dans l'URL. */
+const requireSignupTicket = (req, res, next) => {
+  const ticket = req.cookies?.[SIGNUP_COOKIE];
+  if (!ticket) {
+    flash(res, 'danger', 'Votre demande d’inscription a expiré. Recommencez l’inscription.');
+    return res.redirect('/register');
+  }
+  req.body = req.body || {};
+  req.body.ticket = ticket;
+  return next();
+};
 
 /* ---------- Compteurs de navigation (badges Messages / Notifications) ---------- */
 const loadNavCounts = async (req, res, next) => {
@@ -87,12 +118,50 @@ router.post('/contact', (req, res) => {
 });
 
 router.get('/login', webOptionalAuth, page.loginPage);
-router.post('/login', formPost(auth.login, { redirectTo: (req, payload) => page.dashboardPath(payload?.data?.user) }));
+router.post('/login', webValidate(v.login, { redirectTo: '/login' }), formPost(auth.login, { redirectTo: (req, payload) => page.dashboardPath(payload?.data?.user) }));
 router.get('/register', webOptionalAuth, page.registerPage);
-// Après la création du compte, le nouveau candidat est dirigé vers la page
-// « Ajouter vos compétences » (choix multiples → « Suivant » ou « Ignorer »)
-// avant d'atteindre son tableau de bord.
-router.post('/register', formPost(auth.register, { redirectTo: (req, payload) => (payload?.success === false ? '/register' : '/competences') }));
+// Étape 1 : aucun compte n'est créé. En cas de succès, le ticket est conservé
+// dans un cookie httpOnly et l'utilisateur saisit le code reçu par e-mail.
+router.post('/register', webValidate(v.register, { redirectTo: '/register' }), formPost(auth.register, {
+  redirectTo: (req, payload, res) => {
+    if (payload?.success === false || !payload?.data?.ticket) return '/register';
+    setSignupCookie(res, payload.data.ticket);
+    return '/register/verification';
+  }
+}));
+
+// Page de saisie du code (le ticket n'est jamais exposé dans l'URL).
+router.get('/register/verification', webOptionalAuth, page.registerVerificationPage);
+// Étape 2 : valide le code, crée le compte, ouvre la session puis dirige vers
+// l'onboarding des compétences. Un code expiré impose de recommencer.
+router.post('/register/verification', requireSignupTicket, verifyCodeLimiter,
+  webValidate(v.registerVerify, { redirectTo: '/register/verification' }),
+  formPost(auth.registerVerify, {
+    redirectTo: (req, payload, res) => {
+      if (payload?.success === true) {
+        clearSignupCookie(res);
+        return '/competences';
+      }
+      if (payload?.data?.expired) {
+        clearSignupCookie(res);
+        return '/register';
+      }
+      return '/register/verification';
+    }
+  }));
+// Renvoi d'un nouveau code (délai et nombre maximal appliqués côté service).
+router.post('/register/verification/renvoyer', requireSignupTicket, resendCodeLimiter,
+  webValidate(v.registerResend, { redirectTo: '/register/verification' }),
+  formPost(auth.registerResend, { redirectTo: '/register/verification' }));
+// Annulation : supprime l'inscription en attente et le cookie de flux.
+router.post('/register/verification/annuler', requireSignupTicket,
+  webValidate(v.registerCancel, { redirectTo: '/register/verification' }),
+  formPost(auth.registerCancel, {
+    redirectTo: (req, payload, res) => {
+      clearSignupCookie(res);
+      return '/register';
+    }
+  }));
 
 // Déconnexion : invalide la session navigateur (cookie httpOnly supprimé).
 router.post('/logout', (req, res) => {
