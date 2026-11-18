@@ -4,20 +4,19 @@ const app = require('./app');
 const db = require('./config/database');
 const socket = require('./socket');
 const offerAlert = require('./services/offerAlert.service');
-const mailer = require('./services/email.service');
+const signup = require('./services/signup.service');
 const port = Number(process.env.PORT || 5000);
 
-// État de la vérification e-mail affiché à CHAQUE démarrage : sans cela, on
-// peut croire que la vérification est active alors que Brevo n'est pas configuré.
-const mailConfig = mailer.loadConfig();
-console.log(mailer.describeVerificationState(mailConfig));
-// La vérification stricte est ignorée sans transport e-mail : sans ce garde-fou,
-// activer EMAIL_VERIFICATION_REQUIRED sans Brevo bloquerait toutes les connexions.
-if (mailConfig.required && !mailer.isConfigured(mailConfig)) {
-    console.warn('EMAIL_VERIFICATION_REQUIRED=true ignoré : BREVO_API_KEY et MAIL_FROM_EMAIL sont requis.');
-}
+// État de l'inscription par code affiché à CHAQUE démarrage : sans cela, on
+// peut croire que le code est envoyé alors que la configuration est incomplète.
+console.log(signup.describeState());
+// Avertissements non bloquants (TTL hors bornes, secret trop court…).
+signup.validateConfig();
+
 db.getConnection().then((c) => { 
     c.release(); 
+    // Nettoyage opportuniste des inscriptions expirées (non bloquant).
+    signup.purgeExpired().catch(() => {});
     // Un SEUL serveur HTTP sert Express + Socket.IO (pas de second serveur).
     const server = http.createServer(app);
     socket.initSocket(server);
