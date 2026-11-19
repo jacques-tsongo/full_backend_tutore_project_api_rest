@@ -15,7 +15,7 @@ CREATE TABLE utilisateur (
   prenom VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   mot_de_passe VARCHAR(255) NOT NULL,
-  telephone VARCHAR(20) NULL,
+  telephone VARCHAR(20) NULL unique,
   photo VARCHAR(255) NULL,
   role ENUM('candidat','recruteur','administrateur') NOT NULL DEFAULT 'candidat',
   date_inscription DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
