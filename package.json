@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "API REST de gestion des carrières et offres d'emploi",
   "main": "src/server.js",
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
@@ -17,6 +18,8 @@
     "test:sql": "node test/sql-pagination-safety.js",
     "test:migrations": "node test/migrations-safety.js",
     "test:files": "node test/security-files.js",
+    "test:filetype": "node test/filetype-compat.js",
+    "test:uploads": "node test/upload-controllers.js",
     "test:messaging": "node test/messaging-policy.js",
     "test:idor": "node test/idor-resources.js",
     "test:constraints": "node test/db-constraints.js",

@@ -7,6 +7,8 @@ Plateforme de gestion des carrières et offres d'emploi :
 
 ## Installation
 
+**Prérequis : Node.js 22 ou plus récent** (à vérifier avec `node -v`). La version 22 de `file-type`, utilisée pour détecter le vrai type des fichiers téléversés, est un module ESM qui impose `node >= 22` (déclaré dans `engines`).
+
 1. Créez la base avec [database/schema.sql](database/schema.sql) dans MySQL (le script force `SET NAMES utf8mb4` pour éviter tout problème d'encodage des valeurs accentuées).
 2. Appliquez les migrations : `npm run migrate` (suivi automatique dans `schema_migrations`, seules les migrations non encore appliquées sont exécutées).
 3. Copiez `.env.example` vers `.env` et renseignez vos identifiants MySQL, un `JWT_SECRET` robuste et `STORAGE_DIR` (stockage privé des fichiers). L'inscription par code exige aussi `EMAIL_CODE_SECRET` (≥ 32 caractères) et un envoi d'e-mails configuré (`SMTP_USER`/`SMTP_PASS` Gmail ou `MAIL_DRIVER=console` en local) — voir [Inscription par code de vérification](#inscription-par-code-de-vérification).
@@ -184,6 +186,8 @@ uniquement via `GET /files/:id`.
   acceptés, et les URL renvoyées sont de la forme `/files/<id>`.
 - Un refus d'accès renvoie **404** (comme un fichier inexistant), jamais 403,
   afin de ne pas révéler l'existence d'un fichier d'autrui.
+- **En production, `STORAGE_DIR` doit pointer vers un disque persistant** (volume monté). Sur un hébergeur à système de fichiers éphémère, les fichiers disparaissent à chaque redéploiement, alors que la table `fichier` continue de les référencer. Sauvegardez **le dossier `STORAGE_DIR` et la base** ensemble : l'un sans l'autre ne permet pas de restaurer les téléversements.
+- Au démarrage, la ligne `Stockage privé des fichiers : OK (<chemin absolu>)` confirme la détection `file-type`, le droit d'écriture et la présence de la table `fichier`. Toute autre valeur signale `LES TÉLÉVERSEMENTS ÉCHOUERONT` ; le serveur démarre quand même.
 
 | Catégorie | Propriétaire | Administrateur | Recruteur légitime | Tout utilisateur authentifié |
 | --- | --- | --- | --- | --- |
@@ -192,11 +196,14 @@ uniquement via `GET /files/:id`.
 | `JUSTIFICATIF` | oui | oui | non | non |
 
 Migration des fichiers historiques (idempotente, les originaux de `uploads/`
-sont conservés) :
+sont conservés). Après la réparation du stockage, exécutez d'abord la
+simulation, puis la migration réelle : tant qu'elle n'a pas été faite, les
+anciennes photos/CV dont la référence commence par `uploads/...` ne
+s'affichent plus.
 
 ```bash
+npm run files:migrate -- --dry-run # simulation : aucune écriture
 npm run files:migrate             # enregistre et remplace les références uploads/... par /files/:id
-npm run files:migrate -- --dry-run # simulation
 ```
 
 Les images par défaut (avatar, couverture) sont publiques et servies depuis

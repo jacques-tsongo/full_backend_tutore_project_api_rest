@@ -14,7 +14,7 @@
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
-const FileType = require('file-type');
+const { detectFileType } = require('../utils/fileType');
 const db = require('../config/database');
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png'];
@@ -31,6 +31,11 @@ const CATEGORIES = Object.freeze({
   CV: { dir: 'cv', mimes: CV_MIMES, maxBytes: 10 * 1024 * 1024 },
   JUSTIFICATIF: { dir: 'justificatifs', mimes: ['application/pdf'], maxBytes: 10 * 1024 * 1024 }
 });
+
+const SELF_CHECK_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+);
 
 class FileValidationError extends Error {
   constructor(message, statusCode = 422) {
@@ -80,7 +85,7 @@ const validateFile = async ({ buffer, categorie, originalname }) => {
   if (buffer.length > rule.maxBytes) {
     throw new FileValidationError('Fichier trop volumineux.', 413);
   }
-  const detected = await FileType.fromBuffer(buffer);
+  const detected = await detectFileType(buffer);
   if (!detected) {
     throw new FileValidationError('Type de fichier non reconnu.');
   }
@@ -148,6 +153,50 @@ const discard = async (saved) => {
   if (saved.chemin) await removeStored(saved.chemin).catch(() => {});
 };
 
+const shortError = (error) => String(error?.code || error?.message || error).slice(0, 200);
+
+/**
+ * Auto-diagnostic affiché au démarrage : détection réelle par file-type,
+ * droit d'écriture dans STORAGE_DIR et présence de la table `fichier`.
+ * Non bloquant : chaque contrôle est indépendant et toujours signalé.
+ */
+const selfCheck = async ({ connection = db } = {}) => {
+  const root = storageRoot();
+  const checks = { detection: 'OK', dossier: 'OK', table: 'OK' };
+
+  try {
+    const detected = await detectFileType(SELF_CHECK_PNG);
+    if (detected?.mime !== 'image/png') throw new Error('PNG de contrôle non reconnu comme image/png');
+  } catch (error) {
+    checks.detection = shortError(error);
+  }
+
+  try {
+    await fs.mkdir(root, { recursive: true });
+    const temporary = path.join(root, `.selfcheck-${process.pid}-${crypto.randomUUID()}`);
+    await fs.writeFile(temporary, 'ok', { flag: 'wx' });
+    await fs.unlink(temporary);
+  } catch (error) {
+    checks.dossier = shortError(error);
+  }
+
+  try {
+    const [rows] = await connection.execute("SHOW TABLES LIKE 'fichier'");
+    if (!rows.length) throw new Error("table 'fichier' absente");
+  } catch (error) {
+    checks.table = shortError(error);
+  }
+
+  const errors = Object.entries(checks)
+    .filter(([, value]) => value !== 'OK')
+    .map(([key, value]) => `${key} : ${value}`);
+  return { ok: errors.length === 0, path: root, checks, errors };
+};
+
+const describeSelfCheck = (state) => (state.ok
+  ? `Stockage privé des fichiers : OK (${state.path})`
+  : `Stockage privé des fichiers : ERREUR — ${state.errors.join(' ; ')} : LES TÉLÉVERSEMENTS ÉCHOUERONT`);
+
 module.exports = {
   CATEGORIES,
   FileValidationError,
@@ -157,5 +206,7 @@ module.exports = {
   validateFile,
   save,
   removeStored,
-  discard
+  discard,
+  selfCheck,
+  describeSelfCheck
 };

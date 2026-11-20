@@ -27,7 +27,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const FileType = require('file-type');
+const { detectFileType } = require('../src/utils/fileType');
 const db = require('../src/config/database');
 const { resolveStoredPath } = require('../src/services/fileStorage.service');
 
@@ -111,7 +111,7 @@ const findOwner = async (relative, filename) => {
 };
 
 const detectMime = async (buffer, relative) => {
-  const detected = await FileType.fromBuffer(buffer);
+  const detected = await detectFileType(buffer);
   if (detected) return detected.mime;
   const ext = path.extname(relative).toLowerCase();
   return EXT_MIME[ext] || null;
